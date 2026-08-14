@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The article — Silver</title>
+<link rel="stylesheet" href="css/app.css">
+<style>
+  /* app.css is written for a fixed full-screen shell — `html, body { height:
+     100% }` and `body { overflow: hidden }`, which is correct there and makes
+     this page unscrollable. This is a document, so give it back. */
+  html, body { height: auto; min-height: 100%; overflow: visible; }
+  body { padding: 28px 20px 60px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  .pair { display: grid; gap: 22px; }
+  .plate { border: 1px solid var(--rule-strong, #333); border-radius: 12px; padding: 20px 24px; background: var(--panel, #16181d); }
+  .stamp { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; opacity: .55; margin-bottom: 10px; }
+  h1.who { margin: 0 0 2px; font-size: 30px; }
+  @media (min-width: 980px) { .pair { grid-template-columns: 1fr 1fr; align-items: start; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stamp" id="crumb">loading…</div>
+  <div class="pair">
+    <div class="plate">
+      <div class="stamp">written on leaving office</div>
+      <h1 class="who" id="n1">—</h1>
+      <div class="tiny dimmer" id="s1"></div>
+      <div class="rule"></div>
+      <div id="a1"></div>
+    </div>
+    <div class="plate">
+      <div class="stamp">revised with hindsight, twelve years on</div>
+      <h1 class="who" id="n2">—</h1>
+      <div class="tiny dimmer" id="s2"></div>
+      <div class="rule"></div>
+      <div id="a2"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+// Renders the article using the engine's own composer and the game's own
+// stylesheet — no hand-written prose anywhere in this file. The world is the
+// one from the played term; `bios[pid].text` is what was written the day they
+// left and `finalText` is the rewrite twelve years later.
+import * as C from './js/chronicle.js';
+
+// The world is a build product, not a fixture in the repo: run
+//   node tools/make-bioworld.mjs ["Their Name"] ["Their Republic"]
+// which simulates a term, lets the article be written on the way out, and lets
+// twelve years revise it. Say so here rather than fail with a bare 404.
+const res = await fetch('./_bioworld.json');
+if (!res.ok) {
+  document.getElementById('crumb').textContent =
+    'No world to read. Run:  node tools/make-bioworld.mjs';
+  throw new Error('no _bioworld.json');
+}
+const world = await res.json();
+
+// Whoever the run wrote up — ?who=Name picks one out when there is more than
+// one. Hardcoding a name meant regenerating for anybody else broke the page.
+const want = new URLSearchParams(location.search).get('who');
+const subject = Object.values(world.personas)
+  .find((p) => world.bios?.[p.id] && (!want || p.name === want));
+if (!subject) {
+  document.getElementById('crumb').textContent =
+    want ? `Nobody called ${want} has an article in this world.` : 'Nobody in this world has an article.';
+  throw new Error('no subject');
+}
+const bio = world.bios[subject.id];
+const row = C.computeRanking(world).find((r) => r.persona.id === subject.id);
+
+document.getElementById('crumb').textContent =
+  `${world.nation} · ${world.seasonName} · read on ${C.canonDate(world)}`;
+
+// The same shape ui.bioBody builds, so it inherits the game's serif and rules.
+function render(where, article) {
+  const box = document.getElementById(where);
+  box.replaceChildren();
+  if (!article) { box.textContent = 'No article.'; return; }
+  const p = document.createElement('p');
+  p.className = 'serif';
+  p.style.cssText = 'line-height:1.7;font-size:105%';
+  p.textContent = article.lede;
+  box.append(p);
+  for (const s of article.sections || []) {
+    const h = document.createElement('h3');
+    h.style.margin = '14px 0 2px';
+    h.textContent = s.h;
+    box.append(h);
+    for (const para of s.p) {
+      const q = document.createElement('p');
+      q.className = 'serif';
+      q.style.cssText = 'line-height:1.65;margin:4px 0';
+      q.textContent = para;
+      box.append(q);
+    }
+  }
+}
+
+for (const [n, s] of [['n1', 's1'], ['n2', 's2']]) {
+  document.getElementById(n).textContent = subject.name;
+  document.getElementById(s).textContent = `${C.heldAs(row)} of ${world.nation}`;
+}
+render('a1', bio.text);
+render('a2', bio.finalText || bio.text);
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Silver — The Living Republic</title>
+  <!-- Resolve the theme before the stylesheet paints, so the app never shows a
+       bright frame on its way to dark. js/theme.js owns this logic; these few
+       lines are the copy that has to run first. -->
+  <script>
+    (function () {
+      try {
+        var p = localStorage.getItem('silver.theme');
+        // Dark unless the player has said otherwise. 'system' is a stored choice,
+        // not the absence of one.
+        if (p === 'system') {
+          p = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        } else if (p !== 'light' && p !== 'dark') {
+          p = 'dark';
+        }
+        document.documentElement.dataset.theme = p;
+      } catch (e) { document.documentElement.dataset.theme = 'dark'; }
+    })();
+  </script>
+  <link rel="stylesheet" href="css/app.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◈</text></svg>" />
+</head>
+<body>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

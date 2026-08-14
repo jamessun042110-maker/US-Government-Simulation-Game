@@ -1,0 +1,12 @@
+{
+  "name": "silver-prototype",
+  "private": true,
+  "type": "module",
+  "description": "Static host + WebSocket relay for the SILVER prototype. The game itself has no dependencies; this is only for playing across machines.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

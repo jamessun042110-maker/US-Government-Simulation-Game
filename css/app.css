@@ -1,0 +1,939 @@
+/* ---------- the Dossier type system ----------------------------------------
+   Silver's own voice: Space Grotesk for the working state (headings, UI),
+   Space Mono for the record (stats, dates, the ledger), EB Garamond for the
+   documents themselves — constitutions and preambles set in genuine old ink.
+   Bundled locally (fonts/, OFL-licensed) so the look survives offline play,
+   the tunnel, and the public repo; system stacks below are the fallback. */
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal; font-weight: 300 700; font-display: swap;
+  src: url('../fonts/space-grotesk.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url('../fonts/space-mono-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Mono';
+  font-style: normal; font-weight: 700; font-display: swap;
+  src: url('../fonts/space-mono-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Mono';
+  font-style: italic; font-weight: 400; font-display: swap;
+  src: url('../fonts/space-mono-italic.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'EB Garamond';
+  font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url('../fonts/eb-garamond.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'EB Garamond';
+  font-style: italic; font-weight: 400 800; font-display: swap;
+  src: url('../fonts/eb-garamond-italic.woff2') format('woff2');
+}
+
+:root {
+  --bg: #f7f3ec;
+  --bg2: #f0eadf;
+  --panel: #ffffff;
+  --panel2: #faf7f1;
+  --line: #141414;
+  --line2: #141414;
+  --ink: #141414;
+  --dim: #57514a;
+  --dimmer: #8b8377;
+  /* Silver's palette: indigo/purple as the primary, gold-yellow and silver as
+     the companions, blue for the civic. No orange. --gold is kept as a name for
+     the warm highlight (now a true gold-yellow, not the old orange). */
+  --gold: #d9a521;
+  --gold-dim: #a87c13;
+  --blue: #2f6fdb;
+  --red: #d92d20;
+  --green: #2f9e44;
+  --purple: #6d3bef;
+  --yellow: #e6b02a;
+  --silver: #97a2b2;
+  --silver-dim: #6d7789;
+  --teal: #0f766e;
+  --wine: #8c1d18;
+  --brown: #7a5c2e;
+  --slate: #44576b;
+  /* The Season's brand: the founded regime's colour, stamped on <body> at
+     render (orange until then — the game's own colour). The default accent
+     follows it, so Nation/Elections, the wordmark and the host pill wear the
+     government; per-view accent scopes below still override per tab. */
+  --brand: var(--purple);
+  --brand-hi: #8257f2;
+  --accent: var(--brand);
+  --accent-hi: var(--brand-hi);
+  --accent-text: #fff;
+  --shadow: #141414;
+  /* Semantic surfaces. Everything that used to be a literal #fff or a pale
+     tint goes through one of these, so a theme is a block of variables rather
+     than a second copy of the stylesheet. */
+  --surface: #ffffff;      /* raised things: buttons, inputs, tags, bars */
+  --rule: #e4ddd0;         /* pale hairline inside a panel */
+  --rule-strong: #1e222a;  /* the darker hairline between list rows */
+  --scroll: #c9c1b2;       /* scrollbar thumb, abstentions, dashed edges */
+  --paper: #fffdf7;        /* a document: articles, opinions */
+  --news: #fbf8f1;         /* the newspaper page */
+  --on-solid: #ffffff;     /* text sitting on a solid accent or ink fill */
+  --tint-gold: #f4e8c4;
+  --tint-red: #ffd9d4;
+  --tint-green: #d3f0d8;
+  --tint-blue: #d8e6ff;
+  --tint-purple: #e5dcff;
+  --tint-alert: #f7edd0;   /* the alert strip, and its hover */
+  --tint-alert-hi: #f0e3bd;
+  --tint-blocked: #fff0ee; /* a blocked/refused panel */
+  --tint-allowed: #ecf8ee; /* a permitted panel */
+  --green-text: #1f7a33;   /* green type that must stay legible on a tint */
+  --green-text2: #1f6b30;
+  --red-text: #8f1d14;     /* red type that must stay legible on a tint */
+  --mono: "Space Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --serif: "EB Garamond", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+}
+
+/* ---------- night ----------------------------------------------------------
+   Silver after dark. The app.js boot resolves the stored preference (or the
+   system's, when it is set to follow) into a concrete data-theme on <html>, so
+   this is the only theme block the stylesheet needs — no duplicated media
+   query, and no flash of the wrong theme on load.
+
+   The look is the same look: hard 2px borders, hard offset shadows, no
+   gradients. Only the paper changes. Borders lift off black — a black rule on
+   a dark panel is an invisible rule — and the accents brighten just enough to
+   carry the same weight against a dark ground. */
+:root[data-theme="dark"] {
+  --bg: #14161b;
+  --bg2: #1a1d24;
+  --panel: #1e222a;
+  --panel2: #232830;
+  --line: #4d5665;
+  --line2: #333a45;
+  --ink: #e9e6e0;
+  --dim: #a9a49b;
+  --dimmer: #7d786f;
+  --gold: #e3b23c;
+  --gold-dim: #c8992c;
+  --blue: #5b8ff0;
+  --red: #f0554a;
+  --green: #4ab963;
+  --purple: #8b6bf5;
+  --yellow: #edc04a;
+  --silver: #aab4c2;
+  --silver-dim: #808b9b;
+  --teal: #2aa79c;
+  --wine: #c4453c;
+  --brown: #b08b46;
+  --slate: #7590ad;
+  --brand-hi: #a688f7;
+  --shadow: #05070b;
+  --surface: #272c35;
+  --rule: #333a45;
+  --rule-strong: #49515f;
+  --scroll: #3c434f;
+  --paper: #22262e;
+  --news: #1c2028;
+  --on-solid: #ffffff;
+  --tint-gold: #3b3218;
+  --tint-red: #3d211e;
+  --tint-green: #17331f;
+  --tint-blue: #1b2740;
+  --tint-purple: #2a2049;
+  --tint-alert: #38301a;
+  --tint-alert-hi: #453b21;
+  --tint-blocked: #33201e;
+  --tint-allowed: #17301e;
+  --green-text: #62c97a;
+  --green-text2: #62c97a;
+  /* The same bright red the sidebar marks a takeable office with. The dark red
+     that reads on a pale pink panel is nearly invisible on a dark one. */
+  --red-text: var(--red);
+}
+/* The yellow press accent carries dark type in both themes — light type on
+   yellow is unreadable whichever way the rest of the page is going. */
+:root[data-theme="dark"] body[data-view="press"] { --accent-text: #14161b; }
+/* Photographs and the pixel scenes are lit for a bright page; take the glare
+   off them rather than leaving two suns in the middle of a dark one. */
+:root[data-theme="dark"] .citymap svg, :root[data-theme="dark"] .pixscene,
+:root[data-theme="dark"] .pxswitch {
+  filter: brightness(.82) saturate(.92);
+}
+/* The maps are sea first and land on top, and the sea is a rect the exact size
+   of the viewBox — so it can only ever reach the edges of the *graphic*. The
+   graphic is width:100% with a max-height, which on a window wide enough to hit
+   that clamp leaves the svg box wider than its own 4:3 viewBox; the drawing is
+   then letterboxed inside it and the card shows through down the sides, which
+   reads as the water stopping short of the frame. Painting the same gradient
+   onto the box behind it means those bands are sea too, whatever the window
+   does. Both maps use this class, and both want it. */
+/* Banded, not blended. pixel.vgrad ramps a sky as flat steps with a dithered
+   seam between them, and a smooth CSS ramp behind a pixel map is the one place
+   the two vocabularies met and disagreed. Hard stops put the backdrop on the
+   same footing as the drawing in front of it. */
+.citymap {
+  background: linear-gradient(#2f7f9a 0 25%, #2a7490 25% 50%, #246881 50% 75%, #1c5c74 75% 100%);
+}
+/* The world map is open ocean, and darker; its bands have to match it. */
+.citymap.ocean {
+  background: linear-gradient(#1d5670 0 25%, #184c63 25% 50%, #134156 50% 75%, #0e3448 75% 100%);
+}
+:root[data-theme="dark"] .citymap { filter: brightness(.82) saturate(.92); }
+:root[data-theme="dark"] .citymap svg { filter: none; }
+
+/* Per-section accents, keyed off the active view (set on <body> at render). */
+body[data-view="assembly"] { --accent: var(--purple); --accent-hi: #7f5bf0; }
+body[data-view="treasury"] { --accent: #2b8c3e; --accent-hi: #34a04a; }
+body[data-view="city"] { --accent: var(--blue); --accent-hi: #4680e4; }
+body[data-view="world"] { --accent: var(--teal); --accent-hi: #12857c; }
+body[data-view="press"] { --accent: var(--yellow); --accent-hi: #f6bf3f; --accent-text: var(--ink); }
+body[data-view="offices"] { --accent: var(--ink); --accent-hi: #2e2e2e; }
+body[data-view="intrigue"] { --accent: var(--wine); --accent-hi: #a3251f; }
+body[data-view="chronicle"] { --accent: var(--brown); --accent-hi: #8d6b36; }
+body[data-view="season"] { --accent: var(--slate); --accent-hi: #52687f; }
+
+/* The per-view accents above that are written as literals were picked against
+   parchment, and Offices takes the ink itself — which after dark is nearly
+   white, and would put white type on a white fill. Restate just those. */
+:root[data-theme="dark"] body[data-view="treasury"] { --accent: #3fa955; --accent-hi: #4dbd64; }
+:root[data-theme="dark"] body[data-view="city"] { --accent-hi: #6f9df3; }
+:root[data-theme="dark"] body[data-view="world"] { --accent-hi: #33b8ac; }
+:root[data-theme="dark"] body[data-view="offices"] { --accent: #cfd6e0; --accent-hi: #e2e7ee; --accent-text: #14161b; }
+:root[data-theme="dark"] body[data-view="intrigue"] { --accent-hi: #d4574e; }
+:root[data-theme="dark"] body[data-view="chronicle"] { --accent-hi: #c29a53; }
+:root[data-theme="dark"] body[data-view="season"] { --accent-hi: #89a3bd; }
+:root[data-theme="dark"] body[data-view="assembly"] { --accent-hi: #9d80f7; }
+
+/* ---------- everything is on the grid --------------------------------------
+   The rooms, the inauguration and the title screen are rasterised: one pixel is
+   one pixel, a curve is a stair, and shading is two colours and a dither. The
+   chrome around them was most of the way there already — the shadows have
+   always been hard offsets with no blur, and the borders have always been solid
+   ink — but it rounded every corner it had, and a 12px radius is the one shape
+   a pixel grid cannot make. So nothing rounds any more. There is no --radius to
+   turn back up; the declarations are gone.
+
+   Two units, and everything structural is a multiple of one of them: --px is a
+   rule, --px2 is the offset a raised thing throws. Half-pixel borders (1.5px)
+   and odd offsets (3px, 5px) are gone with the radii — they land between device
+   pixels at the fractional zoom levels a browser actually runs at, which is
+   exactly the softness this style exists to avoid. */
+:root { --px: 2px; --px2: 4px; }
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  /* Custom properties resolve var() on the element they are DECLARED on, so
+     this indirection must live here: the render loop stamps --brand on <body>,
+     and only a body-level --accent re-resolves against it. On :root it would
+     freeze to the default orange. Per-view [data-view] scopes still win. */
+  --accent: var(--brand);
+  --accent-hi: var(--brand-hi);
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  /* The bundled faces top out at weight 700; existing rules ask for 800/900.
+     Without this, browsers smear a fake bold over them — with it, they render
+     the font's true maximum, which is the look we want. */
+  font-synthesis: none;
+}
+::selection { background: var(--brand); color: #fff; }
+a { color: var(--blue); font-weight: 600; }
+button { font: inherit; color: inherit; }
+input, textarea, select {
+  font: inherit; background: var(--surface); color: var(--ink);
+  border: 2px solid var(--line); padding: 7px 10px; width: 100%;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none; border-color: var(--accent); box-shadow: 4px 4px 0 var(--accent);
+}
+textarea { resize: vertical; min-height: 60px; font-family: var(--serif); font-size: 16.5px; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-thumb { background: var(--scroll); border: 3px solid var(--bg); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- shell ---------- */
+#app { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+
+header.top {
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 14px; height: 56px; flex-wrap: nowrap; overflow: hidden;
+  background: var(--bg);
+  border-bottom: 2px solid var(--line);
+}
+/* Header controls never wrap to a second line or grow taller than the bar,
+   and never get squeezed to nothing when the window narrows. */
+header.top .btn, header.top .hostpill { white-space: nowrap; flex-shrink: 0; }
+/* The in-header pause ballot: compact, never wraps, never gets squeezed. */
+header.top .pausevote { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; }
+header.top .pausevote b { font: 800 11px/1 var(--mono); white-space: nowrap; }
+/* The stat ticker gives up room first and clips its own overflow, so the
+   How-to-play button and host pill stay reachable however narrow the window. */
+.ticker { flex-shrink: 1; min-width: 0; overflow: hidden; }
+.ticker .stat { flex-shrink: 0; }
+/* The wordmark is drawn on the same 5x7 grid as the rooms (pixfont.js), so it
+   is sized as a box and takes its ink from `currentColor`. */
+.brand { width: 88px; flex-shrink: 0; color: var(--brand); }
+.brand svg { image-rendering: pixelated; }
+header.top > span { white-space: nowrap; }
+
+.ticker { display: flex; gap: 18px; margin-left: auto; align-items: center; }
+.stat { text-align: right; line-height: 1.15; }
+.stat .v { font: 700 14px/1 var(--mono); }
+.stat .k { font-size: 9.5px; color: var(--dimmer); text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
+.stat.up .v { color: var(--green); } .stat.down .v { color: var(--red); }
+
+.hostpill {
+  font: 700 10px/1 var(--mono); padding: 5px 9px;
+  border: 2px solid var(--line); background: var(--surface); color: var(--dim); white-space: nowrap;
+  box-shadow: 2px 2px 0 var(--shadow);
+}
+.hostpill.host { background: var(--brand); color: #fff; }
+
+main { display: grid; grid-template-columns: 178px 1fr; overflow: hidden; }
+
+nav.side {
+  border-right: 2px solid var(--line); background: var(--bg2);
+  padding: 10px 8px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;
+}
+nav.side button {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  background: none; border: 2px solid transparent;
+  text-align: left; padding: 7px 10px;
+  color: var(--dim); cursor: pointer; font-size: 13px; font-weight: 700;
+}
+nav.side button:hover { color: var(--ink); background: var(--surface); border-color: var(--line); }
+nav.side button.on {
+  color: #fff; background: var(--line); border-color: var(--line);
+  box-shadow: 4px 4px 0 var(--accent);
+}
+nav.side .ico { width: 16px; text-align: center; }
+/* Every tab wears its section's color on its icon, Bedrock-style. */
+nav.side button[data-tab="assembly"] .ico { color: var(--purple); }
+nav.side button[data-tab="treasury"] .ico { color: #2b8c3e; }
+nav.side button[data-tab="city"] .ico { color: var(--blue); }
+nav.side button[data-tab="world"] .ico { color: var(--teal); }
+nav.side button[data-tab="press"] .ico { color: #c78c07; }
+nav.side button[data-tab="nation"] .ico { color: var(--gold); }
+/* The room you hold by office is pinned to the top of the sidebar; a rule under
+   the last of them separates yours from everybody's. */
+nav.side button.pinned-last { margin-bottom: 8px; padding-bottom: 12px; border-bottom: 2px solid var(--rule-strong); }
+nav.side button[data-tab="intrigue"] .ico { color: var(--wine); }
+nav.side button[data-tab="chronicle"] .ico { color: var(--brown); }
+nav.side button[data-tab="season"] .ico { color: var(--slate); }
+nav.side button.on .ico { color: inherit; }
+nav.side .badge {
+  margin-left: auto; background: var(--surface); color: var(--ink); font: 800 10px/1 var(--mono);
+  padding: 3px 6px; border: 2px solid var(--line);
+}
+nav.side button.on .badge { border-color: #fff; }
+/* Unseen since you last looked at that tab. */
+nav.side .badge.new { background: var(--red); border-color: var(--line); color: #fff; animation: badgepulse 1.6s ease-in-out infinite; }
+nav.side button.fresh { color: var(--ink); }
+nav.side button.fresh .ico { color: var(--red); }
+@keyframes badgepulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 45, 32, .45); }
+  50% { box-shadow: 0 0 0 5px rgba(217, 45, 32, 0); }
+}
+@media (prefers-reduced-motion: reduce) { nav.side .badge.new { animation: none; } }
+
+.notice > div.alert {
+  background: var(--tint-alert); border-color: var(--line); color: var(--ink); cursor: pointer;
+}
+.notice > div.alert:hover { background: var(--tint-alert-hi); }
+.notice > div.alert .tiny { opacity: .7; margin-top: 3px; }
+nav.side .who {
+  margin-top: auto; padding: 12px 10px 4px; border-top: 2px solid var(--line);
+  font-size: 11.5px; color: var(--dim);
+}
+nav.side .who b { display: block; color: var(--ink); font-size: 13px; font-weight: 800; }
+
+section.view { overflow-y: auto; padding: 20px 24px 60px; }
+.wrap { max-width: 1180px; }
+
+/* ---------- primitives ---------- */
+h1.page {
+  font: 900 26px/1.2 var(--sans); margin: 0 0 4px; letter-spacing: -.01em;
+}
+p.sub { color: var(--dim); margin: 0 0 18px; max-width: 70ch; font-size: 13px; }
+.grid { display: grid; gap: 14px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1000px) { .g3, .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.card {
+  background: var(--panel); border: 2px solid var(--line); padding: 14px;
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+.card h3 {
+  margin: 0 0 10px; font: 800 11px/1 var(--sans); letter-spacing: .13em;
+  text-transform: uppercase; color: var(--dimmer);
+}
+.card.tight { padding: 11px 12px; }
+.card.gold { border-color: var(--accent); box-shadow: 4px 4px 0 var(--accent); }
+
+.btn {
+  background: var(--surface); border: 2px solid var(--line);
+  padding: 7px 13px; cursor: pointer; font-size: 13px; font-weight: 700;
+  box-shadow: 4px 4px 0 var(--shadow);
+  transition: transform .05s, box-shadow .05s;
+}
+.btn:hover { background: var(--panel2); }
+.btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--shadow); }
+.btn.primary { background: var(--accent); color: var(--accent-text); }
+.btn.primary:hover { background: var(--accent-hi); }
+.btn.danger { background: var(--surface); color: var(--red); }
+.btn.danger:hover { background: var(--tint-red); }
+.btn.ghost { background: none; box-shadow: none; }
+.btn.ghost:hover { background: var(--surface); box-shadow: 4px 4px 0 var(--shadow); }
+.btn.ghost:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--shadow); }
+.btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; transform: none; }
+.btn.sm { padding: 4px 9px; font-size: 12px; border-width: 2px; box-shadow: 2px 2px 0 var(--shadow); }
+.btn.sm:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--shadow); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.spread { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.mono { font-family: var(--mono); }
+.dim { color: var(--dim); }
+.dimmer { color: var(--dimmer); }
+.small { font-size: 12px; }
+.tiny { font-size: 11px; }
+.serif { font-family: var(--serif); }
+.gold { color: var(--gold-dim); }
+.red { color: var(--red); }
+.green { color: var(--green); }
+.blue { color: var(--blue); }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.field { display: block; margin-bottom: 9px; }
+.field > span { display: block; font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; font-weight: 800; }
+
+.tag {
+  display: inline-block; font: 800 10px/1 var(--mono); letter-spacing: .06em;
+  padding: 3px 7px; border: 2px solid var(--line);
+  background: var(--surface); color: var(--ink); text-transform: uppercase;
+  /* A tag is a two-word label on one line. Left to wrap, "needs filling" beside
+     a long office name broke over two lines and grew the row it was marking. */
+  white-space: nowrap;
+}
+.tag.gold { background: var(--tint-gold); color: var(--gold-dim); }
+.tag.red { background: var(--tint-red); color: var(--red); }
+.tag.green { background: var(--tint-green); color: var(--green-text); }
+.tag.blue { background: var(--tint-blue); color: var(--blue); }
+.tag.purple { background: var(--tint-purple); color: var(--purple); }
+
+.bar { height: 10px; background: var(--surface); border: 2px solid var(--line); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--gold); }
+
+.meter { display: grid; grid-template-columns: 92px 1fr 52px; gap: 8px; align-items: center; font-size: 12px; }
+.meter .lab { color: var(--dim); font-weight: 600; }
+.meter .val { text-align: right; font-family: var(--mono); font-weight: 700; }
+
+.blocked {
+  border: 2px solid var(--red); border-left-width: 6px; background: var(--tint-blocked); padding: 8px 10px;
+  font-size: 12.5px; color: var(--red-text);
+}
+.allowed { border: 2px solid var(--green); border-left-width: 6px; background: var(--tint-allowed); padding: 8px 10px; font-size: 12.5px; color: var(--green-text2); }
+.quote {
+  font-family: var(--serif); font-size: 15.5px; color: var(--ink); border-left: 4px solid var(--gold);
+  padding: 6px 0 6px 12px; margin: 8px 0;
+}
+
+/* ---------- chronicle ---------- */
+.chron { display: flex; flex-direction: column; gap: 2px; }
+.ch {
+  display: grid; grid-template-columns: 96px 20px 1fr; gap: 8px; align-items: start;
+  padding: 5px 8px; font-size: 13px; border: 2px solid transparent;
+}
+.ch:hover { background: var(--surface); border-color: var(--line); }
+.ch .d { font: 11px/1.5 var(--mono); color: var(--dimmer); }
+.ch .i { text-align: center; }
+.ch.k-law .i, .ch.k-founding .i { color: var(--gold-dim); }
+.ch.k-crisis .i, .ch.k-war .i, .ch.k-death .i { color: var(--red); }
+.ch.k-election .i, .ch.k-build .i { color: var(--green); }
+.ch.k-press .i, .ch.k-intrigue .i { color: var(--purple); }
+.ch.k-vote .i, .ch.k-court .i { color: var(--blue); }
+.ch .t { font-family: var(--serif); font-size: 15px; }
+.ch .ann { font-size: 12px; color: var(--dim); border-left: 3px solid var(--line); padding-left: 8px; margin-top: 3px; }
+.ch .contest { opacity: 0; transition: opacity .12s; }
+.ch:hover .contest, .ch .contest:focus { opacity: 1; }
+
+/* ---------- the Chronicle as a front page ----------
+   Scoped under .np-* so the Nation view's little record card keeps its own
+   compact look. Same chronRow markup, newsprint dress. */
+.np-masthead { text-align: center; margin-bottom: 8px; }
+.np-title { font: 800 clamp(30px, 4.5vw, 46px)/1.1 var(--serif); margin: 8px 0 2px; letter-spacing: .01em; }
+.np-dateline { font: 700 10.5px/1 var(--mono); color: var(--dim); letter-spacing: .09em; text-transform: uppercase; margin: 7px 0 8px; }
+.np-rule { border-top: 2px solid var(--ink); }
+.np-rule.double { border-top: 6px double var(--ink); }
+.np-sections { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; border-bottom: 2px solid var(--ink); padding: 4px 0 6px; margin-bottom: 16px; }
+.np-sections > button:not(.btn) {
+  background: none; border: none; cursor: pointer;
+  font: 700 10.5px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--dim); padding: 5px 8px;
+}
+.np-sections > button:not(.btn):hover { color: var(--ink); }
+/* The selected section is a solid block of ink with the page colour cut out of
+   it. It was a hard #fff, which is correct only while --ink is dark: after dark
+   --ink is near-white, so the chosen section became white text on a white pill
+   and the one section you had picked was the one you could not read. --bg is
+   the other end of the same pair in both themes. */
+.np-sections > button:not(.btn).on { background: var(--ink); color: var(--bg); }
+.np-page { background: var(--news); }
+/* The lead story: the headline is the entry itself, set large. */
+.np-lead .ch { display: block; padding: 2px 0 12px; border-bottom: 2px solid var(--ink); margin-bottom: 12px; }
+.np-lead .ch .d { font: 700 10px/1 var(--mono); color: var(--dimmer); letter-spacing: .1em; text-transform: uppercase; }
+.np-lead .ch .i { margin-left: 6px; }
+.np-lead .ch .t { display: block; font: 700 clamp(20px, 2.6vw, 27px)/1.25 var(--serif); margin-top: 6px; }
+/* The rest of the news, in columns. */
+.np-cols { columns: 2; column-gap: 26px; column-rule: 1px solid var(--rule); }
+@media (max-width: 1000px) { .np-cols { columns: 1; } }
+.np-cols .ch { display: block; break-inside: avoid; padding: 7px 0; border-bottom: 1px solid var(--rule); }
+.np-cols .ch .d { font: 700 9.5px/1.6 var(--mono); color: var(--dimmer); letter-spacing: .08em; text-transform: uppercase; margin-right: 6px; }
+.np-cols .ch .i { margin-right: 5px; }
+.np-cols .ch .t { font-family: var(--serif); font-size: 15.5px; line-height: 1.4; }
+/* Annotations read as letters to the editor. */
+.np-page .ch .ann { font-family: var(--serif); font-style: italic; font-size: 13.5px; border-left: 3px solid var(--accent); }
+/* Sidebar boxes wear newspaper section headers. */
+.np-box h3 { text-align: center; border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); padding: 5px 0; color: var(--ink); }
+
+/* ---------- city map ---------- */
+.map { display: grid; gap: 3px; user-select: none; }
+.parcel {
+  aspect-ratio: 1; position: relative; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font: 10px/1 var(--mono); color: #0009; border: 2px solid #14141455;
+}
+.parcel:hover { outline: 2px solid var(--line); z-index: 2; }
+.parcel.sel { outline: 3px solid var(--gold); z-index: 3; }
+.parcel .glyph { font-size: 13px; color: #141414e0; text-shadow: 0 1px 0 #ffffff99; }
+.parcel .prog { position: absolute; left: 2px; right: 2px; bottom: 2px; height: 4px; background: #141414aa; }
+.parcel .prog i { display: block; height: 100%; background: var(--gold); }
+.dstripe { position: absolute; inset: 0 auto 0 0; width: 4px; }
+
+/* ---------- floor ---------- */
+.doc { border: 2px solid var(--line); background: var(--panel); overflow: hidden; box-shadow: 4px 4px 0 var(--shadow); }
+.doc > header { padding: 11px 13px; border-bottom: 2px solid var(--line); display: flex; gap: 10px; align-items: center; background: var(--panel2); }
+.doc > header h4 { margin: 0; font: 700 16px/1.3 var(--serif); flex: 1; }
+.doc .body { padding: 12px 13px; }
+.clause { font-family: var(--serif); font-size: 15.5px; padding: 6px 0 6px 26px; position: relative; color: var(--ink); }
+.clause::before {
+  content: attr(data-n) "."; position: absolute; left: 0; top: 6px;
+  font: 700 11px/1.6 var(--mono); color: var(--gold-dim);
+}
+.doc footer { padding: 10px 13px; border-top: 2px solid var(--line); background: var(--panel2); }
+.votebar { display: flex; height: 12px; overflow: hidden; background: var(--surface); border: 2px solid var(--line); }
+.votebar i { display: block; }
+.votebar .y { background: var(--green); } .votebar .n { background: var(--red); } .votebar .a { background: var(--scroll); }
+.rollcall { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.rollcall span { font: 700 11px/1 var(--mono); padding: 3px 7px; border: 2px solid var(--line); background: var(--surface); color: var(--dim); }
+.rollcall span.y { background: var(--tint-green); color: var(--green-text); }
+.rollcall span.n { background: var(--tint-red); color: var(--red); }
+
+/* ---------- chat ---------- */
+.chatbox { display: flex; flex-direction: column; height: 320px; }
+.chatlog { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; padding-right: 4px; }
+.msg { font-size: 13px; }
+.msg b { color: var(--gold-dim); font-weight: 800; }
+.msg .tm { font: 10px var(--mono); color: var(--dimmer); margin-left: 5px; }
+
+/* ---------- misc ---------- */
+.notice {
+  position: fixed; right: 16px; bottom: 16px; z-index: 60; max-width: 380px;
+  display: flex; flex-direction: column; gap: 8px;
+  /* The column reserves the corner whether or not a toast is up; only the
+     toasts themselves should be solid to the pointer, or every button under
+     the bottom-right 380px goes intermittently dead. */
+  pointer-events: none;
+}
+.notice > div { pointer-events: auto; }
+.notice > div {
+  background: var(--tint-red); border: 2px solid var(--line); color: var(--ink);
+  padding: 10px 12px; font-size: 13px; font-weight: 600;
+  box-shadow: 4px 4px 0 var(--shadow);
+}
+.notice > div.ok { background: var(--tint-green); }
+
+.modal-bg {
+  position: fixed; inset: 0; background: #141414b3; z-index: 80;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.modal {
+  background: var(--panel); border: 4px solid var(--line);
+  width: min(720px, 100%); max-height: 86vh; overflow-y: auto; padding: 22px;
+  box-shadow: 8px 8px 0 var(--shadow);
+}
+.modal h2 { margin: 0 0 4px; font: 900 21px var(--sans); letter-spacing: -.01em; }
+
+/* The ballot, minimised. Not a modal — no backdrop, nothing blocked — just the
+   countdown parked in the corner while you use the rest of the game. */
+.election-dock {
+  position: fixed; right: 18px; bottom: 18px; z-index: 80; width: 260px;
+  background: var(--panel); border: 2px solid var(--gold);
+  padding: 10px 12px; box-shadow: 6px 6px 0 var(--shadow);
+}
+@media (max-width: 720px) { .election-dock { right: 10px; bottom: 10px; width: calc(100% - 20px); } }
+
+table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.t th {
+  text-align: left; font: 800 10px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--dimmer); padding: 6px 8px; border-bottom: 2px solid var(--line);
+}
+table.t td { padding: 6px 8px; border-bottom: 2px solid var(--rule); }
+table.t tr:hover td { background: var(--panel2); }
+
+.spark { display: flex; align-items: flex-end; gap: 1px; height: 34px; }
+.spark i { flex: 1; background: var(--gold); min-height: 1px; }
+/* Centered variant: bars hang off a visible midline (50% approval, $0). */
+.spark.center { align-items: stretch; position: relative; }
+.spark.center::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; border-top: 2px dashed rgba(20, 20, 20, .45); pointer-events: none; }
+.spark.center i { background: none; min-height: 0; position: relative; }
+.spark.center i b { position: absolute; left: 0; right: 0; }
+/* Spark with a tiny y-axis: window high, net change, window low. */
+.spark-row { display: flex; gap: 7px; align-items: stretch; }
+.spark-row .spark { flex: 1; }
+.spark-axis { display: flex; flex-direction: column; justify-content: space-between; text-align: right; font-size: 9px; line-height: 1; color: var(--dim, #6f6a60); white-space: nowrap; }
+
+.sel-list { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; }
+.sel-list button {
+  text-align: left; background: var(--surface); border: 2px solid var(--line);
+  padding: 8px 10px; cursor: pointer; font-size: 13px;
+}
+.sel-list button:hover { box-shadow: 4px 4px 0 var(--shadow); }
+.sel-list button.on { border-color: var(--brand); background: var(--tint-purple); box-shadow: 4px 4px 0 var(--brand); }
+.sel-list button.locked { cursor: not-allowed; opacity: .6; background: var(--bg2); }
+.sel-list button.locked:hover { box-shadow: none; }
+
+.split { display: grid; grid-template-columns: 1fr 340px; gap: 14px; align-items: start; }
+@media (max-width: 1100px) { .split { grid-template-columns: 1fr; } }
+
+.pulse { display: inline-block; width: 9px; height: 9px; background: var(--green); border: 2px solid var(--line); }
+.pulse.low { background: var(--red); }
+
+.crisis {
+  border: 2px solid var(--red); background: var(--tint-blocked); padding: 14px; box-shadow: 4px 4px 0 var(--red);
+}
+.crisis h4 { margin: 0 0 6px; font: 800 16px var(--sans); color: var(--red); }
+/* A notice sits in the same slot but does not shout: nothing is being demanded
+   of you, so it does not wear the crisis red. */
+/* Not `.notice` — that class is the fixed-position toast stack, and a card
+   wearing it lifted straight out of the page flow. */
+.crisis.filed { border-color: var(--gold-dim); box-shadow: 4px 4px 0 var(--gold-dim); background: var(--tint-gold); }
+.crisis.filed h4 { color: var(--gold-dim); }
+
+.paper {
+  background: var(--paper); color: var(--ink); border: 2px solid var(--line);
+  padding: 14px 16px; font-family: var(--serif); box-shadow: 4px 4px 0 var(--shadow);
+}
+.paper .masthead {
+  font: 900 12px/1 var(--sans); letter-spacing: .22em; text-transform: uppercase;
+  border-bottom: 3px solid var(--line); padding-bottom: 6px; margin-bottom: 8px;
+}
+.paper h4 { margin: 0 0 6px; font: 700 20px/1.2 var(--serif); }
+.paper .byline { font-size: 11px; color: var(--dimmer); letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
+.paper p { margin: 8px 0 0; font-size: 14px; }
+.paper .cite { font-size: 11.5px; color: var(--dim); border-top: 2px solid var(--rule); margin-top: 10px; padding-top: 6px; }
+
+/* ---------- tutorial ---------- */
+/* Fixed height + scrolling content keeps the footer (and Next) from moving
+   between slides, so you can click through the guide without chasing it. */
+.tut-body { height: min(62vh, 440px); display: flex; flex-direction: column; }
+.tut-scroll { flex: 1 1 auto; overflow-y: auto; min-height: 0; padding-right: 4px; }
+.tut-body h2 { margin-bottom: 10px; }
+.tut-body p { margin: 0 0 10px; max-width: 62ch; }
+.tut-body ul { margin: 0 0 10px; padding-left: 20px; }
+.tut-body li { margin-bottom: 6px; }
+.tut-next { min-width: 108px; flex-shrink: 0; }
+.tut-tab {
+  display: inline-block; font: 800 11px/1 var(--sans); border: 2px solid var(--line); background: var(--bg2); padding: 3px 7px; margin-right: 2px;
+}
+.tut-foot { display: flex; align-items: center; gap: 12px; margin-top: 0; padding-top: 14px; flex-shrink: 0; border-top: 2px solid var(--line); }
+.tut-dots { display: flex; gap: 6px; margin: 0 auto; }
+.tut-dot {
+  width: 10px; height: 10px; border: 2px solid var(--line);
+  background: var(--surface); padding: 0; cursor: pointer;
+}
+.tut-dot.on { background: var(--gold); }
+
+/* Call-to-action: neon-red outline + glow to draw the eye to the seat prompt. */
+.cta-pulse { border-color: #ff3b3b !important; box-shadow: 0 0 0 2px #ff3b3b, 0 0 16px 2px rgba(255,59,59,.5); animation: ctaPulse 1.2s ease-in-out infinite; }
+@keyframes ctaPulse {
+  0%, 100% { box-shadow: 0 0 0 2px #ff3b3b, 0 0 9px 1px rgba(255,59,59,.4); }
+  50%      { box-shadow: 0 0 0 3px #ff3b3b, 0 0 22px 5px rgba(255,59,59,.75); }
+}
+/* A row in a list that is the reason the card is pulsing. The Oval Office's
+   appointments panel uses it for a cabinet seat nobody is sitting in: the
+   sidebar badge counts those, and until this the room it sent you to listed all
+   six appointive posts alike with the empty ones marked "vacant" in grey. Red
+   ink and a red edge, so the count and the thing counted look like each other. */
+.seat-open {
+  background: var(--tint-blocked); border-left: var(--px2) solid var(--red);
+  padding-left: 9px !important; margin-left: -2px;
+}
+.cta-bubble { display:inline-block; padding:2px 10px; background:#ff3b3b; color:#fff;
+  font-size:11px; font-weight:700; letter-spacing:.02em; box-shadow:0 0 10px 1px rgba(255,59,59,.6);
+  animation: ctaPulse 1.2s ease-in-out infinite; }
+.stat.clickable { cursor:pointer; }
+.stat.clickable .k { text-decoration: underline dotted; text-underline-offset:2px; }
+@media (prefers-reduced-motion: reduce) { .cta-pulse, .cta-bubble { animation: none; } }
+
+/* "?" help affordance: a small badge on a stat card that reveals an
+   explanation popover on hover or keyboard focus, anchored to the number. */
+.card.has-help { position: relative; }
+.help { position: absolute; top: 8px; right: 8px; outline: none; }
+.help-q {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 17px; height: 17px; border: 2px solid var(--line);
+  background: var(--surface); color: var(--dim); font: 800 10px/1 var(--mono); cursor: help;
+}
+.help:hover .help-q, .help:focus .help-q { background: var(--brand); color: #fff; border-color: var(--brand); }
+.help-body {
+  /* Open to the right, into the view, so on a narrow window the popover never
+     spills left under the sidebar and gets clipped. */
+  position: absolute; top: 24px; left: 0; width: 300px; max-width: min(78vw, 300px);
+  background: var(--panel); border: 2px solid var(--line);
+  box-shadow: 4px 4px 0 var(--shadow); padding: 12px 13px; z-index: 60;
+  display: none; text-align: left; cursor: default;
+  /* Read-only popover: a pointer grazing the ? on its way to a control used
+     to open 300px of click-eating panel under the cursor. Let clicks pass
+     through; the popover closes as the pointer leaves the trigger anyway. */
+  pointer-events: none;
+}
+.help:hover .help-body, .help:focus .help-body, .help:focus-within .help-body { display: block; }
+
+/* An office at the convention is its own card, not a row in a list: a header
+   that says what it is and how much power it holds, its numbers on one line,
+   then the powers themselves grouped by kind. */
+.office-card {
+  border: 2px solid var(--line2);
+  padding: 12px 14px; margin-top: 12px; background: var(--panel2);
+}
+.office-card.struck { opacity: .72; }
+.office-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px; margin-bottom: 10px;
+}
+.office-head b { font-size: 15px; }
+.office-fields {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px; margin-bottom: 10px;
+}
+.office-fields .field { margin-bottom: 0; }
+
+/* Office powers at the convention: every power is a small toggle chip, always
+   visible — no "edit" step to reveal the list — and grouped by what kind of
+   power it is, so the row reads as a decision rather than an inventory. */
+.pow-groups { display: flex; flex-direction: column; gap: 7px; }
+.pow-group { display: grid; grid-template-columns: 78px 1fr; gap: 8px; align-items: start; }
+.pow-group-label {
+  font: 700 9.5px/1.9 var(--mono); letter-spacing: .09em; text-transform: uppercase;
+  color: var(--dimmer); text-align: right;
+}
+.pow-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.pow-chip {
+  font: 700 10.5px/1.5 var(--sans); padding: 3px 9px;
+  border: 2px solid var(--line2); background: var(--surface); color: var(--dim); cursor: pointer;
+}
+.pow-chip:hover { color: var(--ink); border-color: var(--line); }
+.pow-chip.on {
+  background: var(--accent); color: var(--accent-text, #fff);
+  border-color: var(--accent); box-shadow: 2px 2px 0 var(--shadow);
+}
+@media (max-width: 620px) {
+  .pow-group { grid-template-columns: 1fr; gap: 2px; }
+  .pow-group-label { text-align: left; }
+}
+
+/* Inauguration scene — a ceremonial beat between ratification and the dashboard. */
+.inaug-modal { max-width: 640px; text-align: center; }
+.inaug { padding: 14px 8px; animation: inaugIn .8s ease both; }
+.inaug-kicker { font-size: 12px; letter-spacing: .28em; text-transform: uppercase; color: var(--gold-dim); }
+.inaug-nation { font-size: 44px; margin: 6px 0 2px; letter-spacing: .01em; }
+.inaug-sub { color: #8a7f6d; font-size: 15px; }
+.inaug-rule { width: 70px; height: 3px; background: var(--gold); margin: 16px auto; }
+.inaug-oath { font-size: 18px; margin: 10px 0 6px; }
+.inaug-line { font-size: 20px; font-style: italic; color: var(--gold-dim); margin: 6px auto 10px; max-width: 520px; }
+.inaug-preamble { color: #77706a; font-size: 13.5px; max-width: 520px; margin: 0 auto; }
+@keyframes inaugIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* The inauguration tableau. The picture itself is rasterised in scene.js on the
+   same grid as the rooms; everything here is the frame around it and the one
+   thing laid over it that moves. The old per-element animations — a figure
+   rising, an arm raised, two clouds tracking, a sun pulsing — are gone with the
+   hand-drawn SVG they hung off: the raster is one merged field of rectangles,
+   so there is no longer a `<g class="pix-fig">` for CSS to take hold of. The
+   frame no longer rounds its corners either. A 12px radius on a picture whose
+   pixels are four screen pixels wide cuts a curve through the pixel grid, which
+   is the one shape pixel art cannot make. */
+.inaug-scene {
+  margin: 2px auto 12px; border: var(--px) solid var(--line); overflow: hidden;
+  box-shadow: var(--px2) var(--px2) 0 var(--shadow); max-width: 480px;
+}
+.inaug-scene svg { image-rendering: pixelated; }
+/* Confetti, falling and tumbling. Same contract as the weather in the rooms:
+   --pxh is the drop, and the negative animation-delay set on the element puts a
+   freshly built piece back where it had got to. */
+.pxconf {
+  transform-box: fill-box; transform-origin: 50% 50%;
+  animation-name: pxConf; animation-timing-function: linear; animation-iteration-count: infinite;
+}
+@keyframes pxConf {
+  from { transform: translateY(-4px) rotate(0); }
+  to { transform: translateY(var(--pxh, 158px)) rotate(540deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inaug { animation: none; }
+  .pxconf { display: none; }
+}
+
+/* Title screen: a cinematic pixel-art city at dusk, one button over it. */
+/* The scene is bottom-anchored and the capitol stands dead centre, so the title
+   screen is laid out around the building rather than on top of it: the wordmark
+   in the sky above the dome, the way in down on the water below the steps. */
+#intro { height: 100vh; position: relative; overflow: hidden; background: #15305a; display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
+.intro-scene { position: absolute; inset: 0; }
+.intro-scene svg { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+/* A scrim under the type. The flagpole rises through the wordmark at some
+   aspect ratios; with the sky darkened behind it that reads as depth instead of
+   a collision, and the letters keep their contrast at every window size. */
+#intro::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 46vh; z-index: 1;
+  /* Four flat steps rather than a ramp: a smooth scrim over a pixel sky bands
+     anyway on an 8-bit display, so it may as well band where we chose. */
+  background: linear-gradient(180deg, rgba(8,16,36,.5) 0 40%, rgba(8,16,36,.34) 40% 66%,
+    rgba(8,16,36,.16) 66% 86%, transparent 86% 100%);
+  pointer-events: none;
+}
+/* The scene is bottom-anchored, so the band of sky between the top of the frame
+   and the capitol's cupola is dead space at every window height — nothing in it
+   but a few stars. The wordmark sat above that band, jammed against the top
+   edge; it belongs in it. */
+.intro-inner {
+  position: relative; z-index: 2; text-align: center; padding: 0 28px;
+  margin-top: clamp(40px, 13vh, 140px);
+  animation: introIn .8s ease both;
+}
+.intro-cta { position: relative; z-index: 2; padding: 0 28px; margin-bottom: 7vh; animation: introIn .8s .15s ease both; }
+/* The wordmark is an SVG of 5x7 letters now, so it is sized by width and the
+   grid does the rest. `image-rendering: pixelated` is what keeps a font pixel
+   square when the box lands on a fractional scale. */
+.intro-mark { width: clamp(210px, 40vw, 430px); margin: 0 auto; }
+.intro-mark svg { image-rendering: pixelated; }
+.intro-tag { font: 700 clamp(12px, 2.3vw, 16px)/1 var(--sans); letter-spacing: .42em; text-transform: uppercase; color: #eadfce; margin: 10px 0 0; text-shadow: 0 2px 6px rgba(0,0,0,.5); }
+/* A drawn label, so the button is sized by the width of its picture rather
+   than by a font-size. currentColor carries the accent through to the pixels. */
+.intro-enter { padding: 14px 44px; }
+.intro-enter svg { width: 118px; image-rendering: pixelated; }
+/* Nothing in the title scene moves any more. It is one merged raster, the same
+   as a room, so the stars, clouds, birds and flag it used to animate no longer
+   exist as separate nodes — the twinkle and the drift went with the hand-drawn
+   SVG. What is left is the type over it, which still arrives. */
+@keyframes introIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .intro-inner, .intro-cta { animation: none; } }
+
+/* The way back out of a founding step. Sits above the page title, reads as a
+   link rather than as one of the page's decisions. */
+.setup-back { margin: 14px 0 0; padding-left: 0; padding-right: 10px; box-shadow: none; }
+.setup-back:hover { box-shadow: none; text-decoration: underline; }
+/* And its counterpart at the foot of the convention's right-hand column. */
+.conv-back { margin-top: 2px; }
+.conv-back.armed { border-color: var(--red); box-shadow: var(--px2) var(--px2) 0 var(--red); }
+/* The switch that offers, or withholds, the two folded panels. */
+.setup-advtoggle { align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.setup-advtoggle .tiny { flex: 1; min-width: 220px; }
+
+/* Step label above a setup page's title. */
+.setup-step { font: 700 11px/1 var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--gold-dim); }
+
+/* ---------- founding wizard ---------- */
+.setup-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.setup-head .setup-dots { margin: 0; }
+.setup-head .tut-dot.on { background: var(--accent); }
+.setup-head .tut-dot:disabled { opacity: .35; cursor: default; }
+.setup-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+/* A regime is a poster, not a radio button: its own colour on the border, the
+   heading, and — once chosen — the whole card. */
+.regime-card {
+  --regime: var(--ink); --regime-hi: var(--ink);
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  background: var(--panel); color: var(--ink);
+  border: 2px solid var(--regime); padding: 14px 16px;
+  box-shadow: 4px 4px 0 var(--regime);
+  transition: transform .05s, box-shadow .05s;
+}
+.regime-card b { display: block; font-size: 16px; color: var(--regime); margin-bottom: 3px; }
+.regime-card:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--regime); }
+.regime-card.chosen { background: var(--regime); color: #fff; box-shadow: 4px 4px 0 var(--shadow); }
+.regime-card.chosen b { color: #fff; }
+.regime-card.canon { --regime: var(--ink); }
+.regime-card.canon.chosen { --regime: var(--accent); background: var(--accent); color: var(--accent-text, #fff); }
+.regime-card.canon.chosen b { color: var(--accent-text, #fff); }
+.setup-adv { margin-top: 14px; border: 2px dashed var(--scroll); padding: 10px 14px; background: var(--panel2); }
+.setup-adv summary { cursor: pointer; font: 700 11px/1.6 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+
+/* During the Constitutional Convention the sidebar is hidden — the whole screen
+   is the constitution — and the main area takes the full width. */
+#app.conv-focus main { grid-template-columns: 1fr; }
+#app.conv-focus nav.side { display: none; }
+
+/* Inauguration: the player picks the words of the oath. */
+.inaug-choose { max-width: 480px; margin: 4px auto 2px; text-align: left; }
+.inaug-oaths { display: flex; flex-direction: column; gap: 6px; }
+.inaug-oaths .btn { text-align: left; white-space: normal; font-family: var(--serif); font-size: 14.5px; line-height: 1.35; }
+/* The chosen oath wears the same gold as the oath line, never the accent blue. */
+.inaug-oaths .btn.oath.on { background: var(--gold); border-color: var(--gold); color: #241708; box-shadow: 4px 4px 0 var(--shadow); }
+.inaug-custom { margin-top: 8px; font-family: var(--serif); }
+
+/* The view out of an office-only room. Wide — 400x120, better than 3:1 — because
+   the point of it is a politician stepping out at the end of a long day and taking
+   in the whole view, and it sits at the foot of the room where that makes sense.
+   The pixel grid is preserved: no smoothing, no interpolation. */
+.officewin {
+  /* Space below as well as above: the room's drop shadow used to land on the
+     first card under it, which read as the art overlapping the page. */
+  width: 100%; margin: 16px 0 18px; border: 2px solid var(--line);
+  overflow: hidden; box-shadow: 4px 4px 0 var(--shadow); line-height: 0;
+}
+.officewin svg { width: 100%; height: auto; display: block; image-rendering: pixelated; }
+nav.side button[data-tab="cloakroom"] .ico { color: var(--brown); }
+
+/* The Oval Office and the switch on the wall beside it. The switch is drawn on
+   the same pixel grid as the room and framed the same way, so it reads as part
+   of the wall rather than as a control that happens to sit near it — which is
+   the whole reason it moved down here out of the actions column. */
+.roomrow { display: flex; align-items: flex-start; gap: 10px; }
+.roomrow .officewin { flex: 1 1 auto; min-width: 0; }
+.pxswitch {
+  flex: 0 0 auto; width: 46px; margin: 16px 0 0; padding: 0; cursor: pointer;
+  background: none; border: 2px solid var(--line);
+  overflow: hidden; line-height: 0; box-shadow: 4px 4px 0 var(--shadow);
+}
+.pxswitch svg { width: 100%; height: auto; display: block; image-rendering: pixelated; }
+.pxswitch:hover { border-color: var(--gold); }
+.pxswitch:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--shadow); }
+@media (max-width: 720px) { .pxswitch { width: 34px; } }
+
+/* Weather in the office windows. Real CSS animation rather than a new frame every
+   tick — one frame a second is not an animation. scene.js sets a negative
+   animation-delay from the wall clock on each particle, so a freshly rebuilt scene
+   picks the fall up mid-flight instead of snapping every flake back to the ceiling.
+
+   --pxh is the depth of the opening the particle is falling through, set per
+   particle: a window 24 tall and the open sky above a balcony are not the same
+   fall, and a fixed drop left the short ones looking empty for most of the cycle. */
+@keyframes pxFall { from { transform: translateY(-6px); } to { transform: translateY(var(--pxh, 84px)); } }
+@keyframes pxDrift {
+  0% { transform: translate(0, -6px); }
+  35% { transform: translate(3px, calc(var(--pxh, 84px) * 0.38)); }
+  70% { transform: translate(-2px, calc(var(--pxh, 84px) * 0.69)); }
+  100% { transform: translate(1px, var(--pxh, 84px)); }
+}
+.pxfall { animation-name: pxFall; animation-timing-function: linear; animation-iteration-count: infinite; }
+.pxdrift { animation-name: pxDrift; animation-timing-function: linear; animation-iteration-count: infinite; }
+@media (prefers-reduced-motion: reduce) { .pxfall, .pxdrift { animation: none; } }

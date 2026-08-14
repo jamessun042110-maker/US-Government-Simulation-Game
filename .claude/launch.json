@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "silver",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["prototype/vision-engine/devserver.py", "8810"],
+      "port": 8810
+    }
+  ]
+}
