@@ -71,7 +71,7 @@ export const SEAT_CAP = {
   president: 1, premier: 1,
   vp: 2,
   justice: 13, magistrate: 13,
-  assembly: 20, council: 20,
+  assembly: 20, council: 20, senate: 20,
 };
 export const seatCap = (officeId) => SEAT_CAP[officeId] ?? MAX_SEATS;
 
@@ -195,10 +195,23 @@ export const TEMPLATES = [
         // Twenty seats, one per state, because the states *are* the electoral
         // map: world.js seats one district per seat of the district-elected
         // office, so seven seats meant thirteen states existed on the map with
-        // no government, no representative and nobody to vote for. The id stays
-        // `assembly` until the chamber is split in two; the label is what a
-        // player reads.
+        // no government, no representative and nobody to vote for.
+        //
+        // The id stays `assembly` now that the chamber *has* been split in two,
+        // and deliberately: `RIGHTS.assembly` is the freedom to assemble, and a
+        // rename of the office id is a string sweep that cannot tell the two
+        // apart. The label is what a player reads, and it reads "House".
         { id: 'assembly', name: 'House of Representatives', seats: 20, selection: 'election', termYears: 2, electorate: 'district',
+          powers: ['propose_bill', 'vote', 'impeach', 'tax', 'declare_war'] },
+        // The upper chamber. One per state rather than two, because a district
+        // election is one contest per seat filtered to that seat's district
+        // (see sim.closeElection) — two seats in one district would run the same
+        // field twice and return the same winner twice. So the Senate's
+        // distinctness here is not its apportionment, which matches the House's;
+        // it is the six-year term, which puts a senator three House elections
+        // away from the mood of the moment, and the second vote every bill has
+        // to win.
+        { id: 'senate', name: 'Senate', seats: 20, selection: 'election', termYears: 6, electorate: 'district',
           powers: ['propose_bill', 'vote', 'impeach', 'tax', 'declare_war'] },
         { id: 'president', name: 'President', seats: 1, selection: 'election', termYears: 4, electorate: 'nation', successor: 'vp', termLimit: 2,
           powers: ['spend', 'appoint', 'promulgate', 'veto', 'pardon', 'command_military', 'sign_treaty', 'emergency', 'propose_bill', 'arrest', 'zone'] },
@@ -222,7 +235,13 @@ export const TEMPLATES = [
         { id: 'justice', name: 'Supreme Court', seats: 3, selection: 'appointment', appointedBy: 'president', termYears: 12,
           powers: ['strike_law'] },
       ],
-      legislature: { chamber: 'assembly', proposalRights: ['assembly', 'president'], passFraction: 0.5, quorum: 0.5, vetoOffice: 'president', overrideFraction: 0.667 },
+      // `chamber` is where a measure starts and `upperChamber` is where it goes
+      // next; a constitution that leaves `upperChamber` null is unicameral and
+      // behaves exactly as it did before the split. Bills originate in the House
+      // whoever files them — the simplification that keeps the stage a counter
+      // rather than a direction, and the one the revenue clause would force
+      // anyway.
+      legislature: { chamber: 'assembly', upperChamber: 'senate', proposalRights: ['assembly', 'senate', 'president'], passFraction: 0.5, quorum: 0.5, vetoOffice: 'president', overrideFraction: 0.667 },
       spending: [
         { above: 0, requires: null },
         { above: 1e6, requires: { body: 'assembly', fraction: 0.5 } },
@@ -230,9 +249,11 @@ export const TEMPLATES = [
       discretion: { cap: 5e6, years: 1 },
       elections: { citizenWeight: 1, playerWeight: 1.5 },
       rights: [RIGHTS.press, RIGHTS.speech, RIGHTS.dueProcess, RIGHTS.property, RIGHTS.assembly, RIGHTS.equalProtection],
-      // Two stages: the Assembly adopts articles at 1/2 (which opens a trial),
-      // then sits as a court and convicts at 3/4 to remove. Any officer may be tried.
-      impeachment: { proposalRights: ['assembly'], fraction: 0.5, convictFraction: 0.667, tries: 'assembly', appliesTo: ['president', 'vp', 'state', 'defense', 'exchequer', 'justice', 'assembly'] },
+      // Two stages, and now two rooms: the House adopts articles at 1/2, which
+      // opens a trial, and the Senate sits as the court and convicts at 2/3 to
+      // remove. `convicts` is the trial's chamber; a unicameral constitution
+      // leaves it null and the same body does both, as it always did.
+      impeachment: { proposalRights: ['assembly'], fraction: 0.5, convictFraction: 0.667, tries: 'assembly', convicts: 'senate', appliesTo: ['president', 'vp', 'state', 'defense', 'exchequer', 'justice', 'assembly', 'senate'] },
       amendment: { fraction: 0.75, chamber: 'assembly', alsoRequires: [] },
       judiciary: { office: 'justice', canStrike: true },
       emergency: { office: 'president', suspendsLegislature: false, maxYears: 1 },
@@ -275,7 +296,7 @@ export function officesOf(world, personaId) {
  * list of chairs wants the important ones first. A President who also sits on
  * something else is still addressed as President.
  */
-export const PRESTIGE = { president: 100, premier: 95, vp: 92, justice: 85, magistrate: 78, state: 74, defense: 72, exchequer: 70, council: 62, assembly: 60, minister: 48 };
+export const PRESTIGE = { president: 100, premier: 95, vp: 92, justice: 85, magistrate: 78, state: 74, defense: 72, exchequer: 70, senate: 68, council: 62, assembly: 60, minister: 48 };
 
 // The powers that make an office the executive rather than a member of one.
 const EXECUTIVE_POWERS = ['appoint', 'promulgate', 'command_military', 'veto', 'pardon', 'emergency', 'sign_treaty', 'spend'];
@@ -346,7 +367,7 @@ const ADDRESS = {
   president: 'President', vp: 'Vice President', premier: 'Premier',
   justice: 'Justice', magistrate: 'Magistrate',
   state: 'Secretary of State', defense: 'Secretary of Defense',
-  assembly: 'Rep.', council: 'Councillor', minister: 'Minister',
+  assembly: 'Rep.', senate: 'Sen.', council: 'Councillor', minister: 'Minister',
 };
 
 /**
@@ -705,6 +726,53 @@ export function fracText(f) {
   return k ? known[k] : Math.round(f * 100) + '%';
 }
 
+// --- The chambers ----------------------------------------------------------
+//
+// A measure is in front of one room at a time. `legislature.chamber` is where it
+// starts and `legislature.upperChamber` is where it goes next; a constitution
+// that names only the first is unicameral, and every function below collapses to
+// what it did before the split. `doc.chamberStage` is the index into that list —
+// absent or 0 for the lower chamber, 1 for the upper — and acts.closeFloor is
+// what advances it.
+
+/** The legislative chambers, in the order a measure passes through them. */
+export function chambers(world) {
+  const L = world?.constitution?.legislature || {};
+  return [L.chamber, L.upperChamber].filter(Boolean);
+}
+
+export const isBicameral = (world) => chambers(world).length > 1;
+
+/** The chamber a measure is in front of right now. */
+export function stageChamber(world, doc) {
+  const ch = chambers(world);
+  if (!ch.length) return null;
+  return ch[Math.min(doc?.chamberStage || 0, ch.length - 1)];
+}
+
+/**
+ * The chamber a measure goes to after passing the one it is in, or null if it
+ * has cleared the legislature. Null too when the next room has nobody in it: an
+ * empty chamber is not a veto, and a measure should not be trapped by a body
+ * that does not exist to vote on it.
+ */
+export function nextChamber(world, doc) {
+  const ch = chambers(world);
+  const next = ch[(doc?.chamberStage || 0) + 1];
+  return next && bodySeated(world, next) ? next : null;
+}
+
+/**
+ * A body named by a template or a spending clause. Honoured as written — a
+ * constitution may point a requirement at any office it likes — unless it names
+ * the chamber a measure starts in, in which case the measure's own stage decides
+ * which of the two rooms it is actually standing in.
+ */
+function stagedBody(world, named, doc) {
+  const L = world?.constitution?.legislature || {};
+  return named === L.chamber ? (stageChamber(world, doc) || named) : named;
+}
+
 /**
  * Voting requirement for a document, derived from its kind and its clauses.
  * Returns null when no seated body can try it — a constitution with no
@@ -719,25 +787,36 @@ export function voteRequirement(world, doc) {
 function voteRequirementRaw(world, doc) {
   const c = world.constitution;
   if (doc.type === 'amendment')
-    return { body: c.amendment.chamber, fraction: c.amendment.fraction, quorum: 0.5, also: c.amendment.alsoRequires || [], label: 'Constitutional amendment' };
+    return { body: stagedBody(world, c.amendment.chamber, doc), fraction: c.amendment.fraction, quorum: 0.5, also: c.amendment.alsoRequires || [], label: 'Constitutional amendment' };
   if (doc.type === 'impeachment') {
+    // The two phases are two rooms, not two readings: the House brings the
+    // articles and the Senate tries them. Each phase votes once, so neither
+    // stages — `convicts` falling back to `tries` is the unicameral case, where
+    // the same chamber does both as it always did.
     const trial = !!doc.trialPhase;
-    return { body: c.impeachment.tries, quorum: 0.5, also: [],
+    return { body: trial ? (c.impeachment.convicts || c.impeachment.tries) : c.impeachment.tries, quorum: 0.5, also: [],
       fraction: trial ? (c.impeachment.convictFraction || 0.75) : c.impeachment.fraction,
       label: trial ? 'Conviction at the impeachment trial' : 'Articles of impeachment' };
   }
+  // Advice and consent, and only the upper chamber's: a treaty is ratified in
+  // one room, not two. Unicameral constitutions ratify where they legislate.
   if (doc.type === 'treaty')
-    return { body: c.legislature.chamber, fraction: 0.5, quorum: 0.5, also: [], label: 'Ratification' };
+    return { body: c.legislature.upperChamber || c.legislature.chamber, fraction: 0.5, quorum: 0.5, also: [], label: 'Ratification' };
   if (doc.type === 'order') return null; // executive orders do not go to a vote
 
   // A bill takes the strictest requirement any of its clauses demands.
-  let frac = c.legislature.passFraction, body = c.legislature.chamber, why = 'Ordinary legislation';
+  let frac = c.legislature.passFraction, body = stageChamber(world, doc) || c.legislature.chamber, why = 'Ordinary legislation';
   for (const cl of doc.clauses) {
     const amt = clausePrice(world, cl);
     if (amt > 0) {
       const r = spendRule(world, amt);
       if (r.requires && r.requires.fraction > frac) {
-        frac = r.requires.fraction; body = r.requires.body;
+        // The threshold raises the bar; it does not pull the bill back into the
+        // room it has already left. A spending rule that names the originating
+        // chamber (which is what every template writes) still follows the stage,
+        // so a $2M appropriation needs three fifths of *whichever* chamber is
+        // sitting on it. Only a rule naming some other body overrides that.
+        frac = r.requires.fraction; body = stagedBody(world, r.requires.body, doc);
         why = `Appropriation of ${fmtThreshold(r.above)} or more`;
       }
     }
@@ -775,12 +854,26 @@ export function electorateFor(world, doc) {
  * 'vote' power. Not part of the ordinary electorate (never in the roll), they
  * weigh in only when the chamber is split evenly. Returns the first seated
  * office-holder outside the voting body whose office carries the power.
+ *
+ * Two things guard the search now that there is a second chamber, both of which
+ * it got wrong the moment the Senate was given a 'vote' power of its own:
+ *
+ * - **Skip every chamber, not just the voting one.** The scan is over
+ *   `world.seats` in seat order, so with the House on the floor the first seat
+ *   outside it carrying 'vote' was a *senator*, and a tied House bill was being
+ *   settled by whichever senator happened to sit first in the array.
+ * - **The tie-break belongs to the upper chamber.** The Vice President presides
+ *   over the Senate and breaks ties there; the House elects its own Speaker and
+ *   settles its own business. A unicameral constitution has one room and the
+ *   tie-breaker keeps it, exactly as before.
  */
 export function tieBreaker(world, doc) {
   const req = voteRequirement(world, doc);
   if (!req) return null;
+  const rooms = chambers(world);
+  if (isBicameral(world) && req.body !== world.constitution.legislature.upperChamber) return null;
   for (const s of world.seats) {
-    if (!s.personaId || s.office === req.body) continue;
+    if (!s.personaId || s.office === req.body || rooms.includes(s.office)) continue;
     const o = office(world, s.office);
     if (o && (o.powers || []).includes('vote')) return { personaId: s.personaId, office: s.office };
   }
@@ -799,8 +892,9 @@ export function tally(world, doc) {
   // A chamber split evenly is decided by the tie-breaking officer (the VP), whose
   // ballot is not otherwise counted — so a 3–3 is not left to pass on the letter
   // of "half the votes cast". Only on an exact tie, and only if they voted.
+  const tied = yea === nay && yea + nay > 0;
   let tieBroken = null;
-  if (yea === nay && yea + nay > 0) {
+  if (tied) {
     const tb = tieBreaker(world, doc);
     const b = tb && doc.votes[tb.personaId];
     if (b === 'yea' || b === 'nay') {
@@ -812,9 +906,18 @@ export function tally(world, doc) {
   const eligible = roll.length || 1;
   const quorumMet = (cast + abstain * 0) / eligible >= (req.quorum || 0) || cast / eligible >= (req.quorum || 0);
   const share = cast ? yea / cast : 0;
+  // An equally divided chamber that nobody broke has not carried the measure.
+  //
+  // At a simple-majority bar `share >= 0.5` is true of a dead tie, so 10–10 read
+  // as a pass on the letter of "half the votes cast" — which is the bug the
+  // tie-breaker was added to kill, and which came straight back the moment the
+  // tie-break was confined to the chamber the Vice President actually presides
+  // over. The House has no such officer, and a motion needs *more than* half.
+  // A tie the tie-breaker settled is not a tie any more and is unaffected.
+  const deadlocked = tied && !tieBroken;
   return {
-    req, yea, nay, abstain, cast, eligible, share, quorumMet, tieBroken,
-    passes: quorumMet && cast > 0 && share >= req.fraction - 1e-9,
+    req, yea, nay, abstain, cast, eligible, share, quorumMet, tieBroken, deadlocked,
+    passes: quorumMet && cast > 0 && !deadlocked && share >= req.fraction - 1e-9,
     needed: Math.ceil(req.fraction * Math.max(cast, Math.ceil(eligible * (req.quorum || 0)))),
   };
 }
@@ -882,6 +985,12 @@ export function repairConstitution(c) {
 
   const L = c.legislature;
   if (!has(L.chamber)) L.chamber = firstWith('vote');
+  // A second chamber that was struck at the convention, or that ended up being
+  // the same room as the first (strike the House and `firstWith('vote')` hands
+  // `chamber` the Senate, which is already the upper one), collapses back to a
+  // unicameral legislature. Left alone it would make every bill pass one room
+  // twice — a second reading dressed as a second chamber.
+  if (!has(L.upperChamber) || L.upperChamber === L.chamber) L.upperChamber = null;
   if (L.vetoOffice && !has(L.vetoOffice)) L.vetoOffice = null;
   L.proposalRights = (L.proposalRights || []).filter(has);
   if (!L.proposalRights.length && L.chamber) L.proposalRights = [L.chamber];
@@ -898,8 +1007,26 @@ export function repairConstitution(c) {
       else { o.selection = 'election'; o.appointedBy = null; }
     }
   }
+
+  // Every district-elected office holds exactly one seat per district.
+  //
+  // The districts are cut to the *first* district-elected office (world.js), and
+  // a district election is one contest per seat filtered to that seat's own
+  // district (sim.closeElection). So a second district office with a different
+  // seat count is not a bigger chamber — it is the same race run twice in some
+  // districts, returning the same winner to both seats, and no race at all in
+  // others. Trimming a chamber at the convention trims the other one with it.
+  // Zero seats still means "this office will not exist", so an abolished chamber
+  // is skipped rather than resurrected at the other one's size.
+  const districted = c.offices.filter((o) => o.electorate === 'district' && o.seats > 0);
+  if (districted.length > 1) for (const o of districted.slice(1)) o.seats = districted[0].seats;
+
   if (c.impeachment) {
     if (!has(c.impeachment.tries)) c.impeachment.tries = L.chamber;
+    // The court that hears the trial. Struck, or the same room that brought the
+    // articles, and there is no second stage to speak of — voteRequirementRaw
+    // falls back to `tries` and one chamber does both.
+    if (!has(c.impeachment.convicts) || c.impeachment.convicts === c.impeachment.tries) c.impeachment.convicts = null;
     c.impeachment.proposalRights = (c.impeachment.proposalRights || []).filter(has);
     if (!c.impeachment.proposalRights.length && L.chamber) c.impeachment.proposalRights = [L.chamber];
     c.impeachment.appliesTo = (c.impeachment.appliesTo || []).filter(has);

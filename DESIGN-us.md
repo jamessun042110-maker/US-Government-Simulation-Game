@@ -108,20 +108,64 @@ keeps zoning, land value and the build system working untouched.
 Western regions are close to rectangles in reality, which makes them nearly free
 to author. The eastern seaboard carries the detail.
 
-## 3. Bicameral Congress
+## 3. Bicameral Congress — built
 
-The single `assembly` office splits:
+The single `assembly` office split in two:
 
-- **House of Representatives** — the existing 7-seat, 2-year, district-elected
-  chamber, renamed. Apportioned by state, so the states double as the electoral
-  map.
-- **Senate** — a second chamber, longer term, elected statewide rather than by
-  district.
+- **House of Representatives** — 20 seats, 2-year terms, one per state. Office id
+  stays `assembly`; the label is what a player reads. Renaming the id would be a
+  string sweep that cannot tell it apart from `RIGHTS.assembly`, the freedom to
+  assemble.
+- **Senate** — 20 seats, **6-year** terms, one per state.
 
-Both must pass a bill. This is the largest bug surface in the overhaul: the
-single-chamber assumption runs through the bill lifecycle, vote counting, quorum,
-veto override and every legislative view in `ui.js`. `legislature.chamber` is one
-string today; it becomes a pair, and every reader of it has to be found.
+**The Senate is one per state, not two.** A district election is one contest per
+seat filtered to that seat's own district (`sim.closeElection`), so two seats in
+one district would run the same field twice and return the same winner twice.
+What distinguishes the Senate here is therefore not its apportionment — that
+matches the House, which is not population-apportioned either — but the six-year
+term, which puts a senator three House elections away from the mood of the
+moment, and the second vote every bill has to win.
+
+`repairConstitution` enforces that every district-elected office holds exactly
+one seat per district, so trimming one chamber at the convention trims the other.
+
+### How the split lands
+
+`legislature.chamber` is where a measure starts; `legislature.upperChamber` is
+where it goes next, and `null` means unicameral — every other template, and any
+constitution that strikes a chamber, behaves exactly as before.
+
+A measure stands in **one room at a time**. `doc.chamberStage` indexes the
+chamber list, and `acts.closeFloor` advances it — the same two-stage shape the
+impeachment trial already used. Everything else (the roll, the tally, the quorum,
+the tie-break, every legislative view) reaches the body through
+`rules.voteRequirement`, so it follows the stage without knowing the split
+exists. That indirection is why the change is small.
+
+**Bills originate in the House whoever files them.** The simplification that
+keeps the stage a counter rather than a direction, and what the revenue-origination
+rule would force anyway. A senator's bill starts in the House and comes back.
+
+Who votes on what:
+
+| Measure | Rooms |
+|---|---|
+| Bill, amendment | Both, House first |
+| Treaty | Senate alone — advice and consent |
+| Impeachment | House brings articles, Senate sits as the court |
+| Veto override | Both, at the override fraction, House first |
+
+### Two rules the split forced out into the open
+
+- **The tie-break belongs to the Senate.** The VP presides there; the House
+  settles its own business. The scan also has to skip *every* chamber, not just
+  the voting one — with the Senate holding a `vote` power, a tied House bill was
+  otherwise settled by whichever senator sat first in `world.seats`.
+- **An equally divided chamber has not carried the measure.** At a simple-majority
+  bar `share >= 0.5` is true of a dead tie, so 10–10 passed on the letter of
+  "half the votes cast". The tie-break used to paper over this; confining it to
+  the Senate brought the bug straight back in the House, so `tally.deadlocked`
+  now states the rule outright.
 
 ## 4. Naming and framing
 
@@ -137,8 +181,9 @@ theme's silver palette gives way to a federal one.
 
 ## Order of work
 
-1. Naming and data — nations, the twenty states, offices, palette.
-2. Geography — real outline, real borders, authored state polygons.
-3. Bicameral Congress.
+1. ~~Naming and data — nations, the twenty states, offices, palette.~~ Done.
+2. ~~Geography — real outline, real borders, authored state polygons.~~ Done.
+3. ~~Bicameral Congress.~~ Done.
 4. Icons and theme.
-5. Tests — 122 files assume Silver, its districts and a single chamber.
+5. Tests — 122 files assumed Silver, its districts and a single chamber; 124 now,
+   and the chamber literals are gone from the ones that carried a bill.

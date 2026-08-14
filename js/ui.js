@@ -1280,7 +1280,7 @@ VIEWS.convention = (root) => {
               select(['election', 'appointment'], o.selection, (v) => { o.selection = v; push(); }))),
           o.electorate === 'district' && o.seats > 0
             ? el('div', { class: 'tiny dimmer', style: { marginTop: '-2px', marginBottom: '8px' } },
-              `${o.seats} district${o.seats === 1 ? '' : 's'}, one representative each`)
+              `${o.seats} district${o.seats === 1 ? '' : 's'}, one member each — every chamber elected by district is cut to the same map`)
             : null,
 
           // Folded away, one disclosure per office.
@@ -1610,20 +1610,26 @@ VIEWS.assembly = (root) => {
             : mine.length ? 'You may put ' + mine.map((k) => A.DOC_TYPES[k].label.toLowerCase()).join(', ') + ' on the floor.'
               : R.mayPropose(world, p.id, 'bill').reason + ' Your office acts through the Oval Office instead.')))(proposable(world, p)),
       chatCard('floor'),
-      el('div', { class: 'card' }, el('h3', {}, 'The chamber'),
-        // No party dot. A coloured bullet beside every name promised a caucus
-        // structure the game does not have — nothing in play is organised by
-        // party, nobody whips one, and the legend for it existed nowhere. The
-        // lean still bends how a member votes; it is simply not claiming to be
-        // a bloc. The Offices table names the party in full for anyone curious.
-        ...world.seats.filter((s) => s.office === world.constitution.legislature.chamber).map((s) => {
+      // One card per chamber. A single undifferentiated list of forty names was
+      // the old card doing the wrong thing twice over: it could not say which
+      // room a member sat in, and a bill's roll only ever covers one of them.
+      // No party dot. A coloured bullet beside every name promised a caucus
+      // structure the game does not have — nothing in play is organised by
+      // party, nobody whips one, and the legend for it existed nowhere. The
+      // lean still bends how a member votes; it is simply not claiming to be
+      // a bloc. The Offices table names the party in full for anyone curious.
+      ...R.chambers(world).map((room) => el('div', { class: 'card' },
+        el('h3', {}, R.office(world, room)?.name || 'The chamber'),
+        el('div', { class: 'tiny dimmer', style: { marginBottom: '4px' } },
+          ((o) => o ? `${o.seats} seats · ${o.termYears}-year terms` : '')(R.office(world, room))),
+        ...world.seats.filter((s) => s.office === room).map((s) => {
           const h = s.personaId ? world.personas[s.personaId] : null;
           return el('div', { class: 'spread small', style: { padding: '3px 0' } },
             el('span', {},
               h ? h.name : el('i', { class: 'dimmer' }, 'vacant'),
               h && !h.synthetic ? el('span', { class: 'tag gold', style: { marginLeft: '6px' } }, 'player') : null),
             el('span', { class: 'tiny dimmer' }, s.district ? world.districts.find((d) => d.id === s.district)?.name : ''));
-        })),
+        }))),
     ),
   ));
 
@@ -1690,6 +1696,12 @@ function docCard(d) {
   const iVote = p && roll.some((v) => v.personaId === p.id);
   const left = d.floorCloses ? d.floorCloses - world.clock.tick : 0;
   const fisc = fiscalPhrase(world, d);
+  // The rooms it has already carried. A bill's second tally overwrites its
+  // first, so without this the House vote simply disappears the moment the
+  // Senate takes the bill up — and "carried the House 12–8, lost the Senate
+  // 9–11" is the entire reason for having two chambers.
+  const cleared = (d.chamberTallies || [])
+    .map((c) => `${R.office(world, c.body)?.name || c.body} ${c.yea}–${c.nay}`).join(' · ');
 
   const node = el('div', { class: 'doc' },
     // Say plainly why this one is going to fail, rather than letting the author
@@ -1715,6 +1727,8 @@ function docCard(d) {
       ...d.clauses.map((c, i) => el('div', { class: 'clause', 'data-n': i + 1 }, A.clauseText(world, c))),
       fisc ? el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
         'Fiscal effect: ', fisc.text, ' · ', R.spendClauseText(world, fisc.total)) : null,
+      cleared ? el('div', { class: 'tiny dimmer', style: { marginTop: '4px' } },
+        'Already carried: ', cleared) : null,
     ));
 
   const foot = el('footer', {});
@@ -4502,8 +4516,11 @@ function rivalsCard(world, co) {
 
 function lobbyCard(world, co) {
   const floor = world.docOrder.map((id) => world.documents[id]).filter((d) => d && d.status === 'floor');
-  const chamber = world.constitution.legislature?.chamber;
-  const members = world.seats.filter((s) => s.office === chamber && s.personaId)
+  // Both chambers are worth buying. A measure that has cleared the House is in
+  // front of the Senate, and a lobby list that only knew about the first room
+  // would go blank at exactly the moment the money mattered most.
+  const rooms = R.chambers(world);
+  const members = world.seats.filter((s) => rooms.includes(s.office) && s.personaId)
     .map((s) => world.personas[s.personaId]).filter(Boolean);
   S.lobby = S.lobby || { doc: '', who: '', amount: '' };
 

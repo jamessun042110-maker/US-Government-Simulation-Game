@@ -8,8 +8,8 @@ The live code is this repo — `/Users/james/Claude Code/congressional app
 challenge`, GitHub `jamessun042110-maker/US-Government-Simulation-Game`. **The
 folder name contains spaces: quote every path.**
 
-**Everything is committed and pushed. `main` = `c238fbd`. Suite: 2124 passed / 0
-failed, 123 files.**
+**Suite: 2184 passed / 0 failed, 124 files.** The bicameral work is committed on
+branch `bicameral-congress` — **not merged to `main`, and not pushed.**
 
 ---
 
@@ -122,6 +122,33 @@ on the map with no government and nobody to vote for.
 - Shares at the founding: **Canada 49%, US 42%, Mexico 8%**. Measured, not
   targeted — the 49th parallel is where it is.
 
+### Two chambers
+
+Full design in `DESIGN-us.md` §3. The parts that will bite:
+
+- **`legislature.chamber` is still the first chamber**, not a pair.
+  `legislature.upperChamber` is the second, and `null` means unicameral. Nothing
+  that read `chamber` had to change meaning.
+- **A measure stands in one room at a time.** `doc.chamberStage` indexes
+  `R.chambers(world)`; `acts.closeFloor` advances it. Everything else goes
+  through `R.voteRequirement`, so it follows the stage without knowing. **If you
+  add a new kind of vote, route it through `voteRequirement` and it is bicameral
+  for free.**
+- **The office id of the House is still `assembly`.** Deliberately — a rename is
+  a string sweep that cannot tell it from `RIGHTS.assembly`, the freedom to
+  assemble. `senate` is the Senate.
+- **The Senate is one seat per state, not two.** A district election is one
+  contest per seat filtered to that district, so two seats in one district elect
+  the same person twice. `repairConstitution` now forces every district-elected
+  office to the same seat count for this reason. **Do not raise the Senate to 40
+  without first making district elections multi-winner.**
+- **A tie now fails** (`tally.deadlocked`) unless a tie-breaker settles it, and
+  the VP only breaks ties in the Senate. Confining the tie-break without the
+  deadlock rule silently restores the 10–10-passes bug in the House.
+- **Bills originate in the House whoever files them**, including senators.
+- `doc.chamberTallies` keeps the rooms a measure has already carried, because
+  `doc.tally` is overwritten by the second chamber's count.
+
 ### Naming
 
 `Silver` → `The United States`, `goldland` → `canada`, `electrum` → `mexico`,
@@ -138,21 +165,24 @@ capitalised article, dropped mid-sentence. Without it the founding document read
 
 **Queued, not started:**
 
-1. **Bicameral Congress.** The one structural gap between this and the real
-   thing. `legislature.chamber` is a single string read through the bill
-   lifecycle, vote counting, quorum, veto override and every legislative view in
-   `ui.js`. Two tests were already refactored to survive the split —
-   `bios.mjs` and `laterlife.mjs` ask the constitution for the chamber's name
-   rather than naming it in a literal, and `vptiebreak.mjs` derives its split
-   from the roll.
-2. **Icons and palette.** Still Silver's indigo/gold. `css/app.css` has
+1. **Play a full Season end to end.** Now the biggest gap by a distance, and the
+   handoff this forked from was emphatic about it: one hand-played presidency
+   found four faults nothing else had. Bicameralism makes this more urgent, not
+   less — every bill now takes two floor cycles, and nothing has been played at
+   that pace.
+2. **Balance after 7 → 20 seats, and now × 2 chambers.** Quorum, pass fractions
+   and floor votes run across twenty members, twice. Nothing was retuned. A bill
+   now needs two majorities and takes roughly twice as long to become law.
+   Expect the statute book to fill more slowly than it did.
+3. **Icons and palette.** Still Silver's indigo/gold. `css/app.css` has
    `--silver` and `--silver-dim` as colour tokens; those are greys and the name
    is the only thing wrong with them.
-3. **Play a full Season end to end.** Still the biggest gap, and the handoff this
-   forked from was emphatic about it: one hand-played presidency found four
-   faults nothing else had.
-4. **Balance after 7 → 20 seats.** Quorum, pass fractions and floor votes now run
-   across twenty members. Nothing was retuned. Bills may feel harder to move.
+4. **Senate elections are not staggered.** The real Senate turns over in thirds.
+   Elections here are scheduled per *office*, not per seat, so all twenty seats
+   go to the country at once every six years. Staggering means per-seat election
+   scheduling, which is a real piece of work and was left alone.
+
+**Done since the fork:** bicameral Congress (see `DESIGN-us.md` §3).
 
 **Known rough edges:**
 
@@ -207,6 +237,18 @@ capitalised article, dropped mid-sentence. Without it the founding document read
   `world.js?v=2` gives you the *cached* atlas and a confusing missing-export
   error. Navigate, don't cache-bust.
 - **A reload after >150s away drops you on the join screen** (`GONE_AFTER`).
+- **A saved Season keeps the constitution it was founded under.** An in-progress
+  world has no Senate and never will — the constitution is per-world, and
+  `repairConstitution` nulls `upperChamber` for it, so it stays unicameral and
+  correct. **To see anything constitutional you changed, you must found a new
+  republic.** This reads exactly like a stale module; it is not.
+- **Clearing `localStorage` from the running page does not stick.** The live page
+  writes its world back before you can reload, and you come back to the same
+  Season. Clear and reload in *one* expression:
+  `Object.keys(localStorage).filter(k=>k.startsWith('usgov')).forEach(k=>localStorage.removeItem(k)); location.reload();`
+- **The convention's Begin/Ready buttons sit below the fold** and the pane's
+  scroll can hang. `__usgov.dispatch({type:'READY'})` then `{type:'RATIFY'}` puts
+  you in a live Season in one call.
 - **Set `world.paused = true`** — clicking Pause files a table motion.
 - **The oath modal comes up even with `w.inaugurated = 0`.**
 - **Walk every tab after touching ui.js.** All nine are green at `c238fbd`.
@@ -248,5 +290,10 @@ claims and measuring *that*, not by widening a tolerance until it passed.
 - Annexation moves real frontiers in both directions, and a power can be annexed
   off the continent entirely (0.0% left) without touching the third country.
 - Water parcels appear only in the fifteen states with a sea or a Great Lake.
-- All nine views render with no console errors.
-- 2124 assertions green across 123 files.
+- All nine views render with no console errors, and so do the four department
+  rooms, on a bicameral world with a bill mid-passage.
+- A bill hand-carried through both chambers in the browser: House 20–0 → the
+  floor card reads "Already carried: House of Representatives 20–0" and
+  "simple majority of the Senate" over a completely different roll → Senate 20–0
+  → "has passed the Senate and is on your desk".
+- 2184 assertions green across 124 files.

@@ -80,10 +80,13 @@ const doc = A.createDoc(w4, {
   clauses: [{ kind: 'PROSE', text: 'Whereas nothing.' }],
 });
 A.introduce(w4, doc.id, pid4, 20);
-for (const s of w4.seats.filter((x) => x.office === 'assembly' && x.personaId)) {
-  A.castVote(w4, doc.id, s.personaId, 'yea');
+// Every chamber the constitution names. The notice on the President's desk is
+// written when the *last* of them carries it, so a bill stopped halfway is a
+// bill nobody is told to sign.
+for (let room = 0; doc.status === 'floor' && room < 4; room++) {
+  for (const v of R.electorateFor(w4, doc)) A.castVote(w4, doc.id, v.personaId, 'yea');
+  A.closeFloor(w4, doc.id);
 }
-A.closeFloor(w4, doc.id);
 ok('a passed bill awaits signature', doc.status === 'awaiting-signature', doc.status);
 ok('and the President is told it is on their desk',
   (w4.notices || []).some((n) => n.playerId === 'p1' && /on your desk/.test(n.text)),
@@ -97,9 +100,11 @@ ok('signing still makes law', doc.status === 'law', doc.status);
 const { w: w5 } = mk();
 const doc5 = A.createDoc(w5, { type: 'bill', title: 'Another', authorId: w5.players.p1.personaId, clauses: [{ kind: 'PROSE', text: 'x' }] });
 A.introduce(w5, doc5.id, w5.players.p1.personaId, 20);
-for (const s of w5.seats.filter((x) => x.office === 'assembly' && x.personaId)) A.castVote(w5, doc5.id, s.personaId, 'yea');
 const before = (w5.notices || []).length;
-A.closeFloor(w5, doc5.id);
+for (let room = 0; doc5.status === 'floor' && room < 4; room++) {
+  for (const v of R.electorateFor(w5, doc5)) A.castVote(w5, doc5.id, v.personaId, 'yea');
+  A.closeFloor(w5, doc5.id);
+}
 ok('a synthetic President gets no player notice', (w5.notices || []).length === before,
   `${(w5.notices || []).length} vs ${before}`);
 

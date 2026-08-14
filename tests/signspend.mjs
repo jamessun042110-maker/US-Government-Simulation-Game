@@ -17,10 +17,19 @@ const mk = () => {
   w.seats.find((s) => s.office === 'president').personaId = pid;
   return { w, pid };
 };
+// Carry a bill through every chamber the constitution names — one roll, one
+// close, per room. Asking R.electorateFor who votes rather than naming
+// 'assembly' is what keeps this true either side of the bicameral split: under
+// one chamber it closes once, under two it closes twice.
+const carry = (w, doc, ballot = 'yea') => {
+  for (let room = 0; doc.status === 'floor' && room < 4; room++) {
+    for (const v of R.electorateFor(w, doc)) A.castVote(w, doc.id, v.personaId, ballot);
+    A.closeFloor(w, doc.id);
+  }
+};
 const passAndSign = (w, pid, doc) => {
   A.introduce(w, doc.id, pid, 20);
-  for (const s of w.seats.filter((x) => x.office === 'assembly' && x.personaId)) A.castVote(w, doc.id, s.personaId, 'yea');
-  A.closeFloor(w, doc.id);
+  carry(w, doc);
   if (doc.status !== 'law') A.sign(w, doc.id, pid);
   return doc;
 };

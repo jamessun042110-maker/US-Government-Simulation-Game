@@ -1037,7 +1037,14 @@ export function introduce(world, docId, personaId, floorTicks = 90) {
 
 export function castVote(world, docId, personaId, ballot) {
   const doc = world.documents[docId];
-  if (!doc || doc.status !== 'floor') return fail('The floor is closed.');
+  // An override is a floor vote too. This admitted only `floor`, so a member who
+  // moved to override a veto and then voted on their own motion had the ballot
+  // dropped on the way in — silently, since the floor card shows the vote buttons
+  // for both statuses and CLOSE_FLOOR already routed an override to
+  // closeOverride. The synthetic members were unaffected (sim.tickFloor writes
+  // doc.votes directly), so an override ran on NPC ballots alone and a player
+  // clicking Vote yea watched the tally not move.
+  if (!doc || (doc.status !== 'floor' && doc.status !== 'override')) return fail('The floor is closed.');
   const roll = R.electorateFor(world, doc);
   // The chamber's own members, plus the tie-breaking officer (the VP), whose vote
   // is recorded but counted only if the chamber splits evenly.
@@ -1086,7 +1093,11 @@ export function closeFloor(world, docId, { auto = false } = {}) {
   log(world, 'vote', `“${doc.title}” passes the ${chamber} ${t.yea}–${t.nay}${brokenBy}.${provenance}`, { docId: doc.id, weight: 2 });
 
   // Impeachment is two-stage: adopting the articles (this pass) opens a trial at
-  // a higher bar. Nobody is removed until the chamber convicts at that trial.
+  // a higher bar. Nobody is removed until the trial convicts. Under a bicameral
+  // constitution the trial is a different room as well as a different bar — the
+  // House brings the articles, the Senate sits as the court — so the court is
+  // named from the *new* requirement rather than from the chamber that just
+  // voted, which is a different body the moment `trialPhase` is set.
   if (doc.type === 'impeachment' && !doc.trialPhase) {
     const dur = Math.max(30, (doc.floorCloses || world.clock.tick) - (doc.floorOpened || world.clock.tick));
     doc.trialPhase = true;
@@ -1096,8 +1107,41 @@ export function closeFloor(world, docId, { auto = false } = {}) {
     doc.floorOpened = world.clock.tick;
     doc.floorCloses = world.clock.tick + dur;
     const req = R.voteRequirement(world, doc);
-    log(world, 'vote', `The articles “${doc.title}” are adopted, ${t.yea}–${t.nay}. The ${chamber} now sits as a court — ${R.fracText(req.fraction)} to convict.`, { docId: doc.id, weight: 3 });
+    doc.requirement = req;
+    const court = R.office(world, req.body)?.name || req.body;
+    log(world, 'vote', `The articles “${doc.title}” are adopted, ${t.yea}–${t.nay}. The ${court} now sits as a court — ${R.fracText(req.fraction)} to convict.`, { docId: doc.id, weight: 3 });
     return ok(doc);
+  }
+
+  // The other chamber. Same shape as the impeachment trial above and for the
+  // same reason: the roll is a different set of people, so the votes are cleared
+  // and the floor reopens, and voteRequirement reads the advanced stage and
+  // hands back the second room on its own. Everything downstream — the roll, the
+  // tally, the quorum, the tie-break, every legislative view — goes through that
+  // one function, which is why the split lands here and nowhere else.
+  //
+  // Bills and amendments pass both. A treaty is ratified by the Senate alone and
+  // a resolution never leaves the room that made it, so neither stages.
+  if (doc.type === 'bill' || doc.type === 'amendment') {
+    const next = R.nextChamber(world, doc);
+    if (next) {
+      const dur = Math.max(30, (doc.floorCloses || world.clock.tick) - (doc.floorOpened || world.clock.tick));
+      // The record of the room it has just cleared. `doc.tally` is about to be
+      // overwritten by the second chamber's count, and "passed the House 12–8
+      // and the Senate 11–9" is the whole point of having two of them.
+      doc.chamberTallies = [...(doc.chamberTallies || []),
+        { body: t.req.body, yea: t.yea, nay: t.nay, tieBroken: t.tieBroken, tick: world.clock.tick }];
+      doc.chamberStage = (doc.chamberStage || 0) + 1;
+      doc.status = 'floor';
+      doc.votes = {};
+      doc.statements = {};
+      doc.floorOpened = world.clock.tick;
+      doc.floorCloses = world.clock.tick + dur;
+      doc.requirement = R.voteRequirement(world, doc);
+      log(world, 'vote', `It goes now to the ${R.office(world, next)?.name || next}. ${R.fracText(doc.requirement.fraction)} required.`,
+        { docId: doc.id, weight: 2 });
+      return ok(doc);
+    }
   }
 
   const veto = world.constitution.legislature.vetoOffice;
@@ -1154,8 +1198,16 @@ export function openOverride(world, docId, personaId, floorTicks = 90) {
   doc.status = 'override';
   doc.floorOpened = world.clock.tick;
   doc.floorCloses = world.clock.tick + floorTicks;
+  // Back to the first chamber. The bill reached the desk by clearing both rooms,
+  // so its stage is sitting at the upper one; leaving it there would let a
+  // vetoed bill be overridden by the Senate alone — half a Congress undoing a
+  // veto the whole of it could not have prevented. Both rooms, at the override
+  // bar, in the order they saw it the first time.
+  doc.chamberStage = 0;
+  doc.votes = {};
   doc.requirement = { ...R.voteRequirement(world, doc), fraction: world.constitution.legislature.overrideFraction, label: 'Veto override' };
-  log(world, 'vote', `Override attempt on “${doc.title}”. ${R.fracText(doc.requirement.fraction)} required.`, { actors: [personaId], docId: doc.id, weight: 2 });
+  const room = R.office(world, doc.requirement.body)?.name || doc.requirement.body;
+  log(world, 'vote', `Override attempt on “${doc.title}” in the ${room}. ${R.fracText(doc.requirement.fraction)} required${R.isBicameral(world) ? ', in both chambers' : ''}.`, { actors: [personaId], docId: doc.id, weight: 2 });
   return ok(doc);
 }
 
@@ -1166,12 +1218,29 @@ export function closeOverride(world, docId) {
   let yea = 0, nay = 0;
   for (const v of roll) { const b = doc.votes[v.personaId]; if (b === 'yea') yea++; else if (b === 'nay') nay++; }
   const share = yea + nay ? yea / (yea + nay) : 0;
+  const room = R.office(world, doc.requirement.body)?.name || 'chamber';
   if (share >= doc.requirement.fraction - 1e-9 && yea + nay > 0) {
+    // One room down. An override that has carried the first chamber is not law
+    // until the second one says so too, at the same bar.
+    const next = R.nextChamber(world, doc);
+    if (next) {
+      const dur = Math.max(30, (doc.floorCloses || world.clock.tick) - (doc.floorOpened || world.clock.tick));
+      doc.chamberTallies = [...(doc.chamberTallies || []),
+        { body: doc.requirement.body, yea, nay, tieBroken: null, tick: world.clock.tick, override: true }];
+      doc.chamberStage = (doc.chamberStage || 0) + 1;
+      doc.votes = {};
+      doc.statements = {};
+      doc.floorOpened = world.clock.tick;
+      doc.floorCloses = world.clock.tick + dur;
+      doc.requirement = { ...R.voteRequirement(world, doc), fraction: world.constitution.legislature.overrideFraction, label: 'Veto override' };
+      log(world, 'vote', `The ${room} votes to override, ${yea}–${nay}. It goes to the ${R.office(world, next)?.name || next}, which must do the same.`, { docId: doc.id, weight: 2 });
+      return ok(doc);
+    }
     log(world, 'vote', `Veto overridden, ${yea}–${nay}. “${doc.title}” becomes law over the objection of the executive.`, { docId: doc.id, weight: 3 });
     promulgate(world, doc, null);
   } else {
     doc.status = 'failed';
-    log(world, 'vote', `Override fails, ${yea}–${nay}. The veto stands.`, { docId: doc.id, weight: 2 });
+    log(world, 'vote', `Override fails in the ${room}, ${yea}–${nay}. The veto stands.`, { docId: doc.id, weight: 2 });
   }
   return ok(doc);
 }

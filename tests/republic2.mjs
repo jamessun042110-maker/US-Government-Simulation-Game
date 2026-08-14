@@ -153,8 +153,11 @@ const mk = () => {
   });
   ok('the bill remembers what it is for', doc.answers?.evUid === ev.uid);
   A.introduce(w, doc.id, pid, 30);
-  for (const s of w.seats.filter((x) => x.office === 'assembly' && x.personaId)) A.castVote(w, doc.id, s.personaId, 'yea');
-  A.closeFloor(w, doc.id);
+  // Every chamber the constitution names, not just the one it used to have.
+  for (let room = 0; doc.status === 'floor' && room < 4; room++) {
+    for (const v of R.electorateFor(w, doc)) A.castVote(w, doc.id, v.personaId, 'yea');
+    A.closeFloor(w, doc.id);
+  }
   A.sign(w, doc.id, pid);
   ok('it becomes law', doc.status === 'law', doc.status);
   ok('and the crisis is closed by it', ev.resolved != null, String(ev.resolved));

@@ -1028,8 +1028,11 @@ function tickMemberBills(world) {
   // already doing the thing this exists to produce.
   if (Object.values(world.documents).some((d) => d.status === 'floor')) return;
 
-  const chamber = world.constitution.legislature?.chamber;
-  const seated = world.seats.filter((s) => s.office === chamber && s.personaId)
+  // Either chamber. A senator's bill still starts its life in the House — that
+  // is where every measure originates here — but a Senate that never files
+  // anything is twenty people who only ever say no to other people's work.
+  const rooms = R.chambers(world);
+  const seated = world.seats.filter((s) => rooms.includes(s.office) && s.personaId)
     .map((s) => ({ seat: s, p: world.personas[s.personaId] }))
     .filter((x) => x.p && x.p.alive && !x.p.playerId && !x.p.imprisoned && !x.p.exiled);
   if (!seated.length) return;
@@ -1568,18 +1571,23 @@ function tickAffiliation(world) {
   if (world.phase !== 'live') return;
   if (world.clock.tick % AFFIL_CADENCE !== 0) return;
   const head = R.headOffice(world);
-  const chamber = world.constitution.legislature?.chamber;
+  const rooms = R.chambers(world);
   const presSeat = world.seats.find((s) => s.office === head?.id && s.personaId);
   const pres = presSeat && world.personas[presSeat.personaId];
   const presPerf = pres ? (nationalApproval(world) - 50) / 50 : 0;   // -1…+1
   for (const d of world.districts || []) {
     if (!d.partisan) continue;
     if (pres?.party && d.partisan[pres.party] != null) shiftPartisan(d, pres.party, presPerf * AFFIL_PRES);
-    const repSeat = world.seats.find((s) => s.office === chamber && s.district === d.id && s.personaId);
-    const rep = repSeat && world.personas[repSeat.personaId];
-    if (rep?.party && d.partisan[rep.party] != null) {
+    // Everyone a state sends to the capital bends it, not just the one in the
+    // lower chamber — but between them by no more than the single member used
+    // to, so splitting the chamber does not silently double how fast a state's
+    // partisanship moves. Two members, half the weight each.
+    const mine = world.seats.filter((s) => rooms.includes(s.office) && s.district === d.id && s.personaId);
+    for (const repSeat of mine) {
+      const rep = world.personas[repSeat.personaId];
+      if (!rep?.party || d.partisan[rep.party] == null) continue;
       const repPerf = (approvalIn(world, rep, d) - 50) / 50;
-      shiftPartisan(d, rep.party, repPerf * AFFIL_PRES * AFFIL_REP);
+      shiftPartisan(d, rep.party, (repPerf * AFFIL_PRES * AFFIL_REP) / mine.length);
     }
   }
 }

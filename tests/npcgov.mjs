@@ -101,9 +101,14 @@ const run = (w, n) => { for (let i = 0; i < n; i++) S.tick(w); };
     clauses: [{ kind: 'PROSE', text: 'Nothing in particular.' }], preamble: '',
   });
   A.introduce(w, doc.id, player, 20);
-  // Carry it on the floor, so it reaches the desk.
-  for (const v of R.electorateFor(w, doc)) doc.votes[v.personaId] = 'yea';
-  A.closeFloor(w, doc.id);
+  // Carry it through every chamber, so it reaches the desk. R.electorateFor is
+  // re-read each time round: it hands back whichever room the bill has advanced
+  // to, so this is one close under a unicameral constitution and two under this
+  // one without naming either chamber.
+  for (let room = 0; doc.status === 'floor' && room < 4; room++) {
+    for (const v of R.electorateFor(w, doc)) doc.votes[v.personaId] = 'yea';
+    A.closeFloor(w, doc.id);
+  }
   ok('the bill reaches the chair', doc.status === 'awaiting-signature', doc.status);
   ok('and is stamped with the day it arrived', doc.passedAt != null);
   run(w, 120);
