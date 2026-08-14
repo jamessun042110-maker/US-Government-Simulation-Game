@@ -29,7 +29,7 @@ function survey(nation, salt) {
     let code = 0;
     if (G.inPoly(p, g.ring)) {
       code = G.inPoly(p, g.halves.canada) ? 1
-        : G.inPoly(p, g.halves.silver) ? 2
+        : G.inPoly(p, g.halves.us) ? 2
           : G.inPoly(p, g.halves.mexico) ? 3 : 4;
       land++;
     }

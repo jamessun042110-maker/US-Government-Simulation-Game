@@ -3,6 +3,7 @@
 import { rng, range, pick, clamp, uid, sum, mulberry32, hashSeed, PALETTE, youthOf, YOUTH_APPROVAL } from './util.js';
 import { templateById, termEndTick } from './rules.js';
 import { initMacro } from './macro.js';
+import { STATE_NAMES } from './atlas.js';
 
 export const ZONES = {
   unzoned: { label: 'Unzoned', color: '#2a2a2e' },
@@ -43,25 +44,38 @@ export const MAX_DISTRICTS = 20;
  * of the world.
  */
 export const FOUNDING_YEAR = 2029;
-const DISTRICT_NAMES = ['Old Quarter', 'Ironside', 'Harborlight', 'Fourth Ward', 'The Terraces', 'Kiln Hill',
-  'Northgate', 'Silverfield', 'Cinderway', 'Low Bridge', 'Saltmarket', 'The Pales', 'Greyhithe', 'Foundry Row',
-  'Candlewick', 'Ashford', 'Bellgate', 'Rookery', 'Thornfield', 'Quayside'];
-// Twenty first names against sixteen surnames is three hundred and twenty
-// people, and a Season creates four hundred and fifty. The republic ran out of
-// names about two thirds of the way through every game it has ever played, and
-// personName's fallback appended a counter — so a third of the citizenry ended
-// up called "Vess Ferro 301", and the Chronicle, whose whole promise is that
-// these people are remembered, wrote them down that way.
-const FIRST = ['Aurel', 'Toma', 'Vess', 'Mireille', 'Hollis', 'Dax', 'Renna', 'Ivo', 'Sable', 'Corin',
-  'Nella', 'Bram', 'Odile', 'Kit', 'Pell', 'Yara', 'Osric', 'Juno', 'Wren', 'Casimir',
-  'Anselm', 'Beatrix', 'Cato', 'Delphine', 'Emeric', 'Fenn', 'Greta', 'Halcyon', 'Isolde', 'Jorun',
-  'Katria', 'Lorne', 'Maren', 'Nikolai', 'Oriel', 'Perrin', 'Quintus', 'Rosalind', 'Silas', 'Thea',
-  'Ulric', 'Verity', 'Wilhelmina', 'Xavier', 'Yseult', 'Zoran', 'Alaric', 'Bettine', 'Cormac', 'Dorothea'];
-const LAST = ['Sun', 'Hellhound', 'Karsk', 'Vaile', 'Ostrander', 'Bell', 'Marchetti', 'Kwan',
-  'Duras', 'Ferro', 'Amsel', 'Renke', 'Tolliver', 'Ash', 'Voss', 'Quill',
-  'Achterberg', 'Brandt', 'Calder', 'Dunmore', 'Eskeland', 'Fairweather', 'Gallowglass', 'Harrowgate',
-  'Ingermann', 'Jarrow', 'Kesteven', 'Lindqvist', 'Mordaunt', 'Nightingale', 'Oakhurst', 'Pellinore',
-  'Rookwood', 'Strand', 'Thackeray', 'Underhill', 'Valchek', 'Wolstenholme', 'Yarrow', 'Zeleny'];
+// The districts are states now, and their names come from the atlas rather than
+// from a list kept here — the same twenty that own polygons on the map. Two
+// lists would be two things to keep in step, and the one that drifted would be
+// this one, because nothing draws it.
+//
+// The order matters and is the atlas's: a district's name and its ground are
+// matched by index, so New England is seated first because New England is the
+// first polygon.
+const DISTRICT_NAMES = STATE_NAMES;
+// American names, where Silver's were invented — Aurel Karsk and Yseult
+// Wolstenholme belonged to a country that did not exist.
+//
+// The size is load-bearing and is the reason this is not a shorter list of more
+// familiar names. Fifty against forty is two thousand combinations for the four
+// hundred and fifty people a Season creates; the previous list ran out about two
+// thirds of the way through every game, and the fallback appended a counter, so
+// a third of the citizenry ended up called "Vess Ferro 301" in a Chronicle whose
+// whole promise is that these people are remembered.
+//
+// The surnames are drawn across the immigrations that actually built the
+// country rather than from one of them, because a legislature that is forty
+// Millers and Smiths is not a United States anyone lives in.
+const FIRST = ['James', 'Maria', 'Robert', 'Aisha', 'Michael', 'Elena', 'David', 'Grace', 'Daniel', 'Rosa',
+  'Thomas', 'Naomi', 'Andrew', 'Clara', 'Samuel', 'Imani', 'Benjamin', 'Sofia', 'Nathaniel', 'Ruth',
+  'Marcus', 'Adeline', 'Elijah', 'Priya', 'Caleb', 'Miriam', 'Isaiah', 'Yolanda', 'Vincent', 'Harriet',
+  'Julian', 'Camille', 'Theodore', 'Beatrice', 'Franklin', 'Delia', 'Hollis', 'Josephine', 'Everett', 'Lucille',
+  'Amos', 'Winifred', 'Silas', 'Cordelia', 'Abraham', 'Ida', 'Ezra', 'Frances', 'Gideon', 'Alma'];
+const LAST = ['Sun', 'Whitfield', 'Okonkwo', 'Reyes', 'Calloway', 'Nakamura', 'Brennan', 'Delgado',
+  'Ashford', 'Pemberton', 'Vasquez', 'Lindgren', 'Boone', 'Achebe', 'Marchetti', 'Kwan',
+  'Fairbanks', 'Castellanos', 'Thorne', 'Abernathy', 'Mendoza', 'Sinclair', 'Osei', 'Kowalski',
+  'Hargrove', 'Ferraro', 'Bautista', 'Lockhart', 'Nguyen', 'Prentice', 'Salazar', 'Underwood',
+  'Chandler', 'Ibarra', 'Weatherby', 'Amadi', 'Kirkpatrick', 'Solano', 'Rothstein', 'Maddox'];
 // Two parties, and a country that mostly sorts itself between them. Liberal is
 // yellow and spends, taxes and loosens; Conservative is purple and holds the
 // line on all three. `lean` is the party's consistent stance on the issues a
@@ -97,7 +111,7 @@ export function seedPartisan(world, leanId) {
 
 export const FOREIGN = [
   { id: 'canada', name: 'Canada', ideology: 'fascist', hostility: 34, strength: 120, blurb: 'A rearming neighbour that reads restraint as invitation.' },
-  { id: 'sab', name: 'The SAB', ideology: 'mercantile league', hostility: 12, strength: 70, blurb: 'Three ports and a tariff schedule with opinions.' },
+  { id: 'sab', name: 'The Antilles League', ideology: 'mercantile league', hostility: 12, strength: 70, blurb: 'An island trading bloc off the keys. Three ports and a tariff schedule with opinions.' },
   { id: 'mexico', name: 'Mexico', ideology: 'republic', hostility: 4, strength: 85, blurb: 'Sister republic. Signs things. Means about half of them.' },
 ];
 
@@ -158,12 +172,16 @@ function personName(world) {
  * a Northgate degree opens with nothing and finds a classmate in every chamber.
  */
 export const COLLEGES = [
-  { id: 'argent', name: 'Argent College', prestige: 4, share: 0.07,
-    blurb: 'Four hundred years old, six hundred students. Opens doors and invites resentment.' },
-  { id: 'meridian', name: 'Meridian School of Government', prestige: 3, share: 0.15,
+  // The ids are deliberately unchanged. `argent` and `northgate` are named in
+  // tests that measure the college-bond premium between the top and bottom of
+  // this list, and renaming an id to match a label would have broken a
+  // measurement for a cosmetic reason.
+  { id: 'argent', name: 'Wexford University', prestige: 4, share: 0.07,
+    blurb: 'Three hundred years old, six hundred undergraduates. Opens doors and invites resentment.' },
+  { id: 'meridian', name: 'Capitol School of Government', prestige: 3, share: 0.15,
     blurb: 'Where the civil service is trained, and where it recruits.' },
-  { id: 'harborlight', name: 'Harborlight Polytechnic', prestige: 2, share: 0.28,
-    blurb: 'Engineers, surveyors, harbourmasters. Builds things; distrusts speeches.' },
+  { id: 'harborlight', name: 'Lakeshore Polytechnic', prestige: 2, share: 0.28,
+    blurb: 'Engineers, surveyors, county road commissioners. Builds things; distrusts speeches.' },
   { id: 'northgate', name: 'Northgate State', prestige: 1, share: 0.50,
     blurb: 'The one most people actually went to. No cachet, and a classmate in every room.' },
 ];
@@ -263,7 +281,7 @@ export function makePersona(world, { name, playerId = null, synthetic = false, p
 
 export function newWorld(opts) {
   const {
-    nation = 'Silver', templateId = 'federal-republic', canon = 'cold',
+    nation = 'The United States', templateId = 'federal-republic', canon = 'cold',
     ticksPerYear = 240, districtCount = 6, seedPop = 24000, treasury = 60e6,
     seasonName = 'Season I',
   } = opts || {};

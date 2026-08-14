@@ -112,6 +112,21 @@ export const withThe = (name) => {
   return /^The\s/.test(s) ? s : `the ${s}`;
 };
 
+/**
+ * The same name, mid-sentence.
+ *
+ * `withThe` is for names that need an article supplied. This is for the other
+ * half of the problem: a name that already carries a capitalised one, dropped
+ * into the middle of a sentence. "The Silver Republic" was a proper name all the
+ * way through and read correctly either way, but "The United States" does not —
+ * the preamble came out "We the people of The United States", and the
+ * constitution was titled "Constitution of the Republic of The United States".
+ *
+ * Only the leading article is touched. "The Antilles League" becomes "the
+ * Antilles League" and nothing else about it moves.
+ */
+export const midThe = (name) => String(name == null ? '' : name).replace(/^The\s/, 'the ');
+
 export const pick = (world, arr) => arr[Math.floor(rng(world) * arr.length)];
 export const range = (world, lo, hi) => lo + rng(world) * (hi - lo);
 export const chance = (world, p) => rng(world) < p;

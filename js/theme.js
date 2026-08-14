@@ -16,7 +16,7 @@
 // repeats the first few lines inline, before the stylesheet paints, so the app
 // never flashes the wrong theme on load.
 
-const KEY = 'silver.theme';
+const KEY = 'usgov.theme';
 const mq = () => window.matchMedia('(prefers-color-scheme: dark)');
 
 /** The stored preference: 'light' | 'dark' | 'system'. Absent means dark. */

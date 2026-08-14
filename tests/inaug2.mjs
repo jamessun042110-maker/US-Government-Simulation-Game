@@ -19,7 +19,7 @@ seat.personaId = a; seat.since = 0;
 const k1 = U.termKey(w);
 ok('a term has a key', !!k1, k1);
 ok('and it is unseen at first', !U.inaugurationSeen(w));
-sessionStorage.setItem(`silver.inaug.${w.seasonId}.${k1}`, '1');
+sessionStorage.setItem(`usgov.inaug.${w.seasonId}.${k1}`, '1');
 ok('marking it takes', U.inaugurationSeen(w));
 
 // Same person, a new term: a second inauguration.

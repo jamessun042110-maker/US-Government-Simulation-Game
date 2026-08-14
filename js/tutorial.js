@@ -4,7 +4,7 @@
 import { el } from './util.js';
 import { S } from './ui.js';
 
-const SEEN_KEY = 'silver.tutorialSeen';
+const SEEN_KEY = 'usgov.tutorialSeen';
 
 export const tutorialSeen = () => {
   try { return !!localStorage.getItem(SEEN_KEY); } catch { return true; }
@@ -17,7 +17,7 @@ const tab = (t) => el('span', { class: 'tut-tab' }, t);
 
 const PAGES = [
   {
-    title: 'Welcome to Silver',
+    title: 'Welcome to the Union',
     body: () => [
       el('p', {}, 'A persistent nation you found, govern and betray each other over. Tens of thousands of simulated citizens live in it, and vote.'),
       el('ul', {},

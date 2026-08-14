@@ -162,4 +162,4 @@ export function scan(...parts) {
 }
 
 /** The refusal the player sees. Says what and why, without repeating it back. */
-export const REFUSAL = 'That contains a racial slur. Silver will not print, file or record it — a rule of the table, not the constitution, and no office or majority can lift it. Say it another way.';
+export const REFUSAL = 'That contains a racial slur. This game will not print, file or record it — a rule of the table, not the constitution, and no office or majority can lift it. Say it another way.';

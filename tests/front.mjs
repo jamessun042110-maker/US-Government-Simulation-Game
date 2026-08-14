@@ -51,8 +51,8 @@ ok('an island war moves no border', DEP.occupations(w, g).every(x=>x.foreign.id!
 
 // --- and nothing underneath moved -------------------------------------------
 const before = JSON.stringify(GEO.cityGeometry(w).cells.map(c=>c.district.id));
-const beforeLand = JSON.stringify(GEO.geography(w.nation, w.mapSeed||0).halves.silver.slice(0,20));
+const beforeLand = JSON.stringify(GEO.geography(w.nation, w.mapSeed||0).halves.us.slice(0,20));
 for (let i=0;i<50;i++) S.tick(w);
 ok('districts are untouched by occupation', JSON.stringify(GEO.cityGeometry(w).cells.map(c=>c.district.id)) === before);
-ok('and so is the border geometry', JSON.stringify(GEO.geography(w.nation, w.mapSeed||0).halves.silver.slice(0,20)) === beforeLand);
+ok('and so is the border geometry', JSON.stringify(GEO.geography(w.nation, w.mapSeed||0).halves.us.slice(0,20)) === beforeLand);
 ok('parcels still belong to districts', w.city.parcels.every(p => !p.district || w.districts.some(d=>d.id===p.district)));

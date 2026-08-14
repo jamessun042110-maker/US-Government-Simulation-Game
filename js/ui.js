@@ -92,7 +92,11 @@ const fiscalPhrase = (world, d) => {
 
 const NAV = [
   ['nation', '◈', 'Nation'],
-  ['assembly', '⚖', 'Assembly'],
+  // The tab id stays 'assembly' — it is on saves and in every other module, and
+  // it is the legislature's id in the constitution besides. 'Congress' is what
+  // the player reads, and it is the name that survives the chamber being split
+  // in two, where 'House' would not.
+  ['assembly', '⚖', 'Congress'],
   // No public Treasury tab. The books belong to the Department of the Treasury,
   // and the country is not entitled to read them over the Secretary's shoulder —
   // which is the whole reason the chamber has to vote itself a copy.
@@ -232,7 +236,7 @@ export function renderHeader(root) {
   root.replaceChildren(...kids(
     // The wordmark is drawn, not set: the same 5x7 grid the rooms and the title
     // screen are drawn on. See pixfont.js.
-    el('div', { class: 'brand', title: 'Silver', html: pixText('SILVER', { ink: 'currentColor' }) }),
+    el('div', { class: 'brand', title: 'The Union', html: pixText('THE UNION', { ink: 'currentColor' }) }),
     el('span', { class: 'tag ' + (world.phase === 'live' ? 'green' : world.phase === 'collapse' ? 'red' : 'gold') }, world.phase),
     world.emergency?.active ? el('span', { class: 'tag red', title: world.emergency.reason || '' }, 'emergency') : null,
     world.atThePolls ? el('span', { class: 'tag blue', title: 'Canon time is stopped while the ballot is open.' }, 'at the polls') : null,
@@ -2442,7 +2446,7 @@ function cityMap(world) {
   // simply crops the south coast off. Annexed ground is inside the country and so
   // has to be inside the frame: a border that moved off the top of the page has
   // not visibly moved at all.
-  const e = moved ? boxUnion(CG.extent, GEO.landExtent(GA, 'silver')) : CG.extent;
+  const e = moved ? boxUnion(CG.extent, GEO.landExtent(GA, 'us')) : CG.extent;
   const PAD = 12, ASPECT = 4 / 3;
   let fw = e.w + PAD * 2, fh = e.h + PAD * 2;
   if (fw / fh < ASPECT) fw = fh * ASPECT; else fh = fw / ASPECT;
@@ -2462,15 +2466,15 @@ function cityMap(world) {
     + '<stop offset="0.5" stop-color="#246881"/><stop offset="0.75" stop-color="#246881"/>'
     + '<stop offset="0.75" stop-color="#1c5c74"/><stop offset="1" stop-color="#1c5c74"/></linearGradient>'
     + `<clipPath id="cland"><path d="${GEO.pathOf(G.ring)}"/></clipPath>`
-    + `<clipPath id="cmine"><path d="${GEO.pathOf(G.halves.silver)}"/></clipPath>`
+    + `<clipPath id="cmine"><path d="${GEO.pathOf(G.halves.us)}"/></clipPath>`
     // Ground that changed hands: the two silvers, one inside the other, as a
     // single even-odd path — the symmetric difference of the founding border and
     // the present one, which is every square inch a treaty moved and nothing
     // else. Intersected with whoever holds it now, it is either the land we took
     // or the land we gave up.
     + (moved
-      ? `<clipPath id="cmoved"><path clip-rule="evenodd" d="${GEO.pathOf(GA.halves.silver)} ${GEO.pathOf(G.halves.silver)}"/></clipPath>`
-        + `<clipPath id="cnow"><path d="${GEO.pathOf(GA.halves.silver)}"/></clipPath>`
+      ? `<clipPath id="cmoved"><path clip-rule="evenodd" d="${GEO.pathOf(GA.halves.us)} ${GEO.pathOf(G.halves.us)}"/></clipPath>`
+        + `<clipPath id="cnow"><path d="${GEO.pathOf(GA.halves.us)}"/></clipPath>`
       : '')
     + '</defs>');
   parts.push(`<rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="url(#csea)"/>`);
@@ -2599,11 +2603,11 @@ function cityMap(world) {
   if (cbands.length) {
     parts.push('<defs><pattern id="cmhatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
       + '<rect width="6" height="6" fill="none"/><rect width="2" height="6" fill="#141414" fill-opacity="0.32"/></pattern>'
-      + ['silver', 'canada', 'mexico'].map((id) =>
+      + ['us', 'canada', 'mexico'].map((id) =>
         `<clipPath id="cocc-${id}"><path d="${GEO.pathOf(GA.halves[id])}"/></clipPath>`).join('')
       + '</defs>');
     for (const b of cbands) {
-      const loser = b.byUs ? b.foreign.id : 'silver';
+      const loser = b.byUs ? b.foreign.id : 'us';
       parts.push(`<g clip-path="url(#cland)"><g clip-path="url(#cocc-${loser})">`);
       parts.push(`<path d="${GEO.pathOf(b.poly)}" fill="${b.byUs ? '#5b8fb0' : '#c2483c'}" fill-opacity="0.4"/>`);
       parts.push(`<path d="${GEO.pathOf(b.poly)}" fill="url(#cmhatch)"/>`);
@@ -2653,7 +2657,7 @@ function cityMap(world) {
   // clock, while the answer can only change when a border does.
   if (moved) {
     if (GA.annexedSpot === undefined) {
-      const got = GA.grid.pts.filter((p) => GEO.inPoly(p, GA.halves.silver) && !GEO.inPoly(p, G.halves.silver)
+      const got = GA.grid.pts.filter((p) => GEO.inPoly(p, GA.halves.us) && !GEO.inPoly(p, G.halves.us)
         && GEO.inPoly(p, GA.ring));
       GA.annexedSpot = got.length > 8 ? GEO.labelSpotFrom(got, GA.grid.step) : null;
     }
@@ -2794,7 +2798,7 @@ VIEWS.world = (root) => {
   // of a treaty — only the lines between the countries move.
   const G = GEO.mapOf(world);
   const LAY = {
-    silver: { fill: '#efe7d3' },
+    us: { fill: '#efe7d3' },
     canada: { fill: '#dcb970' },
     mexico: { fill: '#a9c6a2' },
     sab: { fill: '#9fb6c4' },
@@ -2829,7 +2833,7 @@ VIEWS.world = (root) => {
     + '<filter id="softland" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5"/></filter>'
     + '<pattern id="wmhatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
     + '<rect width="6" height="6" fill="none"/><rect width="2" height="6" fill="#141414" fill-opacity="0.3"/></pattern>'
-    + ['silver', 'canada', 'mexico'].map((id) =>
+    + ['us', 'canada', 'mexico'].map((id) =>
       `<clipPath id="wocc-${id}"><path d="${GEO.pathOf(G.halves[id])}"/></clipPath>`).join('')
     + '</defs>');
   parts.push(`<rect x="0" y="0" width="${GEO.WORLD_W}" height="${GEO.WORLD_H}" fill="url(#wsea)"/>`);
@@ -2849,7 +2853,7 @@ VIEWS.world = (root) => {
   parts.push(sand(GEO.pathOf(G.sab)));
 
   parts.push('<g clip-path="url(#wland)">');
-  for (const id of ['canada', 'mexico', 'silver']) {
+  for (const id of ['canada', 'mexico', 'us']) {
     parts.push(`<path d="${GEO.pathOf(G.halves[id])}" fill="${LAY[id].fill}"/>`);
   }
   // Ground currently held by somebody else's army: over the countries, under
@@ -2860,7 +2864,7 @@ VIEWS.world = (root) => {
     // of the map, so a band drawn off it unclipped spilled across the third
     // country as well — Canada cannot occupy ground inside Mexico by
     // fighting us.
-    const loser = b.byUs ? b.foreign.id : 'silver';
+    const loser = b.byUs ? b.foreign.id : 'us';
     parts.push(`<g clip-path="url(#wocc-${loser})">`);
     parts.push(`<path d="${GEO.pathOf(b.poly)}" fill="${b.byUs ? '#5b8fb0' : '#c2483c'}" fill-opacity="0.45"/>`);
     parts.push(`<path d="${GEO.pathOf(b.poly)}" fill="url(#wmhatch)"/>`);
@@ -2916,7 +2920,7 @@ VIEWS.world = (root) => {
   // inked across the water it does not reach.
   if (G.sabTaken) {
     parts.push(`<defs><clipPath id="wsab"><path d="${GEO.pathOf(G.sab)}"/></clipPath></defs>`);
-    parts.push(`<g clip-path="url(#wsab)"><path d="${GEO.pathOf(G.sabTaken.poly)}" fill="${LAY.silver.fill}"/>`
+    parts.push(`<g clip-path="url(#wsab)"><path d="${GEO.pathOf(G.sabTaken.poly)}" fill="${LAY.usgov.fill}"/>`
       + `<path d="${GEO.lineOf(G.sabTaken.line)}" fill="none" stroke="#2e2416" stroke-opacity="0.55" stroke-width="1.3"/></g>`);
   }
   // A faint ink line on the shore of both landmasses.
@@ -2967,7 +2971,7 @@ VIEWS.world = (root) => {
     // from. `sab` is across the water and never near our line either way.
     const spot = id === 'sab' ? sabSpot()
       : (G.share?.[id] ?? 1) > 0.004
-        ? GEO.labelSpot(G, id, isPlayer ? {} : { away: GEO.landCentre(G, 'silver') })
+        ? GEO.labelSpot(G, id, isPlayer ? {} : { away: GEO.landCentre(G, 'us') })
         : null;
     if (!spot) return;
     const sub = isPlayer ? 'YOU' : (relFor[id]?.label || '').toUpperCase();
@@ -2994,7 +2998,7 @@ VIEWS.world = (root) => {
     parts.push(`<text x="${spot.x.toFixed(1)}" y="${nameY.toFixed(1)}" text-anchor="middle" font-size="${nSize.toFixed(1)}" font-weight="800" fill="#241708" stroke="${L.fill}" stroke-width="2.6" paint-order="stroke">${esc(name)}</text>`);
     parts.push(`<text x="${spot.x.toFixed(1)}" y="${(nameY + nSize + 1).toFixed(1)}" text-anchor="middle" font-size="${sSize.toFixed(1)}" font-weight="700" fill="${ring}" stroke="${L.fill}" stroke-width="2" paint-order="stroke">${sub}</text>`);
   };
-  label('silver', world.nation, true);
+  label('us', world.nation, true);
   for (const f of foreign) if (LAY[f.id]) label(f.id, f.name, false);
 
   // The same compass the city map carries, in the ocean off the south-west.
@@ -4712,17 +4716,17 @@ function frontMap(world, f) {
   parts.push(`<defs><clipPath id="fmland-${f.id}"><path d="${GEO.pathOf(g.ring)}"/></clipPath>`
     + `<pattern id="fmhatch-${f.id}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">`
     + `<rect width="6" height="6" fill="none"/><rect width="2" height="6" fill="#141414" fill-opacity="0.28"/></pattern>`
-    + ['silver', f.id].map((id) => `<clipPath id="fmocc-${f.id}-${id}"><path d="${GEO.pathOf(g.halves[id])}"/></clipPath>`).join('')
+    + ['us', f.id].map((id) => `<clipPath id="fmocc-${f.id}-${id}"><path d="${GEO.pathOf(g.halves[id])}"/></clipPath>`).join('')
     + `</defs>`);
   parts.push(`<rect x="0" y="0" width="${GEO.WORLD_W}" height="${GEO.WORLD_H}" fill="#1c5c74"/>`);
   parts.push(`<path d="${GEO.pathOf(g.ring)}" fill="#e2d7bc" stroke="#d8c79a" stroke-width="5" stroke-linejoin="round"/>`);
   parts.push(`<g clip-path="url(#fmland-${f.id})">`);
   parts.push(`<path d="${GEO.pathOf(g.halves[f.id])}" fill="${NEIGHBOUR[f.id] || '#cfc2a2'}" fill-opacity="0.55"/>`);
-  parts.push(`<path d="${GEO.pathOf(g.halves.silver)}" fill="#efe7d3" fill-opacity="0.5"/>`);
+  parts.push(`<path d="${GEO.pathOf(g.halves.us)}" fill="#efe7d3" fill-opacity="0.5"/>`);
   if (band) {
     // Held ground: the winner's colour, hatched, so it reads as occupation
     // rather than as a redrawn country.
-    const loser = band.byUs ? f.id : 'silver';
+    const loser = band.byUs ? f.id : 'us';
     parts.push(`<g clip-path="url(#fmocc-${f.id}-${loser})">`);
     parts.push(`<path d="${GEO.pathOf(band.poly)}" fill="${band.byUs ? '#5b8fb0' : '#c2483c'}" fill-opacity="0.5"/>`);
     parts.push(`<path d="${GEO.pathOf(band.poly)}" fill="url(#fmhatch-${f.id})"/>`);
@@ -6116,12 +6120,12 @@ export function termAge(world) {
 export function inaugurationSeen(world) {
   const key = termKey(world);
   if (!key) return true;                      // nobody is in the chair to swear in
-  try { return sessionStorage.getItem(`silver.inaug.${world.seasonId}.${key}`) === '1'; } catch { return false; }
+  try { return sessionStorage.getItem(`usgov.inaug.${world.seasonId}.${key}`) === '1'; } catch { return false; }
 }
 function markInaugurated(world) {
   const key = termKey(world);
   if (!key) return;
-  try { sessionStorage.setItem(`silver.inaug.${world.seasonId}.${key}`, '1'); } catch { /* no storage */ }
+  try { sessionStorage.setItem(`usgov.inaug.${world.seasonId}.${key}`, '1'); } catch { /* no storage */ }
 }
 
 // A short ceremonial beat between ratification and the dashboard, so the Season

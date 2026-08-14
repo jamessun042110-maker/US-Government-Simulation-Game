@@ -16,8 +16,8 @@
 
 import { uid } from './util.js';
 
-const WORLD_KEY = 'silver.world';
-const HOST_KEY = 'silver.host';
+const WORLD_KEY = 'usgov.world';
+const HOST_KEY = 'usgov.host';
 // A hidden tab has its timers throttled to roughly once a minute, so a live
 // host can look dead for a long time. Be generous about how stale a claim may
 // get before anyone tries to take it: a slow failover is far better than two
@@ -27,25 +27,25 @@ const BEAT_MS = 700;
 
 export class Net {
   constructor() {
-    this.clientId = sessionStorage.getItem('silver.clientId') || uid('cl');
-    sessionStorage.setItem('silver.clientId', this.clientId);
+    this.clientId = sessionStorage.getItem('usgov.clientId') || uid('cl');
+    sessionStorage.setItem('usgov.clientId', this.clientId);
     this.isHost = false;
     this.handlers = { action: [], snapshot: [], chat: [], hostchange: [], reset: [] };
     this.peers = new Map(); // clientId -> {ts, seat}
-    this.seat = sessionStorage.getItem('silver.seat') || null;
+    this.seat = sessionStorage.getItem('usgov.seat') || null;
 
     this.mode = 'local';
     this.wsBuf = []; // messages that must survive a WS reconnect
 
     try {
-      this.chan = new BroadcastChannel('silver');
+      this.chan = new BroadcastChannel('usgov');
       this.chan.onmessage = (e) => this._recv(e.data);
     } catch {
       this.chan = null; // fall back to storage events only
     }
     if (/^https?:$/.test(location.protocol)) this._connectWS();
     window.addEventListener('storage', (e) => {
-      if (e.key === 'silver.bus' && e.newValue) {
+      if (e.key === 'usgov.bus' && e.newValue) {
         try { this._recv(JSON.parse(e.newValue)); } catch {}
       }
     });
@@ -69,7 +69,7 @@ export class Net {
       this.mode = 'ws';
       // Remembered per tab so that after a reset-reload the very first
       // loadWorld() already knows not to serve the stale local world.
-      sessionStorage.setItem('silver.wsmode', '1');
+      sessionStorage.setItem('usgov.wsmode', '1');
       // Any host role won in a localStorage election is void here; the relay
       // decides. A deliberate claim (founding) is the one thing we keep.
       if (Date.now() - (this.claimedAt || 0) > 5000) this._setHost(false);
@@ -86,7 +86,7 @@ export class Net {
         setTimeout(() => this._connectWS(), 2000);
       } else {
         // Never connected — plain static server. Stay local.
-        sessionStorage.removeItem('silver.wsmode');
+        sessionStorage.removeItem('usgov.wsmode');
       }
     };
     sock.onerror = () => {}; // close fires right after
@@ -102,7 +102,7 @@ export class Net {
       return;
     }
     if (this.chan) this.chan.postMessage(msg);
-    else localStorage.setItem('silver.bus', JSON.stringify({ ...msg, _n: Math.random() }));
+    else localStorage.setItem('usgov.bus', JSON.stringify({ ...msg, _n: Math.random() }));
   }
 
   _recv(msg) {
@@ -231,7 +231,7 @@ export class Net {
   loadWorld() {
     // On the relay, the server's snapshot cache is the source of truth; a
     // world saved by an old local session must not leak into a shared one.
-    if (this.mode === 'ws' || sessionStorage.getItem('silver.wsmode')) return null;
+    if (this.mode === 'ws' || sessionStorage.getItem('usgov.wsmode')) return null;
     try {
       const w = JSON.parse(localStorage.getItem(WORLD_KEY) || 'null');
       this.servedLocalWorld = !!w;
@@ -252,6 +252,6 @@ export class Net {
     this.wipe();
   }
 
-  setSeat(id) { this.seat = id; sessionStorage.setItem('silver.seat', id); }
+  setSeat(id) { this.seat = id; sessionStorage.setItem('usgov.seat', id); }
   livePeers() { return this.peers.size + 1; }
 }

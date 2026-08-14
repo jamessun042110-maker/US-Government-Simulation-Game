@@ -20,8 +20,8 @@ const g0 = map(null);
 // continent it targets 44% of, because the bracket the bisection ran in could not
 // reach the answer.
 ok('the founding map hits its target shares',
-  Math.abs(g0.share.canada - 0.44) < 0.02 && Math.abs(g0.share.silver - 0.39) < 0.03,
-  `gold ${(g0.share.canada * 100).toFixed(1)}% silver ${(g0.share.silver * 100).toFixed(1)}%`);
+  Math.abs(g0.share.canada - 0.44) < 0.02 && Math.abs(g0.share.us - 0.39) < 0.03,
+  `gold ${(g0.share.canada * 100).toFixed(1)}% silver ${(g0.share.us * 100).toFixed(1)}%`);
 
 // --- Taking land --------------------------------------------------------------
 const g30 = map({ canada: 30 });
@@ -29,8 +29,8 @@ ok('a third of Canada is a third off Canada',
   Math.abs(g30.share.canada - g0.share.canada * 0.7) < 0.02,
   `${(g30.share.canada * 100).toFixed(1)}% of ${(g0.share.canada * 100).toFixed(1)}%`);
 ok('and every acre of it is ours',
-  Math.abs((g30.share.silver - g0.share.silver) - (g0.share.canada - g30.share.canada)) < 0.02,
-  `+${((g30.share.silver - g0.share.silver) * 100).toFixed(1)}%`);
+  Math.abs((g30.share.us - g0.share.us) - (g0.share.canada - g30.share.canada)) < 0.02,
+  `+${((g30.share.us - g0.share.us) * 100).toFixed(1)}%`);
 // Not merely "about the same size afterwards" — the same ground. Border A is
 // Canada's southern frontier with *both* of us, so sliding the whole of it
 // north hands Mexico a strip of Canada it never fought for and then takes an
@@ -58,8 +58,8 @@ ok('and it moved into their country, not ours', midOf(g30.borders.a) < midOf(g0.
 // the treaty instrument says, so it is measured against Silver and not Canada.
 const gLost = map({ canada: -20 });
 ok('ceding a fifth of ourselves costs us a fifth of ourselves',
-  Math.abs((g0.share.silver - gLost.share.silver) - g0.share.silver * 0.2) < 0.02,
-  `-${((g0.share.silver - gLost.share.silver) * 100).toFixed(1)}%`);
+  Math.abs((g0.share.us - gLost.share.us) - g0.share.us * 0.2) < 0.02,
+  `-${((g0.share.us - gLost.share.us) * 100).toFixed(1)}%`);
 ok('and the line moves onto our ground', midOf(gLost.borders.a) > midOf(g0.borders.a));
 
 // --- Annexed outright -----------------------------------------------------------
@@ -68,7 +68,7 @@ ok('a power annexed outright is off the map', gAll.share.canada < 0.005,
   `${(gAll.share.canada * 100).toFixed(2)}%`);
 const gBoth = map({ canada: 100, mexico: 100 });
 ok('and taking both leaves one country on the continent',
-  gBoth.share.silver > 0.99, `${(gBoth.share.silver * 100).toFixed(1)}%`);
+  gBoth.share.us > 0.99, `${(gBoth.share.us * 100).toFixed(1)}%`);
 
 // --- The island power -------------------------------------------------------------
 ok('an unannexed league keeps its islands whole', g0.sabTaken === null);

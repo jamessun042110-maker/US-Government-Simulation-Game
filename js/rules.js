@@ -4,7 +4,7 @@
 // can spend, appoint, veto or arrest — it asks here, and the answer always
 // carries the clause it came from, so the UI can quote the law back at you.
 
-import { byId, clamp, nudgeApproval, dayIndex, nextDay, yearAt, tickOf, currentAge, POLITICAL_BASE_AGE } from './util.js';
+import { byId, clamp, nudgeApproval, dayIndex, nextDay, yearAt, tickOf, currentAge, POLITICAL_BASE_AGE, midThe } from './util.js';
 
 // The price of a clause is declared once, on the clause (see acts.CLAUSES),
 // and the vote threshold reads that same declaration. This used to be a third
@@ -122,7 +122,7 @@ export const TEMPLATES = [
     color: '#8c1d18', colorHi: '#a3251f', // imperial wine
     blurb: "Mini's original sin. One office, all powers, elected forever. Fast, decisive, doomed.",
     build: (nation) => ({
-      name: `Charter of ${nation}`,
+      name: `Charter of ${midThe(nation)}`,
       template: 'elective-autocracy',
       preamble: `We, the founders of ${nation}, vest the whole executive, legislative and judicial power of the state in one office, and trust to the character of the one who holds it.`,
       offices: [
@@ -160,7 +160,7 @@ export const TEMPLATES = [
     build: (nation) => ({
       name: `Constitution of the ${nation} Council`,
       template: 'parliamentary-council',
-      preamble: `The sovereign power of ${nation} resides in the Council, which shall answer to the districts, and in the Premier, who shall answer to the Council.`,
+      preamble: `The sovereign power of ${midThe(nation)} resides in the Council, which shall answer to the districts, and in the Premier, who shall answer to the Council.`,
       offices: [
         { id: 'council', name: 'Council', seats: 7, selection: 'election', termYears: 3, electorate: 'district',
           powers: ['propose_bill', 'vote', 'impeach', 'tax'] },
@@ -188,11 +188,17 @@ export const TEMPLATES = [
     color: '#2f6fdb', colorHi: '#4680e4', // federal blue
     blurb: 'Separated powers, a court that can strike your law, a 3/5 rule on big money. Slow. Survivable.',
     build: (nation) => ({
-      name: `Constitution of the Republic of ${nation}`,
+      name: `Constitution of ${midThe(nation)}`,
       template: 'federal-republic',
-      preamble: `We the people of ${nation}, in order to bind our own hands against our own worst hours, ordain and establish this Constitution.`,
+      preamble: `We the People of ${midThe(nation)}, in order to bind our own hands against our own worst hours, ordain and establish this Constitution.`,
       offices: [
-        { id: 'assembly', name: 'Assembly', seats: 7, selection: 'election', termYears: 2, electorate: 'district',
+        // Twenty seats, one per state, because the states *are* the electoral
+        // map: world.js seats one district per seat of the district-elected
+        // office, so seven seats meant thirteen states existed on the map with
+        // no government, no representative and nobody to vote for. The id stays
+        // `assembly` until the chamber is split in two; the label is what a
+        // player reads.
+        { id: 'assembly', name: 'House of Representatives', seats: 20, selection: 'election', termYears: 2, electorate: 'district',
           powers: ['propose_bill', 'vote', 'impeach', 'tax', 'declare_war'] },
         { id: 'president', name: 'President', seats: 1, selection: 'election', termYears: 4, electorate: 'nation', successor: 'vp', termLimit: 2,
           powers: ['spend', 'appoint', 'promulgate', 'veto', 'pardon', 'command_military', 'sign_treaty', 'emergency', 'propose_bill', 'arrest', 'zone'] },

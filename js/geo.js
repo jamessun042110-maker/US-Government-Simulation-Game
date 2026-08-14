@@ -42,7 +42,7 @@
 // crosses itself. Half-planes plus clipping cannot go wrong.
 
 import { mulberry32, hashSeed } from './util.js';
-import { CONTINENT_RING, ringsAt } from './atlas.js';
+import { CONTINENT_RING, ringsAt, STATES } from './atlas.js';
 
 // --- Primitives ------------------------------------------------------------
 
@@ -241,7 +241,7 @@ function cut(north = 0, south = 0) {
     // north and one south; the frontiers here never touch. Kept as null rather
     // than removed because the world map draws a marker at it when it exists.
     junction: null,
-    halves: { canada: r.canada, silver: r.us, mexico: r.mexico },
+    halves: { canada: r.canada, us: r.us, mexico: r.mexico },
   };
 }
 
@@ -278,7 +278,7 @@ export function geography(nation, salt = 0, annexed = null) {
   // The salt is what makes the map redrawable. Everything below seeds off `key`,
   // so a different salt is a different country with the same name — new coast,
   // new border, new terrain — while salt 0 is the map the nation was founded on.
-  const key = String(nation || 'silver') + (salt ? '#' + salt : '');
+  const key = String(nation || 'us') + (salt ? '#' + salt : '');
   const a = {
     canada: annexOf(annexed, 'canada'),
     mexico: annexOf(annexed, 'mexico'),
@@ -322,7 +322,7 @@ export function geography(nation, salt = 0, annexed = null) {
     const f = cut(0, 0);
     SHARES = {
       canada: shareOf(f.halves.canada),
-      silver: shareOf(f.halves.silver),
+      us: shareOf(f.halves.us),
       mexico: shareOf(f.halves.mexico),
     };
   }
@@ -420,9 +420,9 @@ export function geography(nation, salt = 0, annexed = null) {
   // Ours is the right fall-through because ground taken in a war is ground we
   // took. A neighbour's claim has to be positively established; ours is what is
   // left when both of theirs fail.
-  g.share = { canada: 0, silver: 0, mexico: 0 };
+  g.share = { canada: 0, us: 0, mexico: 0 };
   for (const p of grid.pts) {
-    const id = inPoly(p, c.halves.canada) ? 'canada' : inPoly(p, c.halves.mexico) ? 'mexico' : 'silver';
+    const id = inPoly(p, c.halves.canada) ? 'canada' : inPoly(p, c.halves.mexico) ? 'mexico' : 'us';
     g.share[id] += 1 / grid.pts.length;
   }
   g.terrain = terrainOf(key, grid, ring);
@@ -998,30 +998,92 @@ export function cityGeometry(world) {
   if (CITY.sig === sig) return CITY.value;
 
   const g = geography(world.nation, world.mapSeed || 0);
-  const key = String(world.nation || 'silver');
+  const key = String(world.nation || 'us');
   const b = bounds(g.ring);
   const frame = [[b.x0 - OUT, b.y0 - OUT], [b.x1 + OUT, b.y0 - OUT], [b.x1 + OUT, b.y1 + OUT], [b.x0 - OUT, b.y1 + OUT]];
 
   // A finer sample than the world map's, because the parcels inside a district
   // are cut from it too.
-  const land = landIn(g.ring, g.halves.silver, 1);
+  const land = landIn(g.ring, g.halves.us, 1);
   const value = { g, frame, land, extent: bounds(land.length ? land : g.ring), cells: [] };
   if (!ds.length || !land.length) { CITY = { sig, value }; return value; }
 
-  const parts = subdivide(land, frame, ds.map((d) => d.pop || 1), key + '/districts');
+  // **A district is a state, and a state has a shape it does not get to choose.**
+  //
+  // This used to cut the country into population-weighted Voronoi cells, which
+  // is the right answer for invented districts — Harborlight is wherever the
+  // solver puts it, and it should be near the water and roughly as big as its
+  // population. It is the wrong answer for Florida.
+  //
+  // So a district whose name matches an atlas state takes that state's authored
+  // polygon, and only districts with no state fall through to the solver. In a
+  // normal Season nothing falls through: world.js names the districts from
+  // STATE_NAMES in the atlas's own order.
+  //
+  // The parcels below are untouched by this. They still subdivide inside
+  // whatever polygon their district ended up with, which is what keeps zoning,
+  // land value and the whole build system working at state scale.
+  const authored = ds.map((d) => STATES.find((s) => s.name === d.name) || null);
+  const solved = authored.every(Boolean)
+    ? null
+    : subdivide(land, frame, ds.map((d) => d.pop || 1), key + '/districts');
+
+  // The site is what the assignment loop below measures distance to, so an
+  // authored state gets its centroid — the polygon decides who owns what, and
+  // the site only has to sit inside it. `share` and `spot` are filled in after
+  // the assignment, from the ground the state actually turned out to hold,
+  // exactly as subdivide does it: a label placed off its own state is the one
+  // thing this map cannot get away with.
+  const parts = ds.map((d, i) => {
+    const st = authored[i];
+    if (!st) return solved[i];
+    const c = centroid(st.poly);
+    return { poly: st.poly, site: { x: c[0], y: c[1], w: 0 }, share: 0, spot: null };
+  });
 
   // Each district's own land, then its parcels cut from that. Parcels are all of
   // a size — a parcel is a unit of land, not a population — so they get no
   // weights, only Lloyd's relaxation and the same wandering edges.
+  // **Inside the polygon beats nearest to the centre.** Nearest-site is right
+  // for solved cells, whose sites *are* the definition of the cell. It is wrong
+  // for authored ones: Florida's centroid is a long way down the peninsula, so
+  // the top of the panhandle is nearer Georgia's centre than its own, and the
+  // panhandle would be dealt to the Deep South while sitting plainly inside
+  // Florida's outline.
+  //
+  // So a point goes to the state whose polygon contains it, and only falls back
+  // to nearest-site when no polygon claims it — which happens along the coast,
+  // where `coast()` has roughened the shoreline a little outside the authored
+  // edges, and for any district with no state at all.
   const ownerOfPoint = parts.map(() => []);
   for (const p of land) {
-    let best = 0, bestD = Infinity;
+    let best = -1;
     for (let i = 0; i < parts.length; i++) {
-      const s = parts[i].site;
-      const d = (s.x - p[0]) ** 2 + (s.y - p[1]) ** 2 - (s.w || 0);
-      if (d < bestD) { bestD = d; best = i; }
+      if (authored[i] && inPoly(p, parts[i].poly)) { best = i; break; }
+    }
+    if (best < 0) {
+      let bestD = Infinity;
+      for (let i = 0; i < parts.length; i++) {
+        const s = parts[i].site;
+        const d = (s.x - p[0]) ** 2 + (s.y - p[1]) ** 2 - (s.w || 0);
+        if (d < bestD) { bestD = d; best = i; }
+      }
     }
     ownerOfPoint[best].push(p);
+  }
+
+  // An authored state's share and label spot come from the ground it turned out
+  // to hold, not from its polygon — the two differ wherever the coast was
+  // roughened, and the label has to land on real ground.
+  {
+    const spread = bounds(land);
+    const step = Math.max(1, Math.sqrt((spread.w * spread.h) / Math.max(1, land.length)));
+    for (let i = 0; i < parts.length; i++) {
+      if (!authored[i]) continue;
+      const own = ownerOfPoint[i];
+      parts[i].share = own.length / Math.max(1, land.length);
+      parts[i].spot = own.length ? labelSpotFrom(own, step) : null;
+    }
   }
 
   value.cells = parts.map((part, i) => {

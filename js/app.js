@@ -41,7 +41,7 @@ net.on('action', (action) => {
   if (!wasLive && world.phase === 'live') render(true); // Season just began — paint the inauguration
 });
 net.on('snapshot', (snap) => {
-  window.__silver.stats.snapshots++;
+  window.__usgov.stats.snapshots++;
   if (!snap) return;
   if (world && snap.seasonId === world.seasonId && snap.clock.tick < world.clock.tick - 2) return;
   const wasSeated = !!(world && world.players[playerId]);
@@ -66,12 +66,12 @@ net.on('hostchange', (isHost) => {
 // Another tab founded a new Season; the world under us is gone.
 net.on('reset', () => location.reload());
 
-// Handy from the console: __silver.world, __silver.net.isHost, __silver.dispatch({...})
+// Handy from the console: __usgov.world, __usgov.net.isHost, __usgov.dispatch({...})
 // `render` is here for the same reason the rest is: an automation pane reports
 // document.hidden === true, so requestAnimationFrame never fires and the app
 // never repaints on its own. Anything testing what a tick does to the screen has
 // to be able to ask for the paint by hand.
-window.__silver = { get world() { return world; }, net, get playerId() { return playerId; }, dispatch: (a) => dispatch(a), render: (f = false) => render(f), stats: { snapshots: 0, actions: 0 } };
+window.__usgov = { get world() { return world; }, net, get playerId() { return playerId; }, dispatch: (a) => dispatch(a), render: (f = false) => render(f), stats: { snapshots: 0, actions: 0 } };
 
 function dispatch(action) {
   action.playerId = playerId;
@@ -350,7 +350,7 @@ function buildShell() {
 
 // --- new Season setup -------------------------------------------------------
 const cfg = {
-  nation: 'The Silver Republic', seasonName: 'Season I', templateId: 'federal-republic',
+  nation: 'The United States', seasonName: 'Season I', templateId: 'federal-republic',
   // Founding canon, no longer asked for at setup — see the archived chooser below.
   canon: 'cold', ticksPerYear: 240, districtCount: 6, seedPop: 24000, treasury: 60e6,
 };
@@ -377,8 +377,8 @@ function renderIntro() {
     // -webkit-text-stroke, which at some window widths landed between two of
     // the scene's pixels and read as a smear across the middle of the letters.
     el('div', { class: 'intro-inner' },
-      el('div', { class: 'intro-mark', html: pixText('SILVER', { ink: '#f4e0a8', edge: '#141414', gap: 3 }) }),
-      el('div', { class: 'intro-tag' }, 'The Living Republic')),
+      el('div', { class: 'intro-mark', html: pixText('THE UNION', { ink: '#f4e0a8', edge: '#141414', gap: 3 }) }),
+      el('div', { class: 'intro-tag' }, 'A United States, governed by you')),
     // The way in is drawn in the same face as the wordmark over it. A button
     // labelled in Space Grotesk under a 5x7 bitmap title was the last bit of
     // the title screen still speaking with two voices. pixText carries its own
@@ -406,7 +406,7 @@ let founderName = '';
 // have to get through is two invitations to worry about something you have no
 // view on yet. Kept per browser, like the theme and the tutorial: it is a
 // preference about the setup screen, not a fact about the world.
-const ADV_KEY = 'silver.setupAdvanced';
+const ADV_KEY = 'usgov.setupAdvanced';
 let showAdvanced = (() => {
   try { return localStorage.getItem(ADV_KEY) !== '0'; } catch { return true; }
 })();
