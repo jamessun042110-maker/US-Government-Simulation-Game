@@ -19,9 +19,9 @@ const ok = (label, cond, extra = '') => console.log((cond ? 'PASS ' : 'FAIL ') +
 // --- 1. non-aggression pact -------------------------------------------------
 {
   const w = mk();
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   const h0 = f.hostility;
-  A.CLAUSES.TREATY_NONAGGRESSION.apply(w, { party: 'goldland', years: 10 });
+  A.CLAUSES.TREATY_NONAGGRESSION.apply(w, { party: 'canada', years: 10 });
   ok('pact signed', !!f.pact && S.pactHolds(w, f));
   ok('pact lowers hostility', f.hostility === Math.max(0, h0 - 12), `${h0} -> ${f.hostility}`);
   f.hostility = 100;
@@ -31,17 +31,17 @@ const ok = (label, cond, extra = '') => console.log((cond ? 'PASS ' : 'FAIL ') +
   ok('pact cuts war odds but not to zero', withPact > 0 && withPact < without, `${withPact.toFixed(3)} vs ${without.toFixed(3)}`);
 
   // Tearing it up to declare war is priced.
-  A.CLAUSES.TREATY_NONAGGRESSION.apply(w, { party: 'goldland', years: 10 });
+  A.CLAUSES.TREATY_NONAGGRESSION.apply(w, { party: 'canada', years: 10 });
   const sab = w.foreign.find((x) => x.id === 'sab');
   const sabH = sab.hostility;
-  A.declareWar(w, 'goldland');
-  ok('own declaration tears up the pact', !w.foreign.find((x) => x.id === 'goldland').pact);
+  A.declareWar(w, 'canada');
+  ok('own declaration tears up the pact', !w.foreign.find((x) => x.id === 'canada').pact);
   ok('other powers notice', sab.hostility > sabH, `${sabH} -> ${sab.hostility}`);
 
   // It expires on its own.
   const w2 = mk();
-  const e = w2.foreign.find((x) => x.id === 'electrum');
-  A.CLAUSES.TREATY_NONAGGRESSION.apply(w2, { party: 'electrum', years: 1 });
+  const e = w2.foreign.find((x) => x.id === 'mexico');
+  A.CLAUSES.TREATY_NONAGGRESSION.apply(w2, { party: 'mexico', years: 1 });
   const ends = e.pact.ends;
   w2.clock.tick = ends + 1;
   S.tick(w2);
@@ -111,7 +111,7 @@ const ok = (label, cond, extra = '') => console.log((cond ? 'PASS ' : 'FAIL ') +
 // --- 6. no "The The" --------------------------------------------------------
 {
   ok('article stripped', U.bareNation('The Silver Republic') === 'Silver Republic', U.bareNation('The Silver Republic'));
-  ok('no article left alone', U.bareNation('Goldland') === 'Goldland');
+  ok('no article left alone', U.bareNation('Canada') === 'Canada');
 }
 
 // --- 8. time scale ----------------------------------------------------------
@@ -135,12 +135,12 @@ const ok = (label, cond, extra = '') => console.log((cond ? 'PASS ' : 'FAIL ') +
   // this has to be the President doing the negotiating, not just any player.
   const me = Object.values(w.players)[0].personaId;
   w.seats.find((s) => s.office === 'president').personaId = me;
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   const before = f.hostility;
-  D.fire(w, 'goldland');                       // setup adds +18
+  D.fire(w, 'canada');                       // setup adds +18
   const armed = f.hostility;
-  const ev = w.events.find((e) => e.id === 'goldland');
-  const negotiate = D.EVENTS.find((e) => e.id === 'goldland').options.findIndex((o) => /negotiat/i.test(o.label));
+  const ev = w.events.find((e) => e.id === 'canada');
+  const negotiate = D.EVENTS.find((e) => e.id === 'canada').options.findIndex((o) => /negotiat/i.test(o.label));
   const r = D.respond(w, ev.uid, negotiate, me);
   ok('the President may negotiate', r.ok === true, r.reason || '');
   ok('negotiating ends below where it started', f.hostility < before, `${before} -> ${armed} -> ${f.hostility}`);
@@ -149,7 +149,7 @@ const ok = (label, cond, extra = '') => console.log((cond ? 'PASS ' : 'FAIL ') +
 // --- 12. war cannot restart the moment it ends ------------------------------
 {
   const w = mk();
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   f.hostility = 100;
   ok('odds are live before any war', S.warOdds(w, f) > 0, S.warOdds(w, f).toFixed(3));
   f.warEndedAt = w.clock.tick;
@@ -165,7 +165,7 @@ const ok = (label, cond, extra = '') => console.log((cond ? 'PASS ' : 'FAIL ') +
 // --- 13. the odds themselves are halved -------------------------------------
 {
   const w = mk();
-  const f = w.foreign.find((x) => x.id === 'electrum');   // plain republic, no temper
+  const f = w.foreign.find((x) => x.id === 'mexico');   // plain republic, no temper
   f.hostility = 100; f.allied = false; f.pact = null;
   // base = ((100-30)/70) * 0.3 * 0.25 = 0.075
   ok('max odds are a quarter of the original', Math.abs(S.warOdds(w, f) - 0.075) < 1e-9, S.warOdds(w, f).toFixed(4));

@@ -105,7 +105,7 @@ const mk = () => {
 // 5. A rearming neighbour rearms.
 {
   const { w } = mk();
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   f.hostility = 90;
   const s0 = f.strength;
   // Peacetime arming, and *peacetime* is load-bearing: a power held at hostility
@@ -119,7 +119,7 @@ const mk = () => {
     S.tick(w);
   }
   ok('a hostile power grows stronger', f.strength > s0, `${s0} -> ${f.strength.toFixed(1)}`);
-  const e = w.foreign.find((x) => x.id === 'electrum');
+  const e = w.foreign.find((x) => x.id === 'mexico');
   e.allied = true; e.hostility = 2;
   const e0 = e.strength;
   for (let i = 0; i < 600; i++) S.tick(w);

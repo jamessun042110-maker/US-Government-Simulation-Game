@@ -639,7 +639,7 @@ function sueForPeace(world, p) {
  *
  * `acts.dictateTerms` is executive-only and no NPC ever called it, so a
  * synthetic president who won a war took nothing from it: the window opened,
- * `tickDictate` let it lapse, and Goldland surrendered to a government that
+ * `tickDictate` let it lapse, and Canada surrendered to a government that
  * could not think of anything to ask for. Every war an NPC won ended in a white
  * peace — which made winning one worth exactly as much as not fighting it.
  *

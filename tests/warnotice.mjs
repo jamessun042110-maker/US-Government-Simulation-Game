@@ -15,11 +15,11 @@ const ok = (l, c, x = '') => console.log((c ? 'PASS ' : 'FAIL ') + l + (x ? ' | 
 const w = W.newWorld({ nation: 'Silver', founder: 'James Sun' });
 w.phase = 'live';
 
-// Force Goldland to move: max hostility, and land on a decision window. The
+// Force Canada to move: max hostility, and land on a decision window. The
 // window comes round on a cadence, so this is a question of waiting rather than
 // of luck — but 4000 ticks was not always enough waiting, and the shortfall
 // read as a passing file.
-const f = w.foreign.find((x) => x.id === 'goldland');
+const f = w.foreign.find((x) => x.id === 'canada');
 let fired = false;
 for (let i = 0; i < 40000 && !fired; i++) {
   f.hostility = 100;
@@ -65,7 +65,7 @@ ok('it does not lend the emergency by itself', before.why !== 'an unanswered cri
 // Acknowledge it. A notice is read, not answered — on a fresh one, because the
 // government may well have filed the first while the clock was running.
 const pid = w.seats.find((s) => s.office === 'president')?.personaId || Object.keys(w.personas)[0];
-const n2 = D.notice(w, 'Goldland masses on the border', 'It is reported and it is not asked about.');
+const n2 = D.notice(w, 'Canada masses on the border', 'It is reported and it is not asked about.');
 let refused;
 try { refused = D.respond(w, n2.uid, 0, pid).ok === false; } catch { refused = true; }
 ok('respond() refuses a notice', refused);

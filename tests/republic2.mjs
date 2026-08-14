@@ -165,17 +165,17 @@ const mk = () => {
 // --- 6. a treaty is put to the other party first ---------------------------------
 {
   const { w, pid } = mk();
-  const f = w.foreign.find((x) => x.id === 'electrum');
+  const f = w.foreign.find((x) => x.id === 'mexico');
   f.hostility = 2;
   const doc = A.createDoc(w, {
-    type: 'treaty', title: 'Pact with Electrum', authorId: pid,
-    clauses: [{ kind: 'TREATY_NONAGGRESSION', party: 'electrum', years: 10 }],
+    type: 'treaty', title: 'Pact with Mexico', authorId: pid,
+    clauses: [{ kind: 'TREATY_NONAGGRESSION', party: 'mexico', years: 10 }],
   });
   A.introduce(w, doc.id, pid, 60);
   ok('it does not go straight to the floor', doc.status === 'awaiting-assent', doc.status);
-  ok('it is with the other party', doc.assent?.foreignId === 'electrum');
+  ok('it is with the other party', doc.assent?.foreignId === 'mexico');
   ok('and the record says the chamber is waiting',
-    w.chronicle.some((e) => /is put to Electrum/.test(e.text)));
+    w.chronicle.some((e) => /is put to Mexico/.test(e.text)));
 
   for (let i = 0; i < DEP.ASSENT_TICKS + 4; i++) S.tick(w);
   ok('a friendly power answers', doc.assent?.answered != null);
@@ -184,11 +184,11 @@ const mk = () => {
 
   // A power at war with you will not sign anything.
   const { w: w2, pid: p2 } = mk();
-  const g = w2.foreign.find((x) => x.id === 'goldland');
+  const g = w2.foreign.find((x) => x.id === 'canada');
   g.atWar = true;
   const d2 = A.createDoc(w2, {
-    type: 'treaty', title: 'Pact with Goldland', authorId: p2,
-    clauses: [{ kind: 'TREATY_DEFENSE', party: 'goldland' }],
+    type: 'treaty', title: 'Pact with Canada', authorId: p2,
+    clauses: [{ kind: 'TREATY_DEFENSE', party: 'canada' }],
   });
   // Refused at the door, not forty ticks later. An answer that is knowable in
   // advance — they are at war with us, they read us as an enemy, they turned
@@ -201,11 +201,11 @@ const mk = () => {
 
   // Hostility is the lever, which is what the Department of State moves.
   const { w: w3, pid: p3 } = mk();
-  const h = w3.foreign.find((x) => x.id === 'goldland');
+  const h = w3.foreign.find((x) => x.id === 'canada');
   const at = (hostility) => {
     h.hostility = hostility;
     const d = A.createDoc(w3, { type: 'treaty', title: 'P' + hostility, authorId: p3,
-      clauses: [{ kind: 'TREATY_NONAGGRESSION', party: 'goldland', years: 5 }] });
+      clauses: [{ kind: 'TREATY_NONAGGRESSION', party: 'canada', years: 5 }] });
     return DEP.weighAssent(w3, d).chance;
   };
   ok('a warm power is likelier to sign than a cold one', at(10) > at(80), `${at(10).toFixed(2)} vs ${at(80).toFixed(2)}`);

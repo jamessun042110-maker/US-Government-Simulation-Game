@@ -103,7 +103,7 @@ export function snapshotAccounts(world) {
 //
 // Territory *is* redrawn, and this is where it starts. `world.annexed` is a map
 // of `foreignId → percent`, and geo.js solves the continent's borders for the
-// land each country holds after it: take a third of Goldland and the line between
+// land each country holds after it: take a third of Canada and the line between
 // us moves north through the same landscape, on the world map, on the districts
 // map, and on the map of the front. Only the frontier moves — the coast and the
 // terrain are seeded off the nation's name alone, because a peace that moved the
@@ -133,7 +133,7 @@ const pctOf = (v, cap = CESSION_MAX) => Math.max(-cap, Math.min(cap, Math.round(
  * A country has one hundred per cent of itself and no more, and this is the
  * only thing that says so. Without it a beaten neighbour could be made to cede
  * thirty per cent of its territory every war, for ever: fifteen wars against
- * Electrum took four hundred and fifty per cent of it, and because the value of
+ * Mexico took four hundred and fifty per cent of it, and because the value of
  * a cession is booked per point taken rather than against anything that exists,
  * each one paid $36M into the treasury and lifted the mood of every district by
  * four. The enemy's strength floors at 1, so every war after the fourth was
@@ -287,7 +287,7 @@ const SETTLEMENT_LOG = 200;
  * Every acre and every dollar a peace moved, with the tick it moved on.
  *
  * The border is the most biographical thing a presidency can touch, and the
- * presidential article could not see it at all — "annexed Goldland entire" was
+ * presidential article could not see it at all — "annexed Canada entire" was
  * nowhere in a bio of the president who did it. The reason is here rather than
  * in the article: the two cession lines above are logged with **no actors**,
  * because `applyPeaceTerms` is called from a dictated peace, a negotiated one

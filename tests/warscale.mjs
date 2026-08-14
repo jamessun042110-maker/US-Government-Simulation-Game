@@ -3,7 +3,7 @@
 // Found by simulation, not by reading: thirty years of a Season nobody was
 // playing, against a neighbour at maximum hostility, produced seventeen wars
 // and seventeen defeats. Traced tick by tick, the republic went from six
-// divisions to none in two hundred and fifty ticks while Goldland went from 148
+// divisions to none in two hundred and fifty ticks while Canada went from 148
 // strength to 145 — because attrition subtracted 0.018 from a number in the
 // hundreds and 0.012 from a number in single figures. Two quantities on two
 // scales, bled at the same rate.
@@ -19,7 +19,7 @@ const mk = () => {
   // Nobody in the chair: a synthetic president puts reinforcements to the
   // chamber, and divisions arriving mid-test would hide the ones being lost.
   for (const s of w.seats) s.personaId = null;
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   f.atWar = true; f.hostility = 0;
   f.baseStrength = f.strength = 300;
   w.military.units = 10;
@@ -61,7 +61,7 @@ const mk = () => {
 {
   const w = W.newWorld({ nation: 'Testland', founder: 'A B' });
   w.phase = 'live';
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   const base0 = f.strength;
   f.hostility = 100;
   f.baseStrength = base0;

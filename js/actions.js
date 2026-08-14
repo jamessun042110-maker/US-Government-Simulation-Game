@@ -1128,7 +1128,7 @@ export const HANDLERS = {
     notice(world, a.playerId, `The surrender of ${res.value.foreign.name} is refused. The war goes on.`, 'error');
   },
 
-  // Order the survey redrawn. The coast, the border with Goldland and the
+  // Order the survey redrawn. The coast, the border with Canada and the
   // terrain are all seeded off the nation's name; this changes the seed, so the
   // country keeps its name and gets a different shape.
   //

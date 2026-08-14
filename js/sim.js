@@ -2018,7 +2018,7 @@ function tickWar(world) {
       // divisions — and a republic that has to vote itself every division at
       // six million apiece, out of a treasury of a hundred and thirty, cannot
       // reach thirteen before the war is over. Thirty years of simulation
-      // against a maximally hostile Goldland is five wars and five defeats,
+      // against a maximally hostile Canada is five wars and five defeats,
       // every one of them at the same wall. At 1.8 the same neighbour tops out
       // near eleven, which a government that took the warning seriously can
       // field and one that ignored it cannot. See WAR_MOBILISE for the wartime
@@ -2232,7 +2232,7 @@ function tickWar(world) {
     // It was 0.018 against a strength of 148 and 0.012 against a line of six,
     // which is not "both sides bleed": it is us bleeding sixteen times faster
     // than them. Traced through a war it is unmistakable — over 250 ticks the
-    // republic went from six divisions to none while Goldland went from 148 to
+    // republic went from six divisions to none while Canada went from 148 to
     // 145 — and it is why a synthetic government lost seventeen wars out of
     // seventeen. Two quantities on two scales, subtracted at the same number.
     const enemyLosing = war.front > 5, weLosing = war.front < -5;

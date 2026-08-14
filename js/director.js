@@ -196,31 +196,31 @@ export const EVENTS = [
     ignore: (w) => { bump(w, -9); damage(w, 5); log(w, 'crisis', 'The eruption takes a quarter of Kiln Hill with it.', { weight: 4 }); },
   },
   {
-    id: 'goldland', title: 'Goldland is moving', tag: 'war', weight: 2,
-    intro: (w) => `Goldland has moved three divisions to the border and its radio now calls ${w.nation} "the disputed territories."`,
+    id: 'canada', title: 'Canada is moving', tag: 'war', weight: 2,
+    intro: (w) => `Canada has moved three divisions to the border and its radio now calls ${w.nation} "the disputed territories."`,
     // Moving three divisions to the border *is* the hostility. Before this, the
     // number on the World tab did not move until we answered — so a player who
     // checked the board the moment the crisis broke saw a neighbour at peace
     // while its radio was calling their country disputed territory. The
     // responses still move it from here; this is the ground it moves from.
     setup: (w) => {
-      const f = byId(w.foreign, 'goldland');
+      const f = byId(w.foreign, 'canada');
       if (f) f.hostility = Math.min(100, f.hostility + 18);
     },
     options: [
-      { label: 'Mobilize (10M)', cost: 10e6, apply: (w) => { w.economy.treasury -= 10e6; w.military.units += 3; const f = byId(w.foreign, 'goldland'); f.hostility -= 8; bump(w, -2); } },
+      { label: 'Mobilize (10M)', cost: 10e6, apply: (w) => { w.economy.treasury -= 10e6; w.military.units += 3; const f = byId(w.foreign, 'canada'); f.hostility -= 8; bump(w, -2); } },
       // Talking has to be worth doing. This used to take back 15 of the 18 the
       // crisis had just added, so the bar on the World tab still sat higher
-      // after negotiating than before Goldland moved, and the one response that
+      // after negotiating than before Canada moved, and the one response that
       // is supposed to defuse things read as having failed.
-      { label: 'Open negotiations', apply: (w) => { const f = byId(w.foreign, 'goldland'); f.hostility = Math.max(0, f.hostility - 28); bump(w, 2); log(w, 'war', 'Talks open with Goldland. The divisions stay put, but the radio changes its tone.', { weight: 2 }); } },
+      { label: 'Open negotiations', apply: (w) => { const f = byId(w.foreign, 'canada'); f.hostility = Math.max(0, f.hostility - 28); bump(w, 2); log(w, 'war', 'Talks open with Canada. The divisions stay put, but the radio changes its tone.', { weight: 2 }); } },
       // Clamped, like every other write to this number. These two were not, and
-      // a card answered badly twice put Goldland's hostility at 112 — off the
+      // a card answered badly twice put Canada's hostility at 112 — off the
       // end of a bar that runs to a hundred, and past the point where anything
       // diplomatic could bring it back inside a Season.
-      { label: 'Denounce them publicly', apply: (w) => { const f = byId(w.foreign, 'goldland'); f.hostility = clamp(f.hostility + 12, 0, 100); bump(w, 4); } },
+      { label: 'Denounce them publicly', apply: (w) => { const f = byId(w.foreign, 'canada'); f.hostility = clamp(f.hostility + 12, 0, 100); bump(w, 4); } },
     ],
-    ignore: (w) => { const f = byId(w.foreign, 'goldland'); f.hostility = clamp(f.hostility + 25, 0, 100); log(w, 'war', 'Goldland reads silence as invitation. Border posts are taken overnight.', { weight: 4 }); },
+    ignore: (w) => { const f = byId(w.foreign, 'canada'); f.hostility = clamp(f.hostility + 25, 0, 100); log(w, 'war', 'Canada reads silence as invitation. Border posts are taken overnight.', { weight: 4 }); },
   },
   {
     id: 'spycaught', title: 'A courier is stopped', tag: 'spy', weight: 2,
@@ -534,7 +534,7 @@ export function emergencyFacts(world) {
   if (open.length) facts.add('crisis');
   for (const e of open) {
     const tpl = EVENTS.find((x) => x.id === e.id);
-    if (tpl?.tag === 'war' || e.id === 'goldland') facts.add('foreign');
+    if (tpl?.tag === 'war' || e.id === 'canada') facts.add('foreign');
     if (tpl?.tag === 'spy' || tpl?.tag === 'coup') facts.add('foreign');
     if (e.id === 'recession') facts.add('money');
     if (e.id === 'eruption' || e.id === 'fire') facts.add('disaster');
@@ -558,7 +558,7 @@ export function emergencyFacts(world) {
 // in the UI are written to land on these; free text is matched the same way, so
 // a player who types their own reason is judged by what they actually said.
 const CLAIM_WORDS = [
-  ['foreign', /foreign power|invasion|invade|border|at war|goldland|electrum|the sab|mobiliz|enemy|hostile power|abroad/i],
+  ['foreign', /foreign power|invasion|invade|border|at war|canada|mexico|the sab|mobiliz|enemy|hostile power|abroad/i],
   ['rising', /armed rising|insurrection|rebellion|uprising|coup|mutiny|sedition/i],
   ['order', /public order|disorder|riot|looting|unrest|breakdown|lawless|street/i],
   ['money', /treasury|spending rule|fiscal|budget|recession|credit|insolven|cannot pay|payroll/i],

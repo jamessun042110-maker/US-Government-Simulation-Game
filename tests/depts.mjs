@@ -35,7 +35,7 @@ const mk = () => {
 // --- State ------------------------------------------------------------------
 {
   const { w, pid } = mk();
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   const e = DEP.envoys(w)[f.id];
   const all = Object.values(DEP.envoys(w));
   ok('every power has an ambassador', all.length === w.foreign.length && all.every((x) => /^[^u].*\s\S+$/.test(x.name) && !/undefined/.test(x.name)),
@@ -71,7 +71,7 @@ const mk = () => {
 // --- Defense ----------------------------------------------------------------
 {
   const { w, pid } = mk();
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   const units0 = w.military.units;
 
   ok('nothing done means eight-tenths', Math.abs(DEP.effectiveness(w, f.id).factor - 0.8) < 1e-9,

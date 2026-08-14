@@ -10,7 +10,7 @@ const avgMood = (w) => w.districts.reduce((a, d) => a + d.mood, 0) / w.districts
 const setupWar = (front = 0) => {
   const w = W.newWorld({ nation: 'The Silver Republic', founder: 'A B' });
   w.phase = 'live'; w.inaugurated = 0; w.elections = []; w.atThePolls = false;
-  const f = w.foreign.find((x) => x.id === 'goldland') || w.foreign[0];
+  const f = w.foreign.find((x) => x.id === 'canada') || w.foreign[0];
   f.atWar = true; f.baseStrength = f.strength = 120; f.exhaustion = 0;
   w.military.wars = [{ id: 'w1', foreign: f.id, started: 0, front, exhaustion: 0, allies: [] }];
   return { w, f };

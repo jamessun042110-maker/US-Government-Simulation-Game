@@ -19,13 +19,13 @@ const g = GEO.geography(w.nation, w.mapSeed||0);
 ok('no war means no band', DEP.occupations(w, g).length === 0);
 
 // A war we are winning.
-const f = w.foreign.find(x=>x.id==='goldland');
+const f = w.foreign.find(x=>x.id==='canada');
 f.atWar = true;
-w.military.wars.push({ id:'w1', foreign:'goldland', started:0, front:60, exhaustion:0 });
+w.military.wars.push({ id:'w1', foreign:'canada', started:0, front:60, exhaustion:0 });
 const b = DEP.occupations(w, g)[0];
 ok('a moved front makes ground', !!b, b ? `depth ${b.depth.toFixed(1)} byUs ${b.byUs}` : 'none');
 ok('winning holds their land', b.byUs === true);
-// The band must sit north of the border (into Goldland).
+// The band must sit north of the border (into Canada).
 const midA = g.borders.a[Math.floor(g.borders.a.length/2)];
 const inBand = b.poly.filter(p => Math.abs(p[0]-midA[0]) < 6);
 ok('and it lies on their side', inBand.some(p => p[1] < midA[1]), `border y ${midA[1].toFixed(1)}`);

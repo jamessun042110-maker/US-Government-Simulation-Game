@@ -3,7 +3,10 @@
 // States" tests: does California sit west of Texas, does Florida hang south,
 // does the country's area add up out of its twenty pieces.
 
-import { P, unP, US_RING, STATES, BORDER_CA, BORDER_MX, FOUR_CORNERS } from '../js/atlas.js';
+import {
+  P, unP, US_RING, STATES, BORDER_CA, BORDER_MX, FOUR_CORNERS,
+  ringsAt, CONTINENT_RING, CANADA_RING, MEXICO_RING,
+} from '../js/atlas.js';
 import { area, centroid, bounds, inPoly, WORLD_W, WORLD_H } from '../js/geo.js';
 
 let pass = 0, fail = 0;
@@ -130,7 +133,7 @@ ok(north('new-england', 'carolinas'), 'New England is north of the Carolinas');
   ok(BORDER_CA[0][0] < BORDER_CA[BORDER_CA.length - 1][0], 'the Canadian frontier runs west to east');
   ok(BORDER_MX[0][0] < BORDER_MX[BORDER_MX.length - 1][0], 'the Mexican frontier runs west to east');
   // And Canada is north of Mexico, which is the whole point of redrawing the
-  // topology: Silver and Electrum were side by side.
+  // topology: Silver and Mexico were side by side.
   const caY = BORDER_CA.reduce((n, p) => n + p[1], 0) / BORDER_CA.length;
   const mxY = BORDER_MX.reduce((n, p) => n + p[1], 0) / BORDER_MX.length;
   ok(caY < mxY, 'the Canadian frontier is north of the Mexican one', `${caY.toFixed(0)} vs ${mxY.toFixed(0)}`);
@@ -142,6 +145,95 @@ ok(north('new-england', 'carolinas'), 'New England is north of the Carolinas');
   const y49 = P(49, -110)[1];
   const straight = BORDER_CA.filter((p) => near(p[1], y49, 0.01)).length;
   ok(straight >= 2, 'the 49th parallel is flat', `${straight} vertices on it`);
+}
+
+// --- The frontiers move ------------------------------------------------------
+//
+// This is the whole reason the borders are stored as segments. Silver solved its
+// fractal borders against target land shares and re-solved them after a war;
+// real borders cannot be re-solved, so they are offset — and if the offset does
+// not work, `world.cessions`, `acts.applyPeaceTerms` and the presidential
+// article that reports a power annexed out of existence all quietly stop
+// meaning anything.
+
+{
+  const founded = ringsAt();
+  ok(Math.abs(area(founded.us) - area(US_RING)) < 0.01, 'ringsAt() at zero is the country as founded');
+  ok(Math.abs(area(founded.canada) - area(CANADA_RING)) < 0.01, 'and Canada as founded');
+  ok(Math.abs(area(founded.mexico) - area(MEXICO_RING)) < 0.01, 'and Mexico as founded');
+}
+
+// Territory is **land**, not polygon area. The country polygons are closed far
+// off-frame on purpose and are clipped by the coast, so their raw areas are
+// mostly ocean and comparing them measures the sea. An earlier version of this
+// file did exactly that, and the "fix" it forced — pinning Canada's flanks — let
+// a country annexed outright keep a quarter of the map, because the frame's top
+// corners stayed Canadian however far the frontier was driven. Sample the
+// continent instead and count what each polygon actually holds.
+const LAND = (() => {
+  const b = bounds(CONTINENT_RING), pts = [];
+  for (let y = b.y0; y < b.y1; y += 1.5) {
+    for (let x = b.x0; x < b.x1; x += 1.5) if (inPoly([x, y], CONTINENT_RING)) pts.push([x, y]);
+  }
+  return pts;
+})();
+const held = (poly) => LAND.reduce((n, p) => n + (inPoly(p, poly) ? 1 : 0), 0) / LAND.length;
+// Ours is what neither neighbour holds — the same rule geo.js counts shares by,
+// and for the same reason: after a frontier is driven off the map the corners
+// belong to no polygon, and they are ours because we took them.
+const heldUS = (r) => LAND.reduce((n, p) =>
+  n + (!inPoly(p, r.canada) && !inPoly(p, r.mexico) ? 1 : 0), 0) / LAND.length;
+
+ok(LAND.length > 2000, 'the continent samples enough ground to measure', `${LAND.length} points`);
+
+{
+  // A won northern war: the frontier slides north, the country grows, Canada
+  // shrinks by what the United States gained.
+  const before = ringsAt(), after = ringsAt(20, 0);
+  const usGain = heldUS(after) - heldUS(before);
+  const caLoss = held(before.canada) - held(after.canada);
+  ok(usGain > 0, 'winning in the north grows the country', `+${(usGain * 100).toFixed(1)}% of the continent`);
+  ok(near(usGain, caLoss, 0.01), 'and Canada loses what we gained',
+    `${(usGain * 100).toFixed(1)}% vs ${(caLoss * 100).toFixed(1)}%`);
+}
+
+{
+  // And the southern one, independently — pushing one frontier must not move
+  // the other. Silver's two borders met at a junction and were coupled; these
+  // do not meet at all, which is the point of redrawing the topology.
+  const before = ringsAt(), after = ringsAt(0, 20);
+  const usGain = heldUS(after) - heldUS(before);
+  const mxLoss = held(before.mexico) - held(after.mexico);
+  ok(usGain > 0, 'winning in the south grows the country too', `+${(usGain * 100).toFixed(1)}%`);
+  ok(near(usGain, mxLoss, 0.01), 'and Mexico loses what we gained',
+    `${(usGain * 100).toFixed(1)}% vs ${(mxLoss * 100).toFixed(1)}%`);
+  ok(after.borders.canada.every((p, i) => p[1] === before.borders.canada[i][1]),
+    'and the Canadian frontier has not moved an inch');
+}
+
+{
+  // A cession the other way: negative offsets give ground up. The Chronicle
+  // reports both directions and `world.annexed` goes negative for exactly this.
+  ok(heldUS(ringsAt(-15, 0)) < heldUS(ringsAt()), 'ceding in the north shrinks the country');
+}
+
+{
+  // A power annexed out of existence has to actually leave the map — the
+  // presidential article reports it in the lede, and it would be reporting a
+  // country that still held a quarter of the continent.
+  ok(held(ringsAt(260, 0).canada) < 0.01, 'Canada can be annexed off the continent',
+    `${(held(ringsAt(260, 0).canada) * 100).toFixed(1)}% left`);
+  ok(held(ringsAt(0, 260).mexico) < 0.01, 'and so can Mexico',
+    `${(held(ringsAt(0, 260).mexico) * 100).toFixed(1)}% left`);
+}
+
+{
+  const b = bounds(CONTINENT_RING);
+  ok(b.x0 <= 0 && b.x1 >= WORLD_W, 'the continent spans the frame');
+  // Every state has to be on the continent, or the engine's land grid will not
+  // find the ground the state is standing on.
+  const off = STATES.filter((s) => !inPoly(centroid(s.poly), CONTINENT_RING));
+  ok(off.length === 0, 'every state stands on the continent', off.map((s) => s.id).join(', ') || 'all twenty');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

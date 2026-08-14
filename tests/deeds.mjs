@@ -22,7 +22,7 @@ const e = (kind, text, weight = 2, tick = ++n) => ({ kind, text, weight, tick, a
   // Twenty loud disbursements and one quiet war. The war has to make the list.
   const entries = [
     ...Array.from({ length: 20 }, (_, i) => e('money', `$${i}00,000 disbursed for works ${i}`, 4)),
-    e('war', 'War is declared on Goldland', 1),
+    e('war', 'War is declared on Canada', 1),
   ];
   const deeds = C.notableDeeds(entries, { name: 'Ann Marchetti' });
   ok('a lone act of a rare kind outranks a wall of loud ones',
@@ -36,7 +36,7 @@ const e = (kind, text, weight = 2, tick = ++n) => ({ kind, text, weight, tick, a
 // Textually distinct, because entries that differ only in a figure are treated
 // as one deed retold — see the dedupe test below.
 {
-  const places = ['Goldland', 'Electrum', 'the SAB', 'Kiln Hill', 'Harborlight', 'Northgate', 'Ironside', 'the Terraces', 'Old Quarter'];
+  const places = ['Canada', 'Mexico', 'the SAB', 'Kiln Hill', 'Harborlight', 'Northgate', 'Ironside', 'the Terraces', 'Old Quarter'];
   const entries = places.map((pl) => e('war', `War is declared on ${pl}`, 3));
   const deeds = C.notableDeeds(entries, { name: 'Ann Marchetti' });
   ok('a single-domain tenure fills up to the cap with that domain',

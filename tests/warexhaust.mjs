@@ -11,9 +11,9 @@ function warWorld(front) {
   const w = W.newWorld({ nation: 'The Silver Republic', founder: 'James Sun' });
   ACT.apply(w, { type: 'JOIN', playerId: 'p1', name: 'James Sun' });
   w.phase = 'live'; w.inaugurated = 0; w.elections = []; w.atThePolls = false;
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   f.atWar = true; f.baseStrength = f.strength = 120;
-  const war = { id: 'w', foreign: 'goldland', started: 0, front, exhaustion: 0, allies: [] };
+  const war = { id: 'w', foreign: 'canada', started: 0, front, exhaustion: 0, allies: [] };
   w.military.wars.push(war);
   w.military.exhaustion = 0;
   return { w, war };

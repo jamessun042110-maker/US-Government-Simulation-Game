@@ -26,8 +26,8 @@ function mk() {
 {
   const { w, pid } = mk();
   const doc = A.createDoc(w, {
-    type: 'treaty', title: 'Peace with Goldland', authorId: pid,
-    clauses: [{ kind: 'TREATY_PEACE', party: 'goldland' }],
+    type: 'treaty', title: 'Peace with Canada', authorId: pid,
+    clauses: [{ kind: 'TREATY_PEACE', party: 'canada' }],
   });
   const weigh = DEP.weighAssent(w, doc);
   ok('there is no war to end', weigh.ok === false, weigh.reason || '');
@@ -36,13 +36,13 @@ function mk() {
 // --- a losing enemy accepts ----------------------------------------------------
 {
   const { w, pid } = mk();
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   f.atWar = true;
   w.military.wars.push({ id: 'w0', foreign: f.id, started: 0, front: 40, exhaustion: 0, allies: [] });
 
   const doc = A.createDoc(w, {
-    type: 'treaty', title: 'Peace with Goldland', authorId: pid,
-    clauses: [{ kind: 'TREATY_PEACE', party: 'goldland' }],
+    type: 'treaty', title: 'Peace with Canada', authorId: pid,
+    clauses: [{ kind: 'TREATY_PEACE', party: 'canada' }],
   });
   const weigh = DEP.weighAssent(w, doc);
   ok('a losing enemy is likely to accept', weigh.ok !== false && weigh.chance > 0.9, JSON.stringify(weigh));
@@ -51,13 +51,13 @@ function mk() {
 // --- a winning enemy is much less likely ----------------------------------------
 {
   const { w, pid } = mk();
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   f.atWar = true;
   w.military.wars.push({ id: 'w0', foreign: f.id, started: 0, front: -40, exhaustion: 0, allies: [] });
 
   const doc = A.createDoc(w, {
-    type: 'treaty', title: 'Peace with Goldland', authorId: pid,
-    clauses: [{ kind: 'TREATY_PEACE', party: 'goldland' }],
+    type: 'treaty', title: 'Peace with Canada', authorId: pid,
+    clauses: [{ kind: 'TREATY_PEACE', party: 'canada' }],
   });
   const weigh = DEP.weighAssent(w, doc);
   ok('a winning enemy is unlikely to accept', weigh.ok !== false && weigh.chance < 0.2, JSON.stringify(weigh));
@@ -66,13 +66,13 @@ function mk() {
 // --- applying it ends the war ---------------------------------------------------
 {
   const { w, pid } = mk();
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   f.atWar = true;
   const war = { id: 'w0', foreign: f.id, started: 0, front: 20, exhaustion: 0, allies: [] };
   w.military.wars.push(war);
   const bootHostility = f.hostility;
 
-  A.CLAUSES.TREATY_PEACE.apply(w, { party: 'goldland' });
+  A.CLAUSES.TREATY_PEACE.apply(w, { party: 'canada' });
   ok('the war is over', f.atWar === false);
   ok('the war record is marked negotiated', war.negotiated === true);
   ok('hostility comes down substantially', f.hostility < bootHostility - 30,

@@ -11,7 +11,7 @@ const ok = (l, c, x = '') => console.log((c ? 'PASS ' : 'FAIL ') + l + (x ? ' | 
 const w = W.newWorld({ nation: 'Testland', founder: 'A B' });
 w.phase = 'live';
 
-const f = w.foreign.find((x) => x.id === 'goldland');
+const f = w.foreign.find((x) => x.id === 'canada');
 f.atWar = true;
 f.baseStrength = f.strength;
 w.military.units = 20;

@@ -22,8 +22,8 @@ const said = (w, re) => w.chronicle.some((e) => re.test(e.text));
 // --- war declared on us: the pacts answer -----------------------------------
 {
   const w = mk();
-  const enemy = F(w, 'goldland');
-  const ally = F(w, 'electrum');
+  const enemy = F(w, 'canada');
+  const ally = F(w, 'mexico');
   ally.allied = true;
   // Force the declaration rather than waiting on the dice.
   enemy.hostility = 100;
@@ -32,19 +32,19 @@ const said = (w, re) => w.chronicle.some((e) => re.test(e.text));
   w.military.wars.push(war);
   const called = A.callAllies(w, war, enemy.id);
 
-  ok('the ally is called', called.includes('Electrum'), called.join(', '));
-  ok('and is written onto the war', war.allies.includes('electrum'), JSON.stringify(war.allies));
+  ok('the ally is called', called.includes('Mexico'), called.join(', '));
+  ok('and is written onto the war', war.allies.includes('mexico'), JSON.stringify(war.allies));
   ok('and knows which war it is in', ally.fighting === 'w_test', String(ally.fighting));
   ok('the Chronicle says so', said(w, /called to its obligations under the mutual-defense pact/));
-  ok('the enemy is not called to its own defence', !war.allies.includes('goldland'));
+  ok('the enemy is not called to its own defence', !war.allies.includes('canada'));
 }
 
 // --- and the coalition is felt on the front ---------------------------------
 {
   const alone = mk(); const withAlly = mk();
   const run = (w, allied) => {
-    const enemy = F(w, 'goldland');
-    if (allied) F(w, 'electrum').allied = true;
+    const enemy = F(w, 'canada');
+    if (allied) F(w, 'mexico').allied = true;
     enemy.atWar = true; enemy.hostility = 80;
     const war = { id: 'w_t', foreign: enemy.id, started: 0, front: 0, exhaustion: 0, allies: [] };
     w.military.wars.push(war);
@@ -61,10 +61,10 @@ const said = (w, re) => w.chronicle.some((e) => re.test(e.text));
 // --- an ally already at war cannot answer -----------------------------------
 {
   const w = mk();
-  const ally = F(w, 'electrum');
+  const ally = F(w, 'mexico');
   ally.allied = true; ally.atWar = true;
-  const war = { id: 'w_t', foreign: 'goldland', started: 0, front: 0, exhaustion: 0, allies: [] };
-  const called = A.callAllies(w, war, 'goldland');
+  const war = { id: 'w_t', foreign: 'canada', started: 0, front: 0, exhaustion: 0, allies: [] };
+  const called = A.callAllies(w, war, 'canada');
   ok('a signatory fighting its own war does not answer', called.length === 0, called.join(', '));
   ok('and the record says the pact could not be honoured',
     said(w, /no signatory is in a position to answer/));
@@ -73,7 +73,7 @@ const said = (w, re) => w.chronicle.some((e) => re.test(e.text));
 // --- a power fighting beside us does not turn on us -------------------------
 {
   const w = mk();
-  const ally = F(w, 'electrum');
+  const ally = F(w, 'mexico');
   ally.hostility = 100;
   ok('a hostile power ordinarily has odds', S.warOdds(w, ally) > 0);
   ally.allied = true; ally.fighting = 'w_t';
@@ -83,8 +83,8 @@ const said = (w, re) => w.chronicle.some((e) => re.test(e.text));
 // --- the coalition goes home when the war ends ------------------------------
 {
   const w = mk();
-  const enemy = F(w, 'goldland');
-  const ally = F(w, 'electrum');
+  const enemy = F(w, 'canada');
+  const ally = F(w, 'mexico');
   ally.allied = true;
   enemy.atWar = true;
   const war = { id: 'w_t', foreign: enemy.id, started: 0, front: 84, exhaustion: 0, allies: [] };
@@ -100,17 +100,17 @@ const said = (w, re) => w.chronicle.some((e) => re.test(e.text));
 // --- declaring war ourselves still calls them -------------------------------
 {
   const w = mk();
-  F(w, 'electrum').allied = true;
-  A.declareWar(w, 'goldland');
+  F(w, 'mexico').allied = true;
+  A.declareWar(w, 'canada');
   const war = w.military.wars[w.military.wars.length - 1];
-  ok('our own declaration calls the pacts too', (war.allies || []).includes('electrum'),
+  ok('our own declaration calls the pacts too', (war.allies || []).includes('mexico'),
     JSON.stringify(war.allies));
 }
 
 // --- non-aggression ----------------------------------------------------------
 {
   const w = mk();
-  const f = F(w, 'goldland');
+  const f = F(w, 'canada');
   f.hostility = 100;
   const hot = S.warOdds(w, f);
   f.pact = { since: 0, ends: 10 * w.clock.ticksPerYear };
@@ -126,10 +126,10 @@ const said = (w, re) => w.chronicle.some((e) => re.test(e.text));
 // A pact torn up to declare war costs you with everybody else.
 {
   const w = mk();
-  const f = F(w, 'goldland');
+  const f = F(w, 'canada');
   f.pact = { since: 0, ends: 10 * w.clock.ticksPerYear };
   const before = F(w, 'sab').hostility;
-  A.declareWar(w, 'goldland');
+  A.declareWar(w, 'canada');
   ok('breaking a pact is read by every other capital', F(w, 'sab').hostility > before,
     `${before} → ${F(w, 'sab').hostility}`);
   ok('and the pact is gone', !f.pact);

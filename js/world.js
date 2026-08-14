@@ -96,9 +96,9 @@ export function seedPartisan(world, leanId) {
 }
 
 export const FOREIGN = [
-  { id: 'goldland', name: 'Goldland', ideology: 'fascist', hostility: 34, strength: 120, blurb: 'A rearming neighbour that reads restraint as invitation.' },
+  { id: 'canada', name: 'Canada', ideology: 'fascist', hostility: 34, strength: 120, blurb: 'A rearming neighbour that reads restraint as invitation.' },
   { id: 'sab', name: 'The SAB', ideology: 'mercantile league', hostility: 12, strength: 70, blurb: 'Three ports and a tariff schedule with opinions.' },
-  { id: 'electrum', name: 'Electrum', ideology: 'republic', hostility: 4, strength: 85, blurb: 'Sister republic. Signs things. Means about half of them.' },
+  { id: 'mexico', name: 'Mexico', ideology: 'republic', hostility: 4, strength: 85, blurb: 'Sister republic. Signs things. Means about half of them.' },
 ];
 
 /**

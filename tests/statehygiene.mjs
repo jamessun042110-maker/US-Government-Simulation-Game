@@ -33,34 +33,34 @@ const mk = (nation = 'Silver') => {
 // republic had signed peace with a decade earlier.
 {
   const w = mk();
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   f.atWar = true;
-  w.military.wars.push({ id: 'w1', foreign: 'goldland', started: 0, front: 40, exhaustion: 0.2, allies: [] });
+  w.military.wars.push({ id: 'w1', foreign: 'canada', started: 0, front: 40, exhaustion: 0.2, allies: [] });
   const g = (await import(base + 'geo.js')).mapOf(w);
   ok('a war being fought holds ground', DEP.occupations(w, g).length === 1);
-  A.CLAUSES.TREATY_PEACE.apply(w, { party: 'goldland', cede: 0, indemnity: 0 });
+  A.CLAUSES.TREATY_PEACE.apply(w, { party: 'canada', cede: 0, indemnity: 0 });
   ok('the guns stop', f.atWar === false);
-  ok('and the war is over', DEP.liveWar(w, 'goldland') === null);
+  ok('and the war is over', DEP.liveWar(w, 'canada') === null);
   ok('so nobody is holding any ground', DEP.occupations(w, g).length === 0);
-  ok('and no ally can be landed in it', DEP.landAllies(w, null, 'goldland').ok === false);
+  ok('and no ally can be landed in it', DEP.landAllies(w, null, 'canada').ok === false);
 }
 
 // A war that ended on tick 0 is still over. `ended` is a tick and tick 0 is a
 // real tick — read as a flag it would come back to life.
 {
   ok('a war that ended on the first tick stays ended',
-    DEP.stillFighting({ foreign: 'goldland', ended: 0 }) === false);
+    DEP.stillFighting({ foreign: 'canada', ended: 0 }) === false);
   ok('and one that has not ended is still being fought',
-    DEP.stillFighting({ foreign: 'goldland', ended: null }) === true);
+    DEP.stillFighting({ foreign: 'canada', ended: null }) === true);
 }
 
 // --- Hostility is a number from nought to a hundred --------------------------
-// Two answers on one crisis card wrote it unclamped, which put Goldland at 112
+// Two answers on one crisis card wrote it unclamped, which put Canada at 112
 // — off the end of a bar that runs to a hundred and past where any amount of
 // diplomacy could bring it back inside a Season.
 {
   const w = mk();
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   const card = D.CRISES ? null : null;   // the deck is internal; drive the world instead
   f.hostility = 96;
   for (let i = 0; i < 400; i++) S.tick(w);

@@ -5,22 +5,27 @@
 // districts map are the same geometry at two scales rather than two drawings
 // that resemble each other.
 //
-// The order of operations is the whole idea, and it is not the obvious one:
+// **The continent is now real.** It was invented — a hand-drawn silhouette cut
+// into three countries by fractal borders solved against target land shares.
+// It is North America now, and it comes from atlas.js, which is written in
+// degrees and can be checked against a map.
 //
-//   1. Draw a continent. Not three countries that happen to touch — one
-//      landmass, with capes and a gulf and a coast that behaves like a coast,
-//      drawn without reference to who lives on it.
-//   2. Cut it up. Two wandering borders run clean across the finished landmass:
-//      one east-west, bounding Goldland's north, and one running south from a
-//      triple junction on the first, dividing Silver's west from Electrum's
-//      east. Both run out past the coast on either end, so the three territories
-//      tile the continent exactly — no unclaimed land anywhere, and every coast
-//      a country has is the continent's own coast.
-//   3. Leave the SAB offshore. It is a maritime league, so it is an island.
+// The order of operations survives the change, because it was right:
 //
-// The previous version did the reverse: three ellipses positioned to overlap,
-// with the overlaps masked away. That is why Silver was a fringed rectangle with
-// wedges of open sea between it and both of its neighbours.
+//   1. Take the continent. One landmass, coast and all, drawn without reference
+//      to who lives on it.
+//   2. Cut it up. Two frontiers run clean across it, both east-west now: the
+//      49th parallel and the lakes bounding Canada to the north, and the Rio
+//      Grande bounding Mexico to the south. Silver's two borders met at a triple
+//      junction, which put its neighbours side by side — the reason the topology
+//      had to be redrawn and not merely renamed.
+//   3. Leave the island power offshore.
+//
+// **What did not survive is the solving.** A fractal border can be re-solved
+// against a new target share after a war; the Rio Grande cannot. So the borders
+// are *offset* instead — see `atlas.ringsAt`, which reassembles all three
+// countries at any frontier displacement. The share solve below now searches for
+// that displacement rather than for the shape of the line.
 //
 // ── How a territory is represented ────────────────────────────────────────
 //
@@ -37,6 +42,7 @@
 // crosses itself. Half-planes plus clipping cannot go wrong.
 
 import { mulberry32, hashSeed } from './util.js';
+import { CONTINENT_RING, ringsAt } from './atlas.js';
 
 // --- Primitives ------------------------------------------------------------
 
@@ -155,32 +161,31 @@ export function ellipse(cx, cy, rx, ry, n = 16, phase = 0) {
 export const WORLD_W = 340;
 export const WORLD_H = 232;
 
-// The control silhouette, drawn by hand and then roughened. It is not a blob:
-// there is a cape in the north-west, a shoulder in the north-east, a gulf biting
-// into the south coast, and a west coast facing a strait — which is what the SAB
-// sits in. Clockwise from the north-west.
-const CONTINENT = [
-  [102, 54], [126, 33], [158, 44], [190, 26], [224, 37], [258, 30],
-  [292, 51], [317, 73], [327, 103], [313, 127], [330, 151], [301, 169],
-  [275, 190], [251, 161], [225, 192], [197, 205], [167, 197], [140, 210],
-  [113, 195], [95, 167], [87, 139], [99, 112], [89, 87],
-];
+// The continent is no longer invented. It was a hand-drawn silhouette roughened
+// by a fractal; it is now North America, and it comes from the atlas.
+//
+// `coast()` still runs over it, at a much smaller amplitude. A real coastline
+// wants the roughening — the atlas carries the vertices that make the country
+// recognisable, not every inlet — but it must not wander far enough to move
+// Florida, so the amplitude is a fifth of what the invented continent used.
+const CONTINENT = CONTINENT_RING;
 
 // Far enough outside the frame that a closure can never clip anything real.
 const OUT = 90;
 
-// What share of the landmass each country holds. A fractal border dropped on a
-// fractal coast otherwise gives whatever it gives — Goldland came out with
-// anything from a fifth of the continent to over half depending only on the
-// nation's name, which is not a border, it is a lottery. The borders keep their
-// wander; their baselines are solved for these shares.
-// Goldland is the northern band, so its share is spread across the full width of
-// the continent and reads as depth, not area: a modest share comes out a thin
-// ribbon with no room to put its own name in, and the main rival reduced to a
-// smear along the top has no proper border to argue over. So Goldland is given a
-// deep share — a northern power that plainly borders Silver, not a garnish along
-// the coast. Silver and Electrum are side-by-side below it, sharing the rest.
-const SHARES = { goldland: 0.44, silver: 0.39 };
+// What share of the landmass each country holds **at the founding**.
+//
+// This used to be a target the border solver aimed at, because a fractal border
+// dropped on a fractal coast gave whatever it gave — Canada came out anywhere
+// from a fifth of the continent to over half depending only on the nation's
+// name, which is not a border, it is a lottery.
+//
+// There is no lottery now. The frontiers are the 49th parallel and the Rio
+// Grande, so the shares are simply *measured* off the atlas at startup rather
+// than solved for. They are still needed, because a war moves a frontier by a
+// share of a country and the code that prices a cession has to know what a
+// country was worth to begin with.
+let SHARES = null;
 
 /**
  * Sample the continent on a grid once: the discrete land every measure uses —
@@ -210,64 +215,33 @@ function landGrid(ring, step = 2) {
 }
 
 /**
- * The two borders and the three halves they cut, for a given calibration.
+ * The two frontiers and the three territories they divide, at a given
+ * displacement.
  *
- * `rounds` must match between the calibration passes and the final draw. It was
- * once dropped while solving, on the theory that the last rounds of displacement
- * move the line only a few tenths of a unit and cannot change who owns what. At
- * the current border amplitude that theory is wrong: a coarse solve and a fine
- * draw diverge enough that whole nations vanish — Goldland pinched to a sliver on
- * the founding seed of "The Silver Republic" itself — so the solve now runs at
- * full rounds against the very border it is calibrating. The map is cached, so
- * the cost is paid once per founding or redraw.
+ * This was the fractal border solver. It is now a thin wrapper over
+ * `atlas.ringsAt`, and the change of shape is the point: `north` and `south` are
+ * how far each frontier has been pushed by war, in frame units, and at zero this
+ * is the continent as founded.
+ *
+ * The seed argument is gone. Silver's borders were seeded off the nation's name,
+ * so a republic called something else got a different continent; the United
+ * States gets the United States. Callers no longer pass one.
+ *
+ * A displaced frontier leaves a step where it meets the sea, which is correct —
+ * a war moves the border, and the border ends at the water, so the corner of the
+ * country moves with it.
  */
-function cut(sid, dy, jFrac, rounds = 6, pw = 0, pe = 0) {
-  // Border one runs right across the landmass and out both sides, so it is
-  // guaranteed to divide it however the coast wanders. Amplitude was 0.105 and
-  // 0.13 — enough to read as drawn rather than plotted, but not enough to read as
-  // a *national* border, which follows rivers and ridgelines and wanders far more
-  // than the fractal alone allowed. A previous pass trebled it to 0.32/0.36 for
-  // that look and it went too far: the random midpoint swings on a border this
-  // long (hundreds of units) overwhelmed the `dy`/`jFrac` calibration knobs, so
-  // on unlucky seeds a whole nation vanished — Goldland came out 0.1% of the map
-  // on the founding seed of "The Silver Republic" itself, a sliver that did not
-  // even border Silver. So it is raised to 0.16/0.18: still visibly argued-over
-  // rather than snapped to a ruler, but small enough that the solver can always
-  // place the border and every seed keeps three nations that share their borders.
-  const A0 = fractalLine([-OUT, 104 + dy], [WORLD_W + OUT, 92 + dy], { seed: sid + '/border-a', rounds, amp: 0.16 });
-  // The triple junction, a fraction of the way along it.
-  const jIdx = Math.min(A0.length - 2, Math.max(1, Math.round((A0.length - 1) * jFrac)));
-  const J = A0[jIdx];
-
-  // A cession moves the frontage it was fought over and nothing else.
-  //
-  // `pw` slides Goldland's border with *us* north; `pe` slides its border with
-  // Electrum. Land is taken along the line the two armies stood on, so the west
-  // moves first and the east only once there is nothing left of Goldland west of
-  // the junction — which is what lets a power be annexed out of existence without
-  // Electrum's northern frontier drifting every time we win a war it was not in.
-  // The two run at different latitudes, so the frontier acquires a step at the
-  // junction's meridian; the polygons pick it up for nothing, because the edge
-  // between the last point of one part and the first of the other *is* the step.
-  const lift = (d) => (p) => [p[0], p[1] - d];
-  const Aw = pw ? A0.slice(0, jIdx + 1).map(lift(pw)) : A0.slice(0, jIdx + 1);
-  const Ae = pe ? A0.slice(jIdx).map(lift(pe)) : A0.slice(jIdx);
-  const A = [...Aw, ...Ae];
-  // Border two runs south from the junction and out past the south coast. When
-  // the junction has been lifted it is extended up to meet it rather than moved,
-  // so the border Silver and Electrum share keeps every bend it was drawn with.
-  const B0 = fractalLine(J, [J[0] + 26, WORLD_H + OUT], { seed: sid + '/border-b', rounds, amp: 0.18 });
-  const B = pe ? [Ae[0], ...B0] : B0;
-
+function cut(north = 0, south = 0) {
+  const r = ringsAt(north, south);
   return {
-    A, B, junction: B[0],
-    // Each half is a simple polygon: border, then a closure well outside the
-    // frame. Nothing here is clipped to the coast — that is the map's job.
-    halves: {
-      goldland: [[-OUT, -OUT], ...A, [WORLD_W + OUT, -OUT]],
-      silver: [...Aw, ...B, [-OUT, WORLD_H + OUT]],
-      electrum: [...Ae, [WORLD_W + OUT, WORLD_H + OUT], ...B.slice().reverse()],
-    },
+    A: r.borders.canada,
+    B: r.borders.mexico,
+    // There is no triple junction any more. Silver's two borders met at one,
+    // which is precisely what put its neighbours side by side instead of one
+    // north and one south; the frontiers here never touch. Kept as null rather
+    // than removed because the world map draws a marker at it when it exists.
+    junction: null,
+    halves: { canada: r.canada, silver: r.us, mexico: r.mexico },
   };
 }
 
@@ -279,8 +253,8 @@ const CACHE = new Map();
 // their country being smaller. `world.annexed` is a map of `foreignId → percent`
 // (negative where the republic was the one that ceded), and the way it reaches
 // the map is the *target shares the borders are solved for*. Take a third of
-// Goldland and Goldland's target drops by a third, Silver's rises by exactly what
-// Goldland lost, and border A is re-solved: the line moves north, through the
+// Canada and Canada's target drops by a third, Silver's rises by exactly what
+// Canada lost, and border A is re-solved: the line moves north, through the
 // same landscape, still wandering the way it always did.
 //
 // This is why the seeds below are taken from the base key and not from the
@@ -306,48 +280,66 @@ export function geography(nation, salt = 0, annexed = null) {
   // new border, new terrain — while salt 0 is the map the nation was founded on.
   const key = String(nation || 'silver') + (salt ? '#' + salt : '');
   const a = {
-    goldland: annexOf(annexed, 'goldland'),
-    electrum: annexOf(annexed, 'electrum'),
+    canada: annexOf(annexed, 'canada'),
+    mexico: annexOf(annexed, 'mexico'),
     sab: annexOf(annexed, 'sab'),
   };
   // A moved border is a different map of the same country, so it is a different
   // cache entry — but only when something actually moved, so the founding map of
   // every Season still lands on the same entry it always did.
-  const moved = !!(a.goldland || a.electrum || a.sab);
-  const ck = moved ? `${key}@${a.goldland},${a.electrum},${a.sab}` : key;
+  const moved = !!(a.canada || a.mexico || a.sab);
+  const ck = moved ? `${key}@${a.canada},${a.mexico},${a.sab}` : key;
   if (CACHE.has(ck)) return CACHE.get(ck);
 
   // The founding map is solved first and the cessions are solved *from* it, so
   // the frontier a treaty moves is the one the republic was founded with and the
   // continent underneath is not drawn twice.
   const g0 = moved ? geography(nation, salt) : null;
-  const ring = g0 ? g0.ring : coast(CONTINENT, { seed: key + '/continent', rounds: 5, roughness: 0.56, amp: 0.24 });
+  // Amplitude cut from 0.24 to 0.05. An invented coast wants the wander — it is
+  // what stops it reading as a drawn blob. A real one already has its shape, and
+  // at the old amplitude the roughening was large enough to walk Florida into
+  // the Gulf and put a bite through the Chesapeake. What is left is enough to
+  // keep the line from looking ruled.
+  const ring = g0 ? g0.ring : coast(CONTINENT, { seed: key + '/continent', rounds: 5, roughness: 0.56, amp: 0.05 });
   const grid = g0 ? g0.grid : landGrid(ring);
   const shareOf = (half) => grid.pts.reduce((n, p) => n + (inPoly(p, half) ? 1 : 0), 0) / grid.pts.length;
 
-  // What each country is owed, once the treaties are counted. Electrum's share is
+  // What each country is owed, once the treaties are counted. Mexico's share is
   // whatever the other two leave, here as everywhere else.
   //
   // Ground taken *from* a neighbour is a share of that neighbour, which is what
   // acts.territoryLeft counts; ground the republic gave up is a share of the
   // republic, which is what the treaty instrument says in so many words. So the
   // two directions are not the same fraction of the same thing, and reading them
-  // as one would have a 20% cession to Goldland move a fifth of *Goldland* the
+  // as one would have a 20% cession to Canada move a fifth of *Canada* the
   // wrong way across the line.
-  const BASE = { goldland: SHARES.goldland, silver: SHARES.silver, electrum: 1 - SHARES.goldland - SHARES.silver };
+  // Measured off the founding map rather than declared. Silver named its shares
+  // and solved its borders to hit them; here the borders are given and the
+  // shares are the consequence, so the only honest way to know what Canada was
+  // worth before the war is to count the ground it stood on. Memoised: the coast
+  // roughening is tiny now, so every seed measures the same country.
+  if (!SHARES) {
+    const f = cut(0, 0);
+    SHARES = {
+      canada: shareOf(f.halves.canada),
+      silver: shareOf(f.halves.silver),
+      mexico: shareOf(f.halves.mexico),
+    };
+  }
+  const BASE = SHARES;
   const toUs = (id) => (a[id] >= 0 ? BASE[id] : BASE.silver) * a[id];
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
   const want = {
-    goldland: clamp01(BASE.goldland - toUs('goldland')),
-    electrum: clamp01(BASE.electrum - toUs('electrum')),
+    canada: clamp01(BASE.canada - toUs('canada')),
+    mexico: clamp01(BASE.mexico - toUs('mexico')),
   };
 
   // The solve is bisection against a monotone measure — a border slid south can
   // only add land to the north of it — so a wider bracket buys iterations and
   // nothing else, and the old one was too narrow to reach its own target. On the
   // founding seed of "The Silver Republic" itself it railed at the southern end
-  // with Goldland on 27% of a continent it is supposed to hold 44% of, and
-  // Electrum on twice its share; the shares the map is calibrated for were simply
+  // with Canada on 27% of a continent it is supposed to hold 44% of, and
+  // Mexico on twice its share; the shares the map is calibrated for were simply
   // out of reach. This is wide enough for the targets on every seed, and wide
   // enough that a country annexed outright can be driven off the continent
   // altogether rather than left as a rail-thin crescent — a target of zero is
@@ -360,72 +352,55 @@ export function geography(nation, salt = 0, annexed = null) {
     return (lo + hi) / 2;
   };
 
-  // The founding calibration: slide border one south until Goldland holds its
-  // share — further south is more land, so the measure rises monotonically with
-  // dy — then slide the junction east until Silver holds its share. The remainder
-  // is Electrum's by construction, so there is nothing left to solve.
-  const dy = g0 ? g0.dy
-    : solve(-260, 260, (m) => shareOf(cut(key, m, 0.45, 6).halves.goldland), SHARES.goldland);
-  let jFrac = g0 ? g0.jFrac
-    : solve(0.02, 0.995, (m) => shareOf(cut(key, dy, m, 6).halves.silver), SHARES.silver);
-
-  // Then the treaties, on top of that map and never instead of it.
+  // **There is no founding calibration any more.** Silver had to solve for its
+  // borders because they were random; the 49th parallel and the Rio Grande are
+  // where they are. The founding map is `cut(0, 0)` and the shares are whatever
+  // the real geography gives, measured once and cached in SHARES above.
   //
-  // One knob for the northern frontier, and it is deliberately not linear: the
-  // first 260 units of it move Goldland's border with us, and only past that —
-  // once there is no Goldland left on our frontage at all — does it start moving
-  // Goldland's border with Electrum. That is the difference between taking a
-  // third of a neighbour and annexing it outright, and it is why winning a war
-  // against Goldland no longer slides Electrum's northern border with it.
+  // What remains is the treaties, and they are simpler than they were. Silver's
+  // two borders met at a triple junction, so pushing one moved the other and the
+  // two knobs had to be alternated until they agreed. These frontiers never
+  // touch — one is north of the country and one is south of it — so each is
+  // solved once, independently, and winning a war against Canada cannot move the
+  // Mexican border by so much as a unit. The test asserts exactly that.
   //
-  // The junction is then re-solved for Electrum's share, which is what actually
-  // moves the border *we* share with Electrum. The two are coupled — where the
-  // junction sits decides how much frontage the northern push acts on — so they
-  // are alternated twice, which is well inside the tolerance either is measured
-  // to.
-  // Both measures fall as their knob rises — a border pushed north leaves less
-  // Goldland, a junction slid east leaves less Electrum — so they are solved
-  // against their own negatives, which is the same bisection upside down.
-  let push = 0;
-  const spread = (t) => [Math.min(t, 260), Math.max(0, t - 260)];
-  if (a.goldland || a.electrum) {
+  // Both measures fall as their knob rises: a frontier pushed north leaves less
+  // Canada. So each is solved against its own negative, which is the same
+  // bisection upside down.
+  let north = 0, south = 0;
+  if (a.canada || a.mexico) {
     // Sampled every third point for the treaty solve. The measure comes out
     // within a few tenths of a percent of the full pass, which is finer than the
     // borders can be placed anyway, and it is the difference between a treaty
     // costing the tick half a second and costing it a second and a half.
     const probe = grid.pts.filter((_, i) => i % 3 === 0);
     const shareIn = (half) => probe.reduce((n, p) => n + (inPoly(p, half) ? 1 : 0), 0) / probe.length;
-    for (let round = 0; round < 3; round++) {
-      push = solve(-260, 520,
-        (m) => -shareIn(cut(key, dy, jFrac, 6, ...spread(m)).halves.goldland), -want.goldland);
-      jFrac = solve(0.02, 0.995,
-        (m) => -shareIn(cut(key, dy, m, 6, ...spread(push)).halves.electrum), -want.electrum);
-      // Nothing has moved north of Electrum, so the junction it sits on cannot
-      // have moved either: the two knobs are independent and one pass is the
-      // answer. Only an annexation deep enough to reach past our own frontage
-      // couples them, and then the junction has to be settled last — it is the
-      // one that decides how much of what we took came out of a country that was
-      // not in the war.
-      if (!spread(push)[1]) break;
-    }
+    if (a.canada) north = solve(-260, 260, (m) => -shareIn(cut(m, 0).halves.canada), -want.canada);
+    if (a.mexico) south = solve(-260, 260, (m) => -shareIn(cut(0, m).halves.mexico), -want.mexico);
   }
 
-  const c = cut(key, dy, jFrac, 6, ...spread(push));
+  const c = cut(north, south);
   const g = {
     ring,
     halves: c.halves,
     borders: { a: c.A, b: c.B },
     junction: c.junction,
-    // The calibration itself, so a map with treaties on it can be solved from the
-    // founding map rather than from scratch.
-    dy,
-    jFrac,
-    // The SAB. Grown about a fifth from 27×36: the league's name and its
-    // standing with us are drawn at a fixed anchor in the middle of the island,
-    // and at the old size "UNEASY PEACE" ran off the west coast into open water.
-    // A maritime league whose label does not fit on its own islands reads as a
-    // mistake rather than as a small country.
-    sab: coast(ellipse(41, 150, 32, 42, 14, 2.2), { seed: key + '/sab', rounds: 5, roughness: 0.6, amp: 0.3 }),
+    // How far each frontier has been pushed by war, so a map with treaties on it
+    // can be solved from the founding map rather than from scratch. These
+    // replace `dy`/`jFrac`, which described the shape of a fractal line that no
+    // longer exists.
+    north,
+    south,
+    // The island power, moved from a strait west of Silver to the Caribbean —
+    // south-east of the Florida keys, which is the only place on this map an
+    // island power can sit and still be across water from us rather than in the
+    // middle of the country.
+    //
+    // Wider than it is tall now, where Silver's was the reverse. The league's
+    // name and its standing with us are drawn at a fixed anchor in the middle of
+    // it, and an archipelago whose label does not fit on its own islands reads
+    // as a mistake rather than as a small country.
+    sab: coast(ellipse(234, 188, 36, 14, 14, 2.2), { seed: key + '/sab', rounds: 5, roughness: 0.6, amp: 0.3 }),
     /** Is this point in that country? Coast and border, both. */
     isIn: (p, id) => inPoly(p, ring) && inPoly(p, c.halves[id]),
     grid,
@@ -434,9 +409,20 @@ export function geography(nation, salt = 0, annexed = null) {
   // What each country ended up holding, as a share of the continent. One pass,
   // and the only thing that can answer "has this power any ground left at all" —
   // which the maps have to ask before they write a name on it.
-  g.share = { goldland: 0, silver: 0, electrum: 0 };
+  // **Whatever is neither Canada's nor Mexico's is ours.** The order matters and
+  // it used to run the other way, with Mexico as the fall-through. At the
+  // founding that is invisible, because the three tile the continent exactly.
+  // After an annexation it is not: driving the northern frontier off the top of
+  // the map leaves the frame's corners outside every polygon, and with Mexico
+  // last those corners became Mexican — annexing Canada outright handed Mexico
+  // 30.9% of the continent it had never set foot on.
+  //
+  // Ours is the right fall-through because ground taken in a war is ground we
+  // took. A neighbour's claim has to be positively established; ours is what is
+  // left when both of theirs fail.
+  g.share = { canada: 0, silver: 0, mexico: 0 };
   for (const p of grid.pts) {
-    const id = inPoly(p, c.halves.goldland) ? 'goldland' : inPoly(p, c.halves.silver) ? 'silver' : 'electrum';
+    const id = inPoly(p, c.halves.canada) ? 'canada' : inPoly(p, c.halves.mexico) ? 'mexico' : 'silver';
     g.share[id] += 1 / grid.pts.length;
   }
   g.terrain = terrainOf(key, grid, ring);
@@ -599,7 +585,7 @@ function terrainOf(key, grid, ring) {
  * Somewhere inside a region to put its name, and how much room there is for it.
  *
  * The centroid of a crescent falls outside the crescent, and a country bounded by
- * a wandering border and a bay is frequently crescent-shaped — Electrum's name
+ * a wandering border and a bay is frequently crescent-shaped — Mexico's name
  * used to sit inside Silver. So this walks the region as sampled points, takes
  * the widest unbroken horizontal run, and returns its middle. A name placed here
  * cannot land on a neighbour or in the sea.
@@ -624,10 +610,10 @@ export function labelSpotFrom(points, step, { away = null } = {}) {
   // This replaces "the widest unbroken row", which was the wrong question and
   // gave the wrong answer in a way that took three attempts to paper over. The
   // widest row of a country with a straight border down one side is the row
-  // hard against that border — so Goldland's name sat on its own southern
+  // hard against that border — so Canada's name sat on its own southern
   // frontier with its halo painted across the line, its standing underneath it
-  // reached into Silver, and Electrum's name crowded up against Silver rather
-  // than sitting in Electrum. Every one of those is the same bug, and the
+  // reached into Silver, and Mexico's name crowded up against Silver rather
+  // than sitting in Mexico. Every one of those is the same bug, and the
   // patches for them were a hand-written lift table keyed by country.
   //
   // What a cartographer actually does is put the name where there is the most
@@ -737,7 +723,7 @@ export function labelSpotFrom(points, step, { away = null } = {}) {
     // Taking the row's midpoint looked like centring and was not: the y came
     // from the cell with the most country around it and the x came from
     // somewhere else entirely, so on a country whose southern border slopes —
-    // Goldland's does — the name slid along the row to a column with a third
+    // Canada's does — the name slid along the row to a column with a third
     // less headroom than the placement had been chosen for, and sat on the
     // border with the clearance figure still cheerfully reporting 22.
     x: at,

@@ -81,7 +81,7 @@ ok('and none of them is trading on money it does not have',
 
 // A synthetic founder in trouble reaches for the same two moves a player has.
 {
-  const w3 = W.newWorld({ nation: 'Electrum', founder: 'James Sun' });
+  const w3 = W.newWorld({ nation: 'Mexico', founder: 'James Sun' });
   w3.phase = 'live';
   run(w3, 700);
   const co = w3.companies.find((c) => !c.closed);

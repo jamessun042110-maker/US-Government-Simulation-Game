@@ -2,7 +2,7 @@
 //
 // Found by playing: arm under an emergency, declare on the weakest neighbour,
 // win, dictate the maximum cession, wait out the armistice, repeat. Fifteen
-// rounds against Electrum took 450% of its territory. Because the value of a
+// rounds against Mexico took 450% of its territory. Because the value of a
 // cession was booked per point *asked for* rather than against anything that
 // existed, each one paid 30 × CESSION_VALUE into the treasury and lifted every
 // district's mood by four — and the enemy's strength floors at 1, so every war
@@ -135,7 +135,7 @@ function republic() {
 
 {
   const { w, pid } = republic();
-  const f = w.foreign.find((x) => x.id === 'electrum') || w.foreign[0];
+  const f = w.foreign.find((x) => x.id === 'mexico') || w.foreign[0];
   for (let i = 0; i < 15; i++) {
     w.dictate = [{ foreignId: f.id, since: w.clock.tick, until: w.clock.tick + 40 }];
     A.dictateTerms(w, pid, f.id, { cede: 30, indemnity: 0 });

@@ -18,7 +18,7 @@ const mk = () => {
 
 // --- the enemy's divisions, on the menu ----------------------------------------
 {
-  const gold = mk().w.foreign.find((f) => f.id === 'goldland');
+  const gold = mk().w.foreign.find((f) => f.id === 'canada');
   gold.strength = 210;
   ok('the enemy\'s strength reads as divisions', DEP.enemyDivisions(gold) === 7, String(DEP.enemyDivisions(gold)));
   ok('driving in when they hold the ground', DEP.enemyDisposition(null, { front: -40 }) === 'driving into our territory');
@@ -29,19 +29,19 @@ const mk = () => {
 // --- an overseas ally lands a force --------------------------------------------
 {
   const { w, pid } = mk();
-  const gold = w.foreign.find((f) => f.id === 'goldland');
-  const elec = w.foreign.find((f) => f.id === 'electrum');
+  const gold = w.foreign.find((f) => f.id === 'canada');
+  const elec = w.foreign.find((f) => f.id === 'mexico');
   gold.atWar = true; gold.baseStrength = gold.strength = 200;
-  w.military.wars.push({ id: 'w', foreign: 'goldland', started: 0, front: 0, exhaustion: 0, allies: [] });
+  w.military.wars.push({ id: 'w', foreign: 'canada', started: 0, front: 0, exhaustion: 0, allies: [] });
 
-  ok('without an ally, nobody can be landed', !DEP.landAllies(w, pid, 'goldland').ok);
+  ok('without an ally, nobody can be landed', !DEP.landAllies(w, pid, 'canada').ok);
   elec.allied = true;
-  const r = DEP.landAllies(w, pid, 'goldland');
-  ok('an overseas ally lands a force', r.ok && r.ally === 'electrum', r.reason || '');
+  const r = DEP.landAllies(w, pid, 'canada');
+  ok('an overseas ally lands a force', r.ok && r.ally === 'mexico', r.reason || '');
   const war = w.military.wars[0];
-  ok('the landing is on the war', war.landing && war.landing.ally === 'electrum');
+  ok('the landing is on the war', war.landing && war.landing.ally === 'mexico');
   ok('and weak against the defences at first', Math.abs(DEP.landingRamp(w, war) - 0.2) < 1e-9, String(DEP.landingRamp(w, war)));
-  ok('a second landing on the same front is refused', !DEP.landAllies(w, pid, 'goldland').ok);
+  ok('a second landing on the same front is refused', !DEP.landAllies(w, pid, 'canada').ok);
 
   // It digs in over time.
   w.clock.tick = war.landing.since + DEP.BEACHHEAD_RAMP;
@@ -51,13 +51,13 @@ const mk = () => {
 // --- the landing tells on the front --------------------------------------------
 function warFront(withLanding, ticks) {
   const { w } = mk();
-  const gold = w.foreign.find((f) => f.id === 'goldland');
-  const elec = w.foreign.find((f) => f.id === 'electrum');
+  const gold = w.foreign.find((f) => f.id === 'canada');
+  const elec = w.foreign.find((f) => f.id === 'mexico');
   elec.allied = true; elec.strength = 300;
   gold.atWar = true; gold.baseStrength = gold.strength = 220;
   w.military.units = 6;
-  const war = { id: 'w', foreign: 'goldland', started: 0, front: 0, exhaustion: 0, allies: [] };
-  if (withLanding) war.landing = { ally: 'electrum', since: -DEP.BEACHHEAD_RAMP };   // already dug in
+  const war = { id: 'w', foreign: 'canada', started: 0, front: 0, exhaustion: 0, allies: [] };
+  if (withLanding) war.landing = { ally: 'mexico', since: -DEP.BEACHHEAD_RAMP };   // already dug in
   w.military.wars.push(war);
   for (let i = 0; i < ticks; i++) S.tick(w);
   return w.military.wars[0].front;

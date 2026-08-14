@@ -143,7 +143,7 @@ const run = (w, n) => { for (let i = 0; i < n; i++) S.tick(w); };
 // --- somebody talks to the neighbours ----------------------------------------
 {
   const { w } = mk();
-  const g = w.foreign.find((f) => f.id === 'goldland');
+  const g = w.foreign.find((f) => f.id === 'canada');
   g.hostility = 70;
   run(w, 900);
   ok('an angry neighbour is eventually received',
@@ -157,7 +157,7 @@ const run = (w, n) => { for (let i = 0; i < n; i++) S.tick(w); };
 // --- the summit's week binds an NPC too --------------------------------------
 {
   const { w, pres } = mk();
-  DEP.summon(w, pres.id, 'goldland', 'reassure');
+  DEP.summon(w, pres.id, 'canada', 'reassure');
   ok('an NPC president can be abroad', R.abroad(w, pres.id));
   const tpl = D.EVENTS.find((e) => e.id === 'housing');
   w.events.unshift({ uid: 'ev_away', id: tpl.id, title: tpl.title, text: 'x',

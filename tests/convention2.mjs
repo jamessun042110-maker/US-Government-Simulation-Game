@@ -97,7 +97,7 @@ ok('an invented office keeps the general ceiling', R.seatCap('ministryofthings3'
   ok('nor nobody at all', !R.mayAnswerCrisis(w, null));
 
   // A notice is filed by the chair too — filing clears the card for everyone.
-  D.fire(w, 'goldland');
+  D.fire(w, 'canada');
   const ev = w.events.find((e) => !e.resolved);
   ok('a crisis is open', !!ev);
   ev.notice = true;
@@ -109,7 +109,7 @@ ok('an invented office keeps the general ceiling', R.seatCap('ministryofthings3'
   // could be answered twice.
   const { w: w3, pid: pid3 } = mk();
   w3.clock.tick = 0;
-  D.fire(w3, 'goldland');
+  D.fire(w3, 'canada');
   const ev3 = w3.events.find((e) => !e.resolved);
   const free = ev3.options.findIndex((o) => !o.cost);
   ok('answered at tick zero', D.respond(w3, ev3.uid, free, pid3).ok === true);

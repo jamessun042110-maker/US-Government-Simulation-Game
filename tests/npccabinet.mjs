@@ -139,7 +139,7 @@ const said = (w, re) => w.chronicle.some((e) => re.test(e.text));
 // --- the departments do their own work --------------------------------------
 {
   const { w } = mk();
-  w.foreign.find((f) => f.id === 'goldland').hostility = 70;
+  w.foreign.find((f) => f.id === 'canada').hostility = 70;
   run(w, 25 * w.clock.ticksPerYear);
   ok('State works the angriest neighbour', said(w, /At the Department of State/),
     'nothing said');

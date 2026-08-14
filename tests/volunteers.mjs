@@ -17,7 +17,7 @@ const mk = () => {
 };
 // Volunteers are only raised in wartime now, so put the country at war first.
 const goToWar = (w) => {
-  const f = w.foreign.find((x) => x.id === 'goldland') || w.foreign[0];
+  const f = w.foreign.find((x) => x.id === 'canada') || w.foreign[0];
   f.atWar = true; f.baseStrength = f.strength = 120;
   w.military.wars.push({ id: 'w_setup', foreign: f.id, started: 0, front: -20, exhaustion: 0, allies: [] });
   return w;
@@ -68,9 +68,9 @@ ok('and fights at a tenth of a regular division', DEP.VOLUNTEER_STRENGTH === 0.1
 // The first into the ground: a war under way, and a volunteer falls before a regular.
 {
   const w = mk();
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   f.atWar = true; f.baseStrength = f.strength = 120;
-  w.military.wars.push({ id: 'w_vol', foreign: 'goldland', started: 0, front: -40, exhaustion: 0, allies: [] });
+  w.military.wars.push({ id: 'w_vol', foreign: 'canada', started: 0, front: -40, exhaustion: 0, allies: [] });
   w.military.units = 3; w.military.volunteers = 2; w.military.attrition = 0.95;
   for (let i = 0; i < 6 && w.military.volunteers === 2; i++) S.tick(w);
   ok('under fire a volunteer is spent before a regular division',

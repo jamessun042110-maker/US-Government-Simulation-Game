@@ -13,39 +13,39 @@ const mk = () => {
   return w;
 };
 
-// Already at war with Goldland; sign a pact with Electrum mid-war.
+// Already at war with Canada; sign a pact with Mexico mid-war.
 {
   const w = mk();
-  const gold = w.foreign.find((f) => f.id === 'goldland');
-  const elec = w.foreign.find((f) => f.id === 'electrum');
+  const gold = w.foreign.find((f) => f.id === 'canada');
+  const elec = w.foreign.find((f) => f.id === 'mexico');
   gold.atWar = true;
-  const war = { id: 'w1', foreign: 'goldland', started: 0, front: -10, exhaustion: 0, allies: [] };
+  const war = { id: 'w1', foreign: 'canada', started: 0, front: -10, exhaustion: 0, allies: [] };
   w.military.wars.push(war);
 
-  ok('the would-be ally is not in the war before the pact', !war.allies.includes('electrum'));
-  A.CLAUSES.TREATY_DEFENSE.apply(w, { party: 'electrum' });
+  ok('the would-be ally is not in the war before the pact', !war.allies.includes('mexico'));
+  A.CLAUSES.TREATY_DEFENSE.apply(w, { party: 'mexico' });
   ok('the new signatory is allied', elec.allied === true);
-  ok('and is dragged into the war already under way', war.allies.includes('electrum'), war.allies.join(','));
+  ok('and is dragged into the war already under way', war.allies.includes('mexico'), war.allies.join(','));
   ok('and marked as fighting that war', elec.fighting === war.id, String(elec.fighting));
 }
 
 // A pact signed in peacetime commits nobody to a battle that is not happening.
 {
   const w = mk();
-  A.CLAUSES.TREATY_DEFENSE.apply(w, { party: 'electrum' });
-  ok('the signatory is allied', w.foreign.find((f) => f.id === 'electrum').allied === true);
+  A.CLAUSES.TREATY_DEFENSE.apply(w, { party: 'mexico' });
+  ok('the signatory is allied', w.foreign.find((f) => f.id === 'mexico').allied === true);
   ok('but no war exists to be pulled into', (w.military.wars || []).every((war) => !(war.allies || []).length));
-  ok('and it is not marked fighting anything', !w.foreign.find((f) => f.id === 'electrum').fighting);
+  ok('and it is not marked fighting anything', !w.foreign.find((f) => f.id === 'mexico').fighting);
 }
 
 // A pact does not conscript the very enemy being fought (callAllies skips them).
 {
   const w = mk();
-  const gold = w.foreign.find((f) => f.id === 'goldland');
+  const gold = w.foreign.find((f) => f.id === 'canada');
   gold.atWar = true;
-  const war = { id: 'w2', foreign: 'goldland', started: 0, front: 0, exhaustion: 0, allies: [] };
+  const war = { id: 'w2', foreign: 'canada', started: 0, front: 0, exhaustion: 0, allies: [] };
   w.military.wars.push(war);
   // (You could not really ally your enemy, but the guard must hold if asked.)
-  A.CLAUSES.TREATY_DEFENSE.apply(w, { party: 'goldland' });
-  ok('the enemy is never called into the war against itself', !war.allies.includes('goldland'), war.allies.join(','));
+  A.CLAUSES.TREATY_DEFENSE.apply(w, { party: 'canada' });
+  ok('the enemy is never called into the war against itself', !war.allies.includes('canada'), war.allies.join(','));
 }

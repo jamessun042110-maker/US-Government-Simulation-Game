@@ -32,8 +32,8 @@ const weigh = (w, party, kind = 'TREATY_NONAGGRESSION') =>
 // --- the curve ---------------------------------------------------------------
 {
   const { w } = mk();
-  const f = F(w, 'electrum');
-  const at = (h) => { f.hostility = h; return weigh(w, 'electrum'); };
+  const f = F(w, 'mexico');
+  const at = (h) => { f.hostility = h; return weigh(w, 'mexico'); };
 
   ok('warm relations are a certainty, not a 96% chance', at(4).chance === 1, String(at(4).chance));
   ok('and the reason says why', (at(4).reasons || []).join(',').includes('could not be better'));
@@ -54,9 +54,9 @@ const weigh = (w, party, kind = 'TREATY_NONAGGRESSION') =>
 // --- a defence pact is a bigger ask than a non-aggression pact ---------------
 {
   const { w } = mk();
-  F(w, 'electrum').hostility = 40;
-  const na = weigh(w, 'electrum', 'TREATY_NONAGGRESSION');
-  const def = weigh(w, 'electrum', 'TREATY_DEFENSE');
+  F(w, 'mexico').hostility = 40;
+  const na = weigh(w, 'mexico', 'TREATY_NONAGGRESSION');
+  const def = weigh(w, 'mexico', 'TREATY_DEFENSE');
   ok('they will promise not to attack you sooner than to fight for you',
     def.chance < na.chance, `${na.chance.toFixed(2)} vs ${def.chance.toFixed(2)}`);
 }
@@ -66,8 +66,8 @@ const weigh = (w, party, kind = 'TREATY_NONAGGRESSION') =>
   let signed = 0;
   for (let i = 0; i < 25; i++) {
     const { w, pid } = mk();
-    F(w, 'electrum').hostility = 2;
-    const doc = treaty(w, pid, 'electrum');
+    F(w, 'mexico').hostility = 2;
+    const doc = treaty(w, pid, 'mexico');
     A.introduce(w, doc.id, pid, 60);
     for (let t = 0; t < DEP.ASSENT_TICKS + 4; t++) S.tick(w);
     if (doc.assent?.agreed) signed++;
@@ -78,7 +78,7 @@ const weigh = (w, party, kind = 'TREATY_NONAGGRESSION') =>
 // --- a no stands -------------------------------------------------------------
 {
   const { w, pid } = mk();
-  const f = F(w, 'electrum');
+  const f = F(w, 'mexico');
   f.hostility = 70;
   // Just under the hard door, so the answer is a roll rather than a refusal —
   // and at those odds it comes back yes about one time in eighty, which is
@@ -86,7 +86,7 @@ const weigh = (w, party, kind = 'TREATY_NONAGGRESSION') =>
   // is about what a no *records*, not about how many tries it takes to get one.
   f.hostility = 84;
   for (let i = 0; i < 12 && f.refusedUntil == null; i++) {
-    const d = treaty(w, pid, 'electrum');
+    const d = treaty(w, pid, 'mexico');
     if (!A.introduce(w, d.id, pid, 60).ok) break;
     w.clock.tick = d.assent.decides;
     DEP.tickAssent(w);
@@ -96,21 +96,21 @@ const weigh = (w, party, kind = 'TREATY_NONAGGRESSION') =>
 
   // Even with relations repaired overnight, they will not be asked again yet.
   f.hostility = 1;
-  const again = treaty(w, pid, 'electrum');
+  const again = treaty(w, pid, 'mexico');
   const res = A.introduce(w, again.id, pid, 60);
   ok('the same treaty cannot be put again immediately', res.ok === false, res.reason);
   ok('and the refusal names the wait', /\d+ years/.test(res.reason || ''), res.reason);
 
   w.clock.tick = f.refusedUntil + 1;
-  const third = treaty(w, pid, 'electrum');
+  const third = treaty(w, pid, 'mexico');
   ok('once it lapses, they will hear you again', A.introduce(w, third.id, pid, 60).ok === true);
 }
 
 // --- an enemy is turned away at the door, not forty ticks later -------------
 {
   const { w, pid } = mk();
-  F(w, 'goldland').hostility = 95;
-  const doc = treaty(w, pid, 'goldland');
+  F(w, 'canada').hostility = 95;
+  const doc = treaty(w, pid, 'canada');
   const res = A.introduce(w, doc.id, pid, 60);
   ok('an enemy is refused at once', res.ok === false, res.reason);
   ok('the reason names the hostility', /hostility 95/.test(res.reason || ''), res.reason);
@@ -120,19 +120,19 @@ const weigh = (w, party, kind = 'TREATY_NONAGGRESSION') =>
 // --- a power at war signs nothing --------------------------------------------
 {
   const { w } = mk();
-  F(w, 'goldland').atWar = true;
-  ok('there is nothing to discuss with a power at war', weigh(w, 'goldland').ok === false,
-    weigh(w, 'goldland').reason);
+  F(w, 'canada').atWar = true;
+  ok('there is nothing to discuss with a power at war', weigh(w, 'canada').ok === false,
+    weigh(w, 'canada').reason);
 }
 
 // --- an existing relationship helps ------------------------------------------
 {
   const { w } = mk();
-  const f = F(w, 'electrum');
+  const f = F(w, 'mexico');
   f.hostility = 45;
-  const plain = weigh(w, 'electrum').chance;
+  const plain = weigh(w, 'mexico').chance;
   f.pact = { since: 0, ends: 10 * w.clock.ticksPerYear };
-  ok('a pact already between you makes the next one easier', weigh(w, 'electrum').chance > plain);
+  ok('a pact already between you makes the next one easier', weigh(w, 'mexico').chance > plain);
   f.pact = null; f.allied = true;
-  ok('and an alliance more so', weigh(w, 'electrum').chance > plain);
+  ok('and an alliance more so', weigh(w, 'mexico').chance > plain);
 }

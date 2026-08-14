@@ -26,33 +26,33 @@ const F = (w, id) => w.foreign.find((x) => x.id === id);
 // --- it does the business ----------------------------------------------------
 {
   const { w, pid } = mk();
-  const f = F(w, 'goldland');
+  const f = F(w, 'canada');
   const before = f.hostility;
-  const res = DEP.summon(w, pid, 'goldland', 'reassure');
+  const res = DEP.summon(w, pid, 'canada', 'reassure');
   ok('the President may go', res.ok === true, res.reason || '');
   ok('and it moves hostility exactly as the ambassador would', f.hostility < before,
     `${before} → ${f.hostility}`);
-  ok('the Chronicle records the trip', w.chronicle.some((e) => /goes to Goldland in person/.test(e.text)));
+  ok('the Chronicle records the trip', w.chronicle.some((e) => /goes to Canada in person/.test(e.text)));
 }
 
 // --- it goes around the ambassador's cooldown -------------------------------
 {
   const { w, pid } = mk();
   // Spend the department's audience first, so the ambassador is on cooldown.
-  DEP.receive(w, pid, 'goldland');
-  DEP.talk(w, pid, 'goldland', 'reassure');
-  DEP.dismiss(w, pid, 'goldland');
+  DEP.receive(w, pid, 'canada');
+  DEP.talk(w, pid, 'canada', 'reassure');
+  DEP.dismiss(w, pid, 'canada');
   ok('the ambassador will not come back yet',
-    DEP.receive(w, pid, 'goldland').ok === false, DEP.receive(w, pid, 'goldland').reason);
+    DEP.receive(w, pid, 'canada').ok === false, DEP.receive(w, pid, 'canada').reason);
   ok('but the President may still go themselves',
-    DEP.summon(w, pid, 'goldland', 'reassure').ok === true);
+    DEP.summon(w, pid, 'canada', 'reassure').ok === true);
 }
 
 // --- the week ----------------------------------------------------------------
 {
   const { w, pid } = mk();
   ok('the President holds their powers to begin with', R.hasPower(w, pid, 'spend'));
-  DEP.summon(w, pid, 'goldland', 'reassure');
+  DEP.summon(w, pid, 'canada', 'reassure');
   ok('and is abroad once the summit starts', R.abroad(w, pid));
   ok('holding none of them', !R.hasPower(w, pid, 'spend') && !R.hasPower(w, pid, 'sign_treaty'),
     'spend/sign');
@@ -65,13 +65,13 @@ const F = (w, id) => w.foreign.find((x) => x.id === id);
   ok('a week is a week', w.clock.tick >= ends);
   ok('they come home', !R.abroad(w, pid) && !w.summit);
   ok('with the powers of the office', R.hasPower(w, pid, 'spend'));
-  ok('and the record says so', w.chronicle.some((e) => /is back from Goldland/.test(e.text)));
+  ok('and the record says so', w.chronicle.some((e) => /is back from Canada/.test(e.text)));
 }
 
 // --- once a calendar year ----------------------------------------------------
 {
   const { w, pid } = mk();
-  ok('the first trip of the year is allowed', DEP.summon(w, pid, 'goldland', 'reassure').ok === true);
+  ok('the first trip of the year is allowed', DEP.summon(w, pid, 'canada', 'reassure').ok === true);
   for (let i = 0; i < R.summitTicks(w) + 2; i++) S.tick(w);
   const second = DEP.summon(w, pid, 'sab', 'reassure');
   ok('a second, to anybody, is not', second.ok === false, second.reason);
@@ -85,18 +85,18 @@ const F = (w, id) => w.foreign.find((x) => x.id === id);
 {
   const { w, pid } = mk();
   const other = Object.values(w.personas).find((x) => x.id !== pid && !R.officesOf(w, x.id).length);
-  const res = DEP.summon(w, other.id, 'goldland', 'reassure');
+  const res = DEP.summon(w, other.id, 'canada', 'reassure');
   ok('a private citizen may not telephone a head of state', res.ok === false, res.reason);
   const sec = w.seats.find((s) => s.office === 'assembly' && s.personaId)?.personaId;
   ok('nor may a member of the chamber',
-    DEP.summon(w, sec, 'goldland', 'reassure').ok === false);
+    DEP.summon(w, sec, 'canada', 'reassure').ok === false);
 }
 
 // --- a power at war is not taking the call ----------------------------------
 {
   const { w, pid } = mk();
-  F(w, 'goldland').atWar = true;
-  const res = DEP.summon(w, pid, 'goldland', 'reassure');
+  F(w, 'canada').atWar = true;
+  const res = DEP.summon(w, pid, 'canada', 'reassure');
   ok('no summit with a country we are at war with', res.ok === false, res.reason);
   ok('and it did not cost the year', DEP.lastSummit(w, pid) === null);
 }
@@ -105,7 +105,7 @@ const F = (w, id) => w.foreign.find((x) => x.id === id);
 {
   const { w, pid } = mk();
   const t = w.economy.treasury;
-  const res = DEP.summon(w, pid, 'goldland', 'terms');
+  const res = DEP.summon(w, pid, 'canada', 'terms');
   if (res.ok) {
     ok('offering terms abroad costs the treasury', w.economy.treasury < t,
       `${Math.round(t / 1e6)}M → ${Math.round(w.economy.treasury / 1e6)}M`);
@@ -127,7 +127,7 @@ const F = (w, id) => w.foreign.find((x) => x.id === id);
 {
   const { w, pid } = mk();
   w.phase = 'convention';
-  const res = DEP.summon(w, pid, 'goldland', 'reassure');
+  const res = DEP.summon(w, pid, 'canada', 'reassure');
   ok('no summits before the republic begins', res.ok === false, res.reason);
   ok('and nobody is left stranded abroad', !w.summit && !R.abroad(w, pid));
 }
@@ -135,7 +135,7 @@ const F = (w, id) => w.foreign.find((x) => x.id === id);
 // --- going abroad does not cost you the office ------------------------------
 {
   const { w, pid } = mk();
-  DEP.summon(w, pid, 'goldland', 'reassure');
+  DEP.summon(w, pid, 'canada', 'reassure');
   ok('you are still President while you are away',
     R.officesOf(w, pid).some((o) => o.id === 'president'));
   ok('the sidebar can say how long is left', w.summit.ends > w.clock.tick);

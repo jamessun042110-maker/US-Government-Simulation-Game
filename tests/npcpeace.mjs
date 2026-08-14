@@ -13,15 +13,15 @@ function warRepublic(front, exhaustion) {
   const pres = W.makePersona(w, { synthetic: true });
   w.personas[pres.id] = pres;
   w.seats.find((s) => s.office === 'president').personaId = pres.id;
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   f.atWar = true; f.baseStrength = f.strength = 120;
-  w.military.wars.push({ id: 'w', foreign: 'goldland', started: 0, front, exhaustion: 0.5, allies: [] });
+  w.military.wars.push({ id: 'w', foreign: 'canada', started: 0, front, exhaustion: 0.5, allies: [] });
   w.military.exhaustion = exhaustion;
   w.clock.tick = NPC.CADENCE;   // aligned so the executive acts this tick
   return { w, pres, f };
 }
 const peaceDoc = (w, pres) => Object.values(w.documents || {}).find((d) =>
-  d.authorId === pres.id && (d.clauses || []).some((c) => c.kind === 'TREATY_PEACE' && c.party === 'goldland'));
+  d.authorId === pres.id && (d.clauses || []).some((c) => c.kind === 'TREATY_PEACE' && c.party === 'canada'));
 
 // Losing (or stalemated), and the war has cost something: it sues for terms.
 {
@@ -55,6 +55,6 @@ const peaceDoc = (w, pres) => Object.values(w.documents || {}).find((d) =>
   ok('the first overture exists', !!first);
   NPC.tickExecutive(w, S.syntheticBallot);
   const peaceDocs = Object.values(w.documents || {}).filter((d) =>
-    (d.clauses || []).some((c) => c.kind === 'TREATY_PEACE' && c.party === 'goldland'));
+    (d.clauses || []).some((c) => c.kind === 'TREATY_PEACE' && c.party === 'canada'));
   ok('a second turn does not table a duplicate peace', peaceDocs.length === 1, String(peaceDocs.length));
 }

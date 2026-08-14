@@ -706,15 +706,15 @@ export const stillFighting = (w) => !!w && !w.won && !w.lost && w.ended == null;
 export function occupiedBand(g, foreignId, front) {
   if (!g || !front) return null;
   // geography() exposes the two border lines as `borders.a` / `borders.b`.
-  const line = foreignId === 'goldland' ? g.borders?.a : foreignId === 'electrum' ? g.borders?.b : null;
+  const line = foreignId === 'canada' ? g.borders?.a : foreignId === 'mexico' ? g.borders?.b : null;
   if (!line || line.length < 2) return null;
   const d = (Math.abs(front) / 100) * MAX_ADVANCE;
   if (d < 0.6) return null;
   const byUs = front > 0;
-  // Goldland lies north of border A, so ground we take from them is drawn
-  // north of it; ground they take from us is drawn south. Electrum lies east
+  // Canada lies north of border A, so ground we take from them is drawn
+  // north of it; ground they take from us is drawn south. Mexico lies east
   // of border B, and the same logic runs sideways.
-  const push = foreignId === 'goldland'
+  const push = foreignId === 'canada'
     ? ([x, y]) => [x, y + (byUs ? -d : d)]
     : ([x, y]) => [x + (byUs ? d : -d), y];
   return { poly: [...line, ...line.slice().reverse().map(push)], byUs, depth: d };

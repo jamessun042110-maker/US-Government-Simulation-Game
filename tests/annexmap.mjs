@@ -16,57 +16,57 @@ const map = (annexed) => GEO.geography(NATION, 0, annexed);
 const g0 = map(null);
 
 // --- The founding map calibrates ---------------------------------------------
-// The solve used to rail on this very seed: Goldland came out on 27% of a
+// The solve used to rail on this very seed: Canada came out on 27% of a
 // continent it targets 44% of, because the bracket the bisection ran in could not
 // reach the answer.
 ok('the founding map hits its target shares',
-  Math.abs(g0.share.goldland - 0.44) < 0.02 && Math.abs(g0.share.silver - 0.39) < 0.03,
-  `gold ${(g0.share.goldland * 100).toFixed(1)}% silver ${(g0.share.silver * 100).toFixed(1)}%`);
+  Math.abs(g0.share.canada - 0.44) < 0.02 && Math.abs(g0.share.silver - 0.39) < 0.03,
+  `gold ${(g0.share.canada * 100).toFixed(1)}% silver ${(g0.share.silver * 100).toFixed(1)}%`);
 
 // --- Taking land --------------------------------------------------------------
-const g30 = map({ goldland: 30 });
-ok('a third of Goldland is a third off Goldland',
-  Math.abs(g30.share.goldland - g0.share.goldland * 0.7) < 0.02,
-  `${(g30.share.goldland * 100).toFixed(1)}% of ${(g0.share.goldland * 100).toFixed(1)}%`);
+const g30 = map({ canada: 30 });
+ok('a third of Canada is a third off Canada',
+  Math.abs(g30.share.canada - g0.share.canada * 0.7) < 0.02,
+  `${(g30.share.canada * 100).toFixed(1)}% of ${(g0.share.canada * 100).toFixed(1)}%`);
 ok('and every acre of it is ours',
-  Math.abs((g30.share.silver - g0.share.silver) - (g0.share.goldland - g30.share.goldland)) < 0.02,
+  Math.abs((g30.share.silver - g0.share.silver) - (g0.share.canada - g30.share.canada)) < 0.02,
   `+${((g30.share.silver - g0.share.silver) * 100).toFixed(1)}%`);
 // Not merely "about the same size afterwards" — the same ground. Border A is
-// Goldland's southern frontier with *both* of us, so sliding the whole of it
-// north hands Electrum a strip of Goldland it never fought for and then takes an
+// Canada's southern frontier with *both* of us, so sliding the whole of it
+// north hands Mexico a strip of Canada it never fought for and then takes an
 // equal strip off it somewhere else to balance the books. The frontier steps at
-// the junction instead, and the line we share with Electrum does not move at all.
+// the junction instead, and the line we share with Mexico does not move at all.
 ok('the third country is untouched by a war it was not in',
-  Math.abs(g30.share.electrum - g0.share.electrum) < 0.005,
-  `${(g0.share.electrum * 100).toFixed(1)}% → ${(g30.share.electrum * 100).toFixed(1)}%`);
+  Math.abs(g30.share.mexico - g0.share.mexico) < 0.005,
+  `${(g0.share.mexico * 100).toFixed(1)}% → ${(g30.share.mexico * 100).toFixed(1)}%`);
 ok('and our border with it is the same border',
   JSON.stringify(g30.borders.b) === JSON.stringify(g0.borders.b));
-ok('but their border with Goldland stepped back',
+ok('but their border with Canada stepped back',
   g30.borders.a.some((p, i) => p[1] !== g0.borders.a[i][1])
   && g30.borders.a.at(-1)[1] === g0.borders.a.at(-1)[1],
   'the west end moved, the east end did not');
 ok('the border between us has actually moved',
   JSON.stringify(g30.borders.a) !== JSON.stringify(g0.borders.a));
 
-// The frontier moves north — into Goldland — and not south into us.
+// The frontier moves north — into Canada — and not south into us.
 const midOf = (line) => line[Math.floor(line.length / 2)][1];
 ok('and it moved into their country, not ours', midOf(g30.borders.a) < midOf(g0.borders.a),
   `${midOf(g0.borders.a).toFixed(1)} → ${midOf(g30.borders.a).toFixed(1)}`);
 
 // --- Giving it up ---------------------------------------------------------------
 // A negative cession is the republic ceding a share of *itself*, which is what
-// the treaty instrument says, so it is measured against Silver and not Goldland.
-const gLost = map({ goldland: -20 });
+// the treaty instrument says, so it is measured against Silver and not Canada.
+const gLost = map({ canada: -20 });
 ok('ceding a fifth of ourselves costs us a fifth of ourselves',
   Math.abs((g0.share.silver - gLost.share.silver) - g0.share.silver * 0.2) < 0.02,
   `-${((g0.share.silver - gLost.share.silver) * 100).toFixed(1)}%`);
 ok('and the line moves onto our ground', midOf(gLost.borders.a) > midOf(g0.borders.a));
 
 // --- Annexed outright -----------------------------------------------------------
-const gAll = map({ goldland: 100 });
-ok('a power annexed outright is off the map', gAll.share.goldland < 0.005,
-  `${(gAll.share.goldland * 100).toFixed(2)}%`);
-const gBoth = map({ goldland: 100, electrum: 100 });
+const gAll = map({ canada: 100 });
+ok('a power annexed outright is off the map', gAll.share.canada < 0.005,
+  `${(gAll.share.canada * 100).toFixed(2)}%`);
+const gBoth = map({ canada: 100, mexico: 100 });
 ok('and taking both leaves one country on the continent',
   gBoth.share.silver > 0.99, `${(gBoth.share.silver * 100).toFixed(1)}%`);
 
@@ -88,17 +88,17 @@ for (const [what, a, b] of [
 
 // An empty or all-zero record is the founding map itself — the same object, so
 // the districts map can tell "nothing moved" by identity and skip the work.
-ok('no cessions means no second map', map({}) === g0 && map({ goldland: 0 }) === g0);
-ok('a rounded percent is one map', map({ goldland: 30.2 }) === map({ goldland: 30 }));
+ok('no cessions means no second map', map({}) === g0 && map({ canada: 0 }) === g0);
+ok('a rounded percent is one map', map({ canada: 30.2 }) === map({ canada: 30 }));
 
 // --- Through the act itself -----------------------------------------------------------
 const w = W.newWorld({ nation: NATION, founder: 'James Sun' });
-const f = w.foreign.find((x) => x.id === 'goldland');
+const f = w.foreign.find((x) => x.id === 'canada');
 A.applyPeaceTerms(w, f, { cede: 25, indemnity: 0 });
 const after = GEO.mapOf(w);
 ok('a peace treaty is enough to move it', after !== g0
-  && Math.abs(after.share.goldland - g0.share.goldland * 0.75) < 0.02,
-  `${(after.share.goldland * 100).toFixed(1)}%`);
+  && Math.abs(after.share.canada - g0.share.canada * 0.75) < 0.02,
+  `${(after.share.canada * 100).toFixed(1)}%`);
 
 // And the republic's own districts are cut from the border it was founded with:
 // annexed ground holds no district and enrols nobody.

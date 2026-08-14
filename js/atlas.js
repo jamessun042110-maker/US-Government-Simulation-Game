@@ -69,13 +69,25 @@ const EASTPORT = P(45, -67);           // the north-east corner
 // the Maine corner. Coastline detail below this scale is added by `coast()`,
 // which roughens the line without moving it.
 
-export const US_RING = [
+// The country is stored as four segments rather than one loop, because two of
+// the four are **frontiers that move**. Silver's borders were fractal lines
+// solved against target land shares, and a won war re-solved them; the real
+// borders cannot be re-solved, so they are offset instead — and offsetting a
+// segment is only possible if the segment is a thing you can name.
+//
+// Coast never moves. Frontiers do. `ringsAt` below reassembles all three
+// countries from these four pieces at any offset.
+
+/** The Pacific coast, north to south: Cape Flattery down to San Diego. */
+export const COAST_PACIFIC = [
   CAPE_FLATTERY,
   P(46.3, -124.1), P(42.8, -124.6), P(40.4, -124.4),  // Oregon coast, Cape Mendocino
   P(37.8, -122.5), P(35.4, -120.9), P(34.4, -120.5),  // San Francisco, Point Conception
   P(33.7, -118.2), P(32.5, -117.1),                    // Los Angeles, San Diego
-  YUMA, EL_PASO,                                       // the Mexican border, west half
-  P(29.2, -102.9), P(27.5, -99.5), BROWNSVILLE,        // Big Bend, Laredo, the river mouth
+];
+
+/** The Gulf and Atlantic coasts, west to east then north: Brownsville to Maine. */
+export const COAST_ATLANTIC = [
   P(27.8, -97.4), P(29.3, -94.8), P(29.7, -93.8),      // the Texas coast
   P(29.2, -89.4), P(30.2, -88), P(30.4, -87.2),        // the delta, Mobile, Pensacola
   P(29.7, -85), P(27.8, -82.6), KEY_WEST,              // the Florida panhandle and gulf coast
@@ -83,10 +95,6 @@ export const US_RING = [
   P(32.1, -81.1), P(32.8, -79.9), P(35.2, -75.5),      // Savannah, Charleston, Hatteras
   P(36.9, -76), P(38.8, -75), P(40.6, -74),            // the Chesapeake, Delaware Bay, New York
   P(41.7, -70), P(43.7, -70.2), EASTPORT,              // Cape Cod, Portland, the Maine corner
-  P(47.4, -69.2), P(45, -73.3),                        // the Maine panhandle, the 45th parallel
-  P(44.1, -76.4), P(43.1, -79.1), P(42.1, -83.1),      // Ontario, Niagara, Detroit
-  P(43, -82.4), P(46.5, -84.3), P(46.8, -92.1),        // Huron, the Soo, Superior
-  LAKE_OF_WOODS, P(49, -123),                          // the 49th parallel, west to the sound
 ];
 
 // --- The neighbours ----------------------------------------------------------
@@ -111,35 +119,96 @@ export const BORDER_MX = [
 // Far enough outside the frame that a closure can never clip anything real.
 const OUT = 90;
 
-/**
- * Canada: the frontier, then straight out to the sides and off the top.
- *
- * The closure has to leave the border *horizontally* before it goes north. Going
- * straight from the border's western end to the off-frame corner draws a
- * diagonal across the Pacific, and Canada renders as a wedge pointing at Seattle
- * — which is what the first draft of this did.
- */
-export const CANADA_RING = [
-  [-OUT, BORDER_CA[0][1]],
-  ...BORDER_CA,
-  [WORLD_W + OUT, BORDER_CA[BORDER_CA.length - 1][1]],
-  [WORLD_W + OUT, -OUT], [-OUT, -OUT],
-];
-
-/**
- * Mexico: the frontier, down the Gulf coast, round the isthmus and back up the
- * Pacific — a real silhouette rather than a box.
- *
- * Closing this one out to the frame edges instead paints the whole south-western
- * ocean as Mexican territory, and the Baja peninsula is the tell that it is the
- * country and not a fill.
- */
-export const MEXICO_RING = [
-  ...BORDER_MX,
+/** Mexico's own coasts, Brownsville round the isthmus and back up to Baja. */
+const COAST_MEXICO = [
   P(21.5, -97.2), P(19.2, -96.1), P(18.5, -94.5),    // the Gulf coast running south
   P(16.2, -95), P(15.8, -97.5), P(17.5, -101.5),     // the isthmus and the southern bight
   P(20, -105.5), P(23, -106.5),                       // the Pacific coast north
   P(23, -110), P(28, -114), P(31.3, -117),            // Baja, and up to the border
+];
+
+/**
+ * The three countries, with both frontiers offset by the given number of units.
+ *
+ * This is the whole annexation mechanism, and it is the reason the borders are
+ * stored as segments. `north` slides the Canadian frontier up — the United
+ * States gaining ground — and `south` slides the Mexican one down. Both are in
+ * frame units, both default to nothing, and at zero this returns the country as
+ * founded.
+ *
+ * The coasts do not move, so a frontier that has been pushed leaves a step where
+ * it meets the sea. That is correct and not a seam: a war moves the border and
+ * the border ends at the water, so the corner of the country moves with it.
+ *
+ * Canada's closure has to leave its frontier *horizontally* before turning
+ * north. Running straight from the frontier's western end to the off-frame
+ * corner draws a diagonal across the Pacific and renders Canada as a wedge
+ * pointing at Seattle, which is what the first draft of this did.
+ */
+export function ringsAt(north = 0, south = 0) {
+  const ca = BORDER_CA.map(([x, y]) => [x, y - north]);
+  const mx = BORDER_MX.map(([x, y]) => [x, y + south]);
+  const caEnd = ca[ca.length - 1], mxEnd = mx[mx.length - 1];
+
+  return {
+    // Clockwise: down the Pacific, along the Mexican frontier, round the Gulf
+    // and up the Atlantic, then home westward along the Canadian frontier.
+    us: [...COAST_PACIFIC, ...mx, ...COAST_ATLANTIC, ...ca.slice().reverse()],
+    // Canada's flanks ride with the frontier rather than staying pinned to it.
+    //
+    // Pinning them looks right — the flanks run out over the Pacific and the
+    // Atlantic, far wider than the frontier, so moving them appears to hand over
+    // hundreds of units of ocean. But territory here is *land*, which is the
+    // polygon intersected with the continent, and the sea either side is not in
+    // the continent to begin with. What pinning them actually did was keep the
+    // frame's top corners Canadian however far the frontier was driven north, so
+    // a country annexed outright kept a quarter of the map. A power annexed out
+    // of existence has to be able to leave it.
+    canada: [
+      [-OUT, ca[0][1]], ...ca, [WORLD_W + OUT, caEnd[1]],
+      [WORLD_W + OUT, -OUT], [-OUT, -OUT],
+    ],
+    mexico: [...mx, ...COAST_MEXICO],
+    borders: { canada: ca, mexico: mx },
+  };
+}
+
+const FOUNDED = ringsAt();
+
+/** The United States as founded. */
+export const US_RING = FOUNDED.us;
+/** Canada as founded, out of frame at the top. */
+export const CANADA_RING = FOUNDED.canada;
+/** Mexico as founded — a real silhouette, Baja and all, rather than a fill. */
+export const MEXICO_RING = FOUNDED.mexico;
+
+/**
+ * North America: everything the map draws land for.
+ *
+ * The engine's `ring` is the whole continent, which the country polygons are
+ * then cut out of. Here it is the outer boundary of all three at once — the
+ * Pacific down past Baja, round Mexico, up the Gulf and Atlantic, and along the
+ * top of the frame where Canada runs off it.
+ */
+// The continent stops just outside the frame, not `OUT` units outside it.
+//
+// The country polygons are closed far off-frame on purpose — they are clipped
+// by the coast, so a generous closure can never go wrong. The *continent* is the
+// opposite: it defines what land is, and every share in the game is measured
+// against it. Closed at OUT it enclosed 90 units of empty north, and Canada came
+// out holding 79.7% of a continent it should hold about half of — not because
+// the border was wrong but because the ocean was counted as Canadian.
+const EDGE = 2;
+
+export const CONTINENT_RING = [
+  [-EDGE, -EDGE], [WORLD_W + EDGE, -EDGE],
+  [WORLD_W + EDGE, EASTPORT[1]],
+  // Atlantic southward (reversed), then Mexico's own coasts — which already run
+  // south round the isthmus and back north — then the Pacific northward.
+  ...COAST_ATLANTIC.slice().reverse(),
+  ...COAST_MEXICO,
+  ...COAST_PACIFIC.slice().reverse(),
+  [-EDGE, CAPE_FLATTERY[1]],
 ];
 
 // --- The twenty states -------------------------------------------------------

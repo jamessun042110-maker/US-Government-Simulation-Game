@@ -20,11 +20,11 @@ const mk = () => {
   w.seats.find((s) => s.office === 'president').personaId = w.players.p1.personaId;
   return w;
 };
-/** A war with Goldland, won, with the beaten power waiting on terms. */
+/** A war with Canada, won, with the beaten power waiting on terms. */
 const beaten = (w, front = 90) => {
-  const f = w.foreign.find((x) => x.id === 'goldland');
+  const f = w.foreign.find((x) => x.id === 'canada');
   f.atWar = true;
-  w.military.wars.push({ id: 'w1', foreign: 'goldland', started: 0, front, exhaustion: 0.92, allies: [] });
+  w.military.wars.push({ id: 'w1', foreign: 'canada', started: 0, front, exhaustion: 0.92, allies: [] });
   // Drive it to the surrender the front earns.
   for (let i = 0; i < 400 && !w.military.wars[0].won; i++) S.tick(w);
   return f;
@@ -34,14 +34,14 @@ const w = mk();
 const me = w.players.p1.personaId;
 const f = beaten(w);
 const war = w.military.wars[0];
-ok('a beaten enemy waits on terms', war.won === true && (w.dictate || []).some((d) => d.foreignId === 'goldland'),
+ok('a beaten enemy waits on terms', war.won === true && (w.dictate || []).some((d) => d.foreignId === 'canada'),
   `front ${war.front.toFixed(0)}`);
 ok('and the terms it waits on are not total', !(w.dictate || [])[0].total);
 
 // --- Refusing --------------------------------------------------------------
 const frontBefore = war.front, exhaustBefore = war.exhaustion, strBefore = f.strength;
 const homeBefore = w.military.exhaustion;
-const res = A.pressOn(w, me, 'goldland');
+const res = A.pressOn(w, me, 'canada');
 ok('the surrender can be refused', res.ok === true, res.reason || '');
 ok('and the war is a war again', f.atWar === true && war.won === false && war.pressed === 1);
 ok('there are no terms outstanding', !(w.dictate || []).length);
@@ -65,7 +65,7 @@ ok('a refused enemy does not sue again', !sued);
 // --- Fought to the end -----------------------------------------------------
 const w2 = mk();
 const f2 = beaten(w2);
-A.pressOn(w2, w2.players.p1.personaId, 'goldland');
+A.pressOn(w2, w2.players.p1.personaId, 'canada');
 const war2 = w2.military.wars[0];
 war2.front = 95;
 for (let i = 0; i < 3000 && !war2.won && !war2.lost; i++) {
@@ -75,29 +75,29 @@ for (let i = 0; i < 3000 && !war2.won && !war2.lost; i++) {
 }
 ok('fought to the end, they are spent outright', war2.won === true && (war2.exhaustion || 0) >= 1,
   `exhaustion ${(war2.exhaustion || 0).toFixed(2)}`);
-const pending = (w2.dictate || []).find((d) => d.foreignId === 'goldland');
+const pending = (w2.dictate || []).find((d) => d.foreignId === 'canada');
 ok('and this capitulation is total', !!pending && pending.total === true);
 
 // A total capitulation is the one settlement that is not capped at a third.
-const took = A.dictateTerms(w2, w2.players.p1.personaId, 'goldland', { cede: 100, indemnity: 0 });
-ok('the whole country can be annexed', took.ok === true && w2.annexed.goldland === 100,
+const took = A.dictateTerms(w2, w2.players.p1.personaId, 'canada', { cede: 100, indemnity: 0 });
+ok('the whole country can be annexed', took.ok === true && w2.annexed.canada === 100,
   JSON.stringify(w2.annexed));
 ok('and it ceases to be a state', f2.absorbed > 0 && !f2.atWar && f2.hostility === 0);
 ok('the record says so', w2.chronicle.some((e) => /ceases to exist as a state/.test(e.text)));
-ok('it cannot declare war on us', S.warOdds(w2, f2) === 0 && A.declareWar(w2, 'goldland').ok === false);
+ok('it cannot declare war on us', S.warOdds(w2, f2) === 0 && A.declareWar(w2, 'canada').ok === false);
 
 // --- What it is not --------------------------------------------------------
 const w3 = mk();
 beaten(w3);
 ok('an ordinary settlement is still capped at a third',
-  A.dictateTerms(w3, w3.players.p1.personaId, 'goldland', { cede: 100, indemnity: 0 }).value.cede === A.CESSION_MAX);
+  A.dictateTerms(w3, w3.players.p1.personaId, 'canada', { cede: 100, indemnity: 0 }).value.cede === A.CESSION_MAX);
 ok('and pressing on is not offered once there is nothing left to press for',
-  A.pressOn(w3, w3.players.p1.personaId, 'goldland').ok === false);
+  A.pressOn(w3, w3.players.p1.personaId, 'canada').ok === false);
 
 // Only the office that settles a war may refuse one.
 const w4 = mk();
 beaten(w4);
 w4.seats.find((s) => s.office === 'president').personaId = null;
 ok('a private citizen cannot refuse a surrender',
-  A.pressOn(w4, w4.players.p1.personaId, 'goldland').ok === false
-  && /office/.test(A.pressOn(w4, w4.players.p1.personaId, 'goldland').reason));
+  A.pressOn(w4, w4.players.p1.personaId, 'canada').ok === false
+  && /office/.test(A.pressOn(w4, w4.players.p1.personaId, 'canada').reason));

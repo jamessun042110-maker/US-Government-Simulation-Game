@@ -51,9 +51,9 @@ const mk = () => { const w = W.newWorld({ nation: 'Silver', founder: 'James Sun'
 {
   const w = mk();
   ok('a founding republic holds all of itself', A.ourTerritoryLeft(w) === 100, String(A.ourTerritoryLeft(w)));
-  w.annexed = { goldland: -30, sab: -20 };
+  w.annexed = { canada: -30, sab: -20 };
   ok('and half of it after giving half away', A.ourTerritoryLeft(w) === 50, String(A.ourTerritoryLeft(w)));
-  w.annexed = { goldland: 40, sab: -20 };
+  w.annexed = { canada: 40, sab: -20 };
   ok('land taken from others does not count as land of ours given away',
     A.ourTerritoryLeft(w) === 80, String(A.ourTerritoryLeft(w)));
   w.annexed = {};

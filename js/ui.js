@@ -2413,7 +2413,7 @@ const boxUnion = (a, b) => {
  * it.
  *
  * Now the geometry comes from geo.js. The outline is Silver's actual border with
- * Goldland and Electrum and its actual coast — the same polygon the world map
+ * Canada and Mexico and its actual coast — the same polygon the world map
  * draws, at this scale. Inside it the districts are cut to their share of the
  * population, so a crowded district is small and tight and an empty one sprawls,
  * and each is cut again into its parcels. Nothing here is a square. The parcel
@@ -2487,9 +2487,9 @@ function cityMap(world) {
   // different places was that the land across the border was anonymous sand
   // here and a named, coloured neighbour there. Now the border reads as the
   // same border on both.
-  const NEIGHBOUR = { goldland: '#dcb970', electrum: '#a9c6a2' };
+  const NEIGHBOUR = { canada: '#dcb970', mexico: '#a9c6a2' };
   parts.push('<g clip-path="url(#cland)">');
-  for (const id of ['goldland', 'electrum']) {
+  for (const id of ['canada', 'mexico']) {
     parts.push(`<path d="${GEO.pathOf(GA.halves[id])}" fill="${NEIGHBOUR[id]}" fill-opacity="0.5"/>`);
   }
   // Land taken from them. It is ours, so it is our colour — but it holds no
@@ -2505,7 +2505,7 @@ function cityMap(world) {
   // the edge of a frame cropped to Silver — so the names never drew at all.
   // Sampling inside the frame puts each name on the strip of that country this
   // map can actually see.
-  for (const id of ['goldland', 'electrum']) {
+  for (const id of ['canada', 'mexico']) {
     const f = (world.foreign || []).find((x) => x.id === id);
     if (!f) continue;
     const half = GA.halves[id];
@@ -2520,9 +2520,9 @@ function cityMap(world) {
     // centroid of what the frame can see.
     //
     // A centroid is the right answer for a blob and the wrong one for a band.
-    // Goldland on this map is a shallow strip across the top: its centroid sits
+    // Canada on this map is a shallow strip across the top: its centroid sits
     // a pixel or two off the frontier, and a 7px name centred there lands half
-    // in Goldland and half in Silver, straddling the very line the map is drawn
+    // in Canada and half in Silver, straddling the very line the map is drawn
     // to show. So each sampled point is scored by how far its own country
     // reaches above and below it — the smaller of the two, so a point hard
     // against a border scores nothing however deep the land runs the other way —
@@ -2599,7 +2599,7 @@ function cityMap(world) {
   if (cbands.length) {
     parts.push('<defs><pattern id="cmhatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
       + '<rect width="6" height="6" fill="none"/><rect width="2" height="6" fill="#141414" fill-opacity="0.32"/></pattern>'
-      + ['silver', 'goldland', 'electrum'].map((id) =>
+      + ['silver', 'canada', 'mexico'].map((id) =>
         `<clipPath id="cocc-${id}"><path d="${GEO.pathOf(GA.halves[id])}"/></clipPath>`).join('')
       + '</defs>');
     for (const b of cbands) {
@@ -2795,8 +2795,8 @@ VIEWS.world = (root) => {
   const G = GEO.mapOf(world);
   const LAY = {
     silver: { fill: '#efe7d3' },
-    goldland: { fill: '#dcb970' },
-    electrum: { fill: '#a9c6a2' },
+    canada: { fill: '#dcb970' },
+    mexico: { fill: '#a9c6a2' },
     sab: { fill: '#9fb6c4' },
   };
 
@@ -2829,7 +2829,7 @@ VIEWS.world = (root) => {
     + '<filter id="softland" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5"/></filter>'
     + '<pattern id="wmhatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
     + '<rect width="6" height="6" fill="none"/><rect width="2" height="6" fill="#141414" fill-opacity="0.3"/></pattern>'
-    + ['silver', 'goldland', 'electrum'].map((id) =>
+    + ['silver', 'canada', 'mexico'].map((id) =>
       `<clipPath id="wocc-${id}"><path d="${GEO.pathOf(G.halves[id])}"/></clipPath>`).join('')
     + '</defs>');
   parts.push(`<rect x="0" y="0" width="${GEO.WORLD_W}" height="${GEO.WORLD_H}" fill="url(#wsea)"/>`);
@@ -2849,7 +2849,7 @@ VIEWS.world = (root) => {
   parts.push(sand(GEO.pathOf(G.sab)));
 
   parts.push('<g clip-path="url(#wland)">');
-  for (const id of ['goldland', 'electrum', 'silver']) {
+  for (const id of ['canada', 'mexico', 'silver']) {
     parts.push(`<path d="${GEO.pathOf(G.halves[id])}" fill="${LAY[id].fill}"/>`);
   }
   // Ground currently held by somebody else's army: over the countries, under
@@ -2858,7 +2858,7 @@ VIEWS.world = (root) => {
   for (const b of DEP.occupations(world, G)) {
     // Clipped to the loser's own territory. A border line runs the full width
     // of the map, so a band drawn off it unclipped spilled across the third
-    // country as well — Goldland cannot occupy ground inside Electrum by
+    // country as well — Canada cannot occupy ground inside Mexico by
     // fighting us.
     const loser = b.byUs ? b.foreign.id : 'silver';
     parts.push(`<g clip-path="url(#wocc-${loser})">`);
@@ -2933,11 +2933,11 @@ VIEWS.world = (root) => {
 
   // No lift table any more.
   //
-  // There was one, keyed by country, because Goldland's name sat low in a wide
+  // There was one, keyed by country, because Canada's name sat low in a wide
   // country: it covered its own capital ring and the standing underneath it —
   // "UNEASY PEACE" — crossed the border into Silver and painted its halo over
-  // the line where Silver meets Electrum. Lifting that one label by four units
-  // was a patch on the symptom, and it left Electrum's name crowded against
+  // the line where Silver meets Mexico. Lifting that one label by four units
+  // was a patch on the symptom, and it left Mexico's name crowded against
   // Silver because that is a different symptom of the same thing: labelSpot
   // used to return the widest row of the country, and the widest row of a
   // country with a straight border along one side is the row against the
@@ -2978,8 +2978,8 @@ VIEWS.world = (root) => {
     // hung off it. It used to run from five units above to twenty below, so the
     // point that had been so carefully chosen for having country in every
     // direction was the *top* of the label and everything after it drifted
-    // toward the frontier. That is why Goldland's standing came out on the line
-    // between Silver and Electrum even after the placement was right: the
+    // toward the frontier. That is why Canada's standing came out on the line
+    // between Silver and Mexico even after the placement was right: the
     // placement was right and the label was not sitting on it.
     //
     // Centred, and scaled to the clearance actually available, so a name in a
@@ -3557,7 +3557,7 @@ function ovalRoom(world) {
  *
  * Hostility has always decided whether a power signs a treaty — see
  * depts.weighAssent — but the consequence was invisible, so a Secretary spending
- * a year of audiences bringing Goldland from 62 to 48 had no way to know what
+ * a year of audiences bringing Canada from 62 to 48 had no way to know what
  * they had bought. Both treaties, because the two are different asks and the
  * difference is the interesting part: a power will often promise not to attack
  * you long before it will promise to fight for you.
@@ -4697,7 +4697,7 @@ function frontMap(world, f) {
   const g = GEO.mapOf(world);
   const war = DEP.liveWar(world, f.id);
   const band = DEP.occupiedBand(g, f.id, war.front);
-  const line = f.id === 'goldland' ? g.borders?.a : f.id === 'electrum' ? g.borders?.b : null;
+  const line = f.id === 'canada' ? g.borders?.a : f.id === 'mexico' ? g.borders?.b : null;
   const box = el('div', { class: 'card' });
 
   if (!line) {
@@ -4707,7 +4707,7 @@ function frontMap(world, f) {
     return box;
   }
 
-  const NEIGHBOUR = { goldland: '#dcb970', electrum: '#a9c6a2' };
+  const NEIGHBOUR = { canada: '#dcb970', mexico: '#a9c6a2' };
   const parts = [];
   parts.push(`<defs><clipPath id="fmland-${f.id}"><path d="${GEO.pathOf(g.ring)}"/></clipPath>`
     + `<pattern id="fmhatch-${f.id}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">`
@@ -4739,8 +4739,8 @@ function frontMap(world, f) {
   const step = Math.max(1, Math.floor(line.length / (ours + 1)));
   for (let i = 1; i <= ours && i * step < line.length; i++) {
     const [x, y] = line[i * step];
-    const oy = f.id === 'goldland' ? y + 7 : y;
-    const ox = f.id === 'goldland' ? x : x - 7;
+    const oy = f.id === 'canada' ? y + 7 : y;
+    const ox = f.id === 'canada' ? x : x - 7;
     parts.push(`<g><rect x="${(ox - 2).toFixed(1)}" y="${(oy - 1).toFixed(1)}" width="5" height="3" fill="#33291c"/>`
       + `<rect x="${(ox - 1).toFixed(1)}" y="${(oy - 5).toFixed(1)}" width="3" height="4" fill="#4a6fa5"/></g>`);
   }
@@ -4749,8 +4749,8 @@ function frontMap(world, f) {
   const tstep = Math.max(1, Math.floor(line.length / (theirs + 1)));
   for (let i = 1; i <= theirs && i * tstep < line.length; i++) {
     const [x, y] = line[i * tstep];
-    const oy = f.id === 'goldland' ? y - 7 : y;
-    const ox = f.id === 'goldland' ? x : x + 7;
+    const oy = f.id === 'canada' ? y - 7 : y;
+    const ox = f.id === 'canada' ? x : x + 7;
     parts.push(`<g><rect x="${(ox - 2).toFixed(1)}" y="${(oy - 1).toFixed(1)}" width="5" height="3" fill="#33291c"/>`
       + `<rect x="${(ox - 1).toFixed(1)}" y="${(oy - 5).toFixed(1)}" width="3" height="4" fill="#c2483c"/></g>`);
   }

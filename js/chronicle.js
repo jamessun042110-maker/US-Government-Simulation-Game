@@ -1102,7 +1102,7 @@ function chiefLine(world, T, sur) {
  * One aggregation, because the lede and the body have to agree about it. They
  * did not: a president who took 30% of a neighbour and handed 10% of it back
  * got "30% of a neighbour's territory was annexed" in the lede and "20% of
- * Goldland was annexed by treaty" three sentences later, because the lede summed
+ * Canada was annexed by treaty" three sentences later, because the lede summed
  * the takings and the body netted them. Summing per settlement is the wrong
  * question in both places — what a reader wants is where the line ended up.
  */
@@ -1129,8 +1129,8 @@ function cessionsByPower(T) {
  * peace is not still down as an annexation of ground it no longer holds.
  *
  * A power annexed out of existence is named on its own and never as a figure —
- * "every acre of Goldland" is the sentence a reader remembers, "100% of
- * Goldland" is a spreadsheet.
+ * "every acre of Canada" is the sentence a reader remembers, "100% of
+ * Canada" is a spreadsheet.
  *
  * Returns nought to four sentences. Most tenures never touch the border at all
  * and get none.
@@ -1151,7 +1151,7 @@ function borderLine(T, sur) {
   }
   if (took.length) {
     // A percentage is singular however many countries it came out of: "55% of
-    // Goldland was annexed", but "55% of Goldland and 20% of Electrum were".
+    // Canada was annexed", but "55% of Canada and 20% of Mexico were".
     out.push((wiped.length ? 'The border moved further out besides: ' : `The border moved out under ${sur}: `)
       + `${list(took.map((x) => `${x.pct}% of ${x.name}`))} `
       + `${took.length === 1 ? 'was' : 'were'} annexed by treaty.`);
