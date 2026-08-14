@@ -3,7 +3,7 @@
 import { rng, range, pick, clamp, uid, sum, mulberry32, hashSeed, PALETTE, youthOf, YOUTH_APPROVAL } from './util.js';
 import { templateById, termEndTick } from './rules.js';
 import { initMacro } from './macro.js';
-import { STATE_NAMES } from './atlas.js';
+import { STATE_NAMES, isCoastal } from './atlas.js';
 
 export const ZONES = {
   unzoned: { label: 'Unzoned', color: '#2a2a2e' },
@@ -131,7 +131,7 @@ export const FOREIGN = [
  */
 const INITIALS = 'ABCDEFGHIJKLMNOPRSTVW';
 
-function personName(world) {
+export function personName(world) {
   if (!(world.usedNameSet instanceof Set)) {
     world.usedNameSet = new Set(world.usedNames || []);
   }
@@ -176,17 +176,43 @@ export const COLLEGES = [
   // tests that measure the college-bond premium between the top and bottom of
   // this list, and renaming an id to match a label would have broken a
   // measurement for a cosmetic reason.
-  { id: 'argent', name: 'Wexford University', prestige: 4, share: 0.07,
-    blurb: 'Three hundred years old, six hundred undergraduates. Opens doors and invites resentment.' },
-  { id: 'meridian', name: 'Capitol School of Government', prestige: 3, share: 0.15,
-    blurb: 'Where the civil service is trained, and where it recruits.' },
-  { id: 'harborlight', name: 'Lakeshore Polytechnic', prestige: 2, share: 0.28,
+  { id: 'argent', name: 'Harvard University', prestige: 4, share: 0.07,
+    blurb: 'Older than the country. Opens doors, and invites resentment through every one of them.' },
+  { id: 'meridian', name: 'Georgetown University', prestige: 3, share: 0.15,
+    blurb: 'Where the foreign service is trained, and where it recruits.' },
+  { id: 'harborlight', name: 'Rutgers University', prestige: 2, share: 0.28,
     blurb: 'Engineers, surveyors, county road commissioners. Builds things; distrusts speeches.' },
-  { id: 'northgate', name: 'Northgate State', prestige: 1, share: 0.50,
+  // The only college whose name is not fixed. `stateCollegeName` in this module
+  // resolves it against the player's home state, so a founder from Ohio Valley
+  // went to Ohio Valley State University and one from Texas did not.
+  { id: 'northgate', name: 'State University', prestige: 1, share: 0.50,
     blurb: 'The one most people actually went to. No cachet, and a classmate in every room.' },
 ];
 
 export const collegeById = (id) => COLLEGES.find((c) => c.id === id) || null;
+
+/**
+ * The state university, named for a state.
+ *
+ * Three of the four colleges are real places with fixed names. The fourth is
+ * "the one most people actually went to", and in the United States that is not
+ * one institution — it is fifty, each named for where you are from. So it is the
+ * only college whose name is resolved rather than stored.
+ */
+export const stateCollegeName = (stateName) => (stateName ? `${stateName} State University` : 'State University');
+
+/**
+ * What to call a person's college. Everything shown to a player goes through
+ * here rather than reading `college.name`, because for one of the four that
+ * field is a template and not an answer.
+ */
+export function collegeNameFor(world, persona) {
+  const c = collegeById(typeof persona === 'string' ? persona : persona?.college);
+  if (!c) return '';
+  if (c.id !== 'northgate') return c.name;
+  const d = world?.districts?.find((x) => x.id === persona?.district);
+  return stateCollegeName(d?.name);
+}
 
 /** Draw a college the way the country's intakes actually run. */
 export function rollCollege(world) {
@@ -507,39 +533,26 @@ function seedStock(world, pop) {
 function carveWater(world) {
   const { w, h } = world.city;
   const at = (x, y) => y * w + x;
-  const water = new Set();
   // A private, world-independent stream. Nothing here touches world.rngState.
-  const roll = mulberry32(hashSeed(`silver/water/${w}x${h}`));
-  const span = (lo, hi) => lo + roll() * (hi - lo);
-  const horizontal = w >= h;
-  if (horizontal) {
-    let yy = Math.round(span(h * 0.32, h * 0.68));
-    for (let x = 0; x < w; x++) {
-      yy = clamp(yy + Math.round(span(-1.2, 1.2)), 1, h - 2);
-      water.add(at(x, yy));
-      if (roll() < 0.3) water.add(at(x, clamp(yy + 1, 0, h - 1)));
-    }
-  } else {
-    let xx = Math.round(span(w * 0.32, w * 0.68));
-    for (let y = 0; y < h; y++) {
-      xx = clamp(xx + Math.round(span(-1.2, 1.2)), 1, w - 2);
-      water.add(at(xx, y));
-      if (roll() < 0.3) water.add(at(clamp(xx + 1, 0, w - 1), y));
-    }
-  }
-  if (roll() < 0.55) {
-    const lx = roll() < 0.5 ? 0 : w - 2, ly = roll() < 0.5 ? 0 : h - 2;
-    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) water.add(at(clamp(lx + dx, 0, w - 1), clamp(ly + dy, 0, h - 1)));
-  }
-  // About half the water is dropped back to land at the start of every game.
-  // The river was overwhelming the small city grid — a full spine plus a lake
-  // corner meant a coastal district in the middle of the map, with a strip too
-  // narrow to build in on either side. Thinned deterministically off the same
-  // stream, so the same river stays the same river between Seasons; what
-  // remains is a coast rather than a wall of water, and construction has the
-  // room it needs.
+  const roll = mulberry32(hashSeed(`usgov/water/${w}x${h}`));
+
+  // **Water goes where there is water.** This used to carve a river clean across
+  // the grid and drop a two-by-two lake in a corner, which is a good river for a
+  // city of twelve parcels by eight. The grid is the whole country now, so the
+  // same river ran from the Pacific to the Atlantic through the middle of the
+  // Plains, and the lake was a square inland sea nobody could name.
+  //
+  // A state gets water if a sea or a Great Lake actually touches it. Fifteen of
+  // the twenty do; the five that do not are landlocked in life as well.
   const thinned = new Set();
-  for (const i of water) if (roll() < 0.5) thinned.add(i);
+  for (const d of world.districts) {
+    if (!isCoastal(d.name)) continue;
+    const mine = world.city.parcels.filter((p) => p.district === d.id);
+    // Never take a state's last buildable ground: a coastline is a feature, and
+    // a state that is entirely water is a state nobody can govern.
+    const take = Math.min(roll() < 0.4 ? 2 : 1, Math.max(0, mine.length - 2));
+    for (let k = 0; k < take; k++) thinned.add(mine[Math.floor(roll() * mine.length)].i);
+  }
   world.city.water = [...thinned];
   for (const p of world.city.parcels) if (thinned.has(p.i)) p.water = true;
   // Waterfront districts (holding or bordering water) open with a working-port

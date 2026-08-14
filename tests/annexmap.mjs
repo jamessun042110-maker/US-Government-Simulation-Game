@@ -25,7 +25,7 @@ ok('the founding map divides the whole continent',
   Math.abs((g0.share.canada + g0.share.us + g0.share.mexico) - 1) < 0.001,
   `${((g0.share.canada + g0.share.us + g0.share.mexico) * 100).toFixed(2)}%`);
 ok('and it is North America, three ways',
-  g0.share.canada > 0.5 && g0.share.us > 0.2 && g0.share.mexico > 0.03,
+  g0.share.canada > 0.4 && g0.share.us > 0.3 && g0.share.mexico > 0.03,
   `canada ${(g0.share.canada * 100).toFixed(1)}% us ${(g0.share.us * 100).toFixed(1)}% mexico ${(g0.share.mexico * 100).toFixed(1)}%`);
 
 // --- Taking land --------------------------------------------------------------

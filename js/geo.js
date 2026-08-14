@@ -42,7 +42,7 @@
 // crosses itself. Half-planes plus clipping cannot go wrong.
 
 import { mulberry32, hashSeed } from './util.js';
-import { CONTINENT_RING, ringsAt, STATES } from './atlas.js';
+import { CONTINENT_RING, ringsAt, STATES, LAKES } from './atlas.js';
 
 // --- Primitives ------------------------------------------------------------
 
@@ -398,16 +398,19 @@ export function geography(nation, salt = 0, annexed = null) {
     // longer exists.
     north,
     south,
-    // The island power, moved from a strait west of Silver to the Caribbean —
-    // south-east of the Florida keys, which is the only place on this map an
-    // island power can sit and still be across water from us rather than in the
-    // middle of the country.
+    // The island power: the Greater Antilles, south-east of the Florida keys.
     //
-    // Wider than it is tall now, where Silver's was the reverse. The league's
-    // name and its standing with us are drawn at a fixed anchor in the middle of
-    // it, and an archipelago whose label does not fit on its own islands reads
-    // as a mistake rather than as a small country.
-    sab: coast(ellipse(234, 188, 36, 14, 14, 2.2), { seed: key + '/sab', rounds: 5, roughness: 0.6, amp: 0.3 }),
+    // It was a round blob the size of a small country and nobody could tell what
+    // it was meant to be. Cuba is nine hundred miles long and about sixty wide,
+    // so the ratio is what makes it read as an island chain rather than as a
+    // stain on the sea — roughly four to one here, sitting along the latitude the
+    // real chain sits on.
+    //
+    // Still one polygon rather than three. `sabCut` slices the league's ground
+    // with a single line solved for a share, and an archipelago of separate
+    // rings would need that whole solve rewritten for no gain the player can
+    // see at this scale.
+    sab: coast(ellipse(222, 180, 25, 6.5, 16, 0.15), { seed: key + '/sab', rounds: 4, roughness: 0.58, amp: 0.22 }),
     /** Is this point in that country? Coast and border, both. */
     isIn: (p, id) => inPoly(p, ring) && inPoly(p, c.halves[id]),
     grid,
@@ -574,15 +577,17 @@ function terrainOf(key, grid, ring) {
     out.glyphs.push({ kind: 'tree', x: p[0] + 3, y: p[1] - 1 });
   }
 
-  // --- water at the foot of the hills -------------------------------------
-  for (let i = 0; i < 2 && spine.length; i++) {
-    const sp = spine[Math.floor(rand() * spine.length)];
-    const off = 9 + rand() * 6;
-    const t = dir + Math.PI / 2 + (i ? Math.PI : 0);
-    const lx = sp[0] + Math.cos(t) * off, ly = sp[1] + Math.sin(t) * off;
-    if (inland(lx, ly, 6) < 0.85) continue;
-    out.lake.push(blob(lx, ly, 5 + rand() * 3, 3 + rand() * 2, rand() * 3, 'l' + i));
-  }
+  // --- water ---------------------------------------------------------------
+  //
+  // Not generated. Two lakes used to be dropped at whatever inland spot the dice
+  // picked, at a radius of five to eight units — which on this map is a large,
+  // unnamed, unexplained lake in the middle of Kansas, moving every time the
+  // world is redrawn. A reader of a US map knows where the water is.
+  //
+  // The rule the atlas keeps is that a lake is on the map only if it can be
+  // named, which is exactly the six that can be.
+  for (const l of LAKES) out.lake.push(l.poly);
+  out.lakes = LAKES;
   return out;
 }
 

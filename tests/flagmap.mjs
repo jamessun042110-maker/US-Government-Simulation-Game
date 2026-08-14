@@ -14,10 +14,15 @@ const pid = w.players.p1.personaId;
 const pSeat = w.seats.find((s) => s.office === 'president');
 pSeat.personaId = pid;
 
-ok('flag has no red in it', !/e8582d|c2352a/i.test(JSON.stringify(U.FLAG)), JSON.stringify(U.FLAG));
+// The flag is the Stars and Stripes. It was purple at the hoist and gold at the
+// fly with a black disc on the seam, and this asserted that — including, at one
+// point, that it had no red in it, which is now the one colour it must have.
 const svg = U.flagSvg(0, 0, 16, 10);
-ok('flag is purple, gold and a black disc',
-  svg.includes(U.FLAG.hoist) && svg.includes(U.FLAG.fly) && /<circle/.test(svg));
+ok('the flag is red, white and blue',
+  [U.FLAG.red, U.FLAG.white, U.FLAG.blue].every((c) => svg.includes(c)), JSON.stringify(U.FLAG));
+ok('and it has stripes and a canton of stars',
+  (svg.match(/<rect/g) || []).length >= 8 && (svg.match(/<circle/g) || []).length >= 20,
+  `${(svg.match(/<rect/g) || []).length} rects, ${(svg.match(/<circle/g) || []).length} stars`);
 
 const before = GEO.geography(w.nation, w.mapSeed || 0);
 w.notices = [];

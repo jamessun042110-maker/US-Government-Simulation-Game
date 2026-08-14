@@ -228,8 +228,12 @@ ok(LAND.length > 2000, 'the continent samples enough ground to measure', `${LAND
 }
 
 {
+  // The continent is a coastline now, not a box, so it no longer runs out to the
+  // frame edges — it should fill most of the frame and touch none of it, which
+  // is what having real coasts on three sides means.
   const b = bounds(CONTINENT_RING);
-  ok(b.x0 <= 0 && b.x1 >= WORLD_W, 'the continent spans the frame');
+  ok(b.w > WORLD_W * 0.75 && b.h > WORLD_H * 0.75, 'the continent fills the frame',
+    `${Math.round(b.w)}x${Math.round(b.h)} of ${WORLD_W}x${WORLD_H}`);
   // Every state has to be on the continent, or the engine's land grid will not
   // find the ground the state is standing on.
   const off = STATES.filter((s) => !inPoly(centroid(s.poly), CONTINENT_RING));

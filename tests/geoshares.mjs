@@ -103,5 +103,9 @@ const spread = cases.map(([n, s]) => survey(n, s).gold);
 const drift = Math.max(...spread) - Math.min(...spread);
 ok('Canada holds the same share on every seed', drift < 1.5,
   `${Math.min(...spread).toFixed(1)}%–${Math.max(...spread).toFixed(1)}%`);
-ok('and it is the share the real map gives', spread[0] > 55 && spread[0] < 70,
+// Canada holds about half the in-frame continent, which is close to life — it
+// is 46% of North America's land against the United States' 45%. It was 63%
+// while Canada was drawn as a rectangle across the top of the frame; carving
+// Hudson Bay out of it and giving it real coasts took it to where it belongs.
+ok('and it is the share the real map gives', spread[0] > 44 && spread[0] < 56,
   `canada ${spread[0].toFixed(1)}%`);

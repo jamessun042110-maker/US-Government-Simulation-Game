@@ -63,15 +63,29 @@ const HIRES = 20;
 {
   const { w, pid } = founded();
   const co = CO.foundedBy(w, pid);
-  const home = w.districts[0];
+  // The district with the most room to move, not simply the first one.
+  //
+  // The local term is `1 - jobs/labour` clamped at 0.01, so a district already
+  // holding more jobs than workers sits on that floor and twenty more hires
+  // cannot shift a number that is as low as it goes. This used to take
+  // districts[0] and give it three times the population, hoping that cleared the
+  // floor — which worked while seven districts split the country and stopped
+  // working at twenty, where each state holds a third as many people.
+  //
+  // Scaling the population is the wrong knob in both directions: too little and
+  // the district stays pinned on the floor, too much and twenty hires vanish
+  // into a labour force large enough to swallow them, which is how `pop * 9` and
+  // an absolute 10,000 both failed.
+  //
+  // And `local` is clamped at *both* ends — 0.01 and 0.7 — so simply taking the
+  // district with the most unemployment picks one pinned against the ceiling,
+  // where twenty hires move it exactly as little as they do on the floor. What
+  // is wanted is a district in the middle of the range, which needs no
+  // calibration and survives the map being redrawn.
+  const localOf = (d) => (d.structural - w.economy.structural * 0.6) / 0.4;
+  const home = w.districts.slice()
+    .sort((a, b) => Math.abs(localOf(a) - 0.35) - Math.abs(localOf(b) - 0.35))[0];
   co.district = home.id;
-  // Give it headroom, rather than hoping the generated map left some. Where the
-  // buildings fall is an rng draw, so on about one seed in four *every* district
-  // came out with more jobs than workers and sat on the 0.01 floor, where twenty
-  // more jobs cannot move a number that is already as low as it goes. Tripling
-  // the population here lifts the local term clear of the clamp so the thing
-  // under test is the thing being measured.
-  home.pop *= 3;
   W.recomputeEconomy(w);
   const beforeHome = home.structural;
   const others = w.districts.filter((d) => d.id !== home.id).map((d) => [d.id, d.structural]);

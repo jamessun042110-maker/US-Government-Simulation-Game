@@ -16,7 +16,7 @@ import * as CONDUCT from './conduct.js';
 import * as DEP from './depts.js';
 import * as MACRO from './macro.js';
 import * as CO from './company.js';
-import { makePersona, fillVacantSeats, recomputeEconomy, reshapeDistricts, BUILDINGS, PARTIES, collegeById } from './world.js';
+import { makePersona, fillVacantSeats, recomputeEconomy, reshapeDistricts, BUILDINGS, PARTIES, collegeById, personName } from './world.js';
 import { nominate, castBallot, sealBallot, endSeason, endorse } from './sim.js';
 
 function notice(world, playerId, text, tone = 'error') {
@@ -239,6 +239,25 @@ export const HANDLERS = {
       world.rejoin[a.playerId] = { reason: `The name “${a.name}” is already taken. Choose another.`, ts: Date.now() };
       return notice(world, a.playerId, `The name “${a.name}” is already taken at this table.`);
     }
+    // A citizen may already be walking around under this name, and the player's
+    // name wins.
+    //
+    // `nameTaken` above only compares against other *players*, which was enough
+    // while the citizenry drew on invented first names — nobody was ever going
+    // to be dealt "James Sun". The names are American now and drawn from lists
+    // that contain exactly the names players use, so a synthetic citizen can be
+    // born holding one, and the republic ended up with two people of that name:
+    // the Chronicle wrote about both, and a reload could hand the seat to the
+    // wrong one.
+    //
+    // The citizen is renamed rather than the player refused. A generated name is
+    // arbitrary and there are two thousand others; the player's is not.
+    if (a.name) {
+      const want = normName(a.name);
+      for (const p of Object.values(world.personas)) {
+        if (p.synthetic && !p.playerId && normName(p.name) === want) p.name = personName(world);
+      }
+    }
     const idx = Object.keys(world.players).length;
     const persona = makePersona(world, { name: a.name || `Founder ${idx + 1}`, playerId: a.playerId, party: a.party });
     persona.bio = 'Founder.';
@@ -262,6 +281,14 @@ export const HANDLERS = {
         world.economy.treasury += (col.prestige - 1) * 2.5e6;
         recomputeEconomy(world);
       }
+    }
+    // The state the founding screen chose. Set *before* assignHomeDistricts,
+    // which deals a district to anyone who has not got one — it leaves a
+    // persona that already has one alone, so a chosen home state survives it and
+    // an unchosen one is still dealt somewhere.
+    if (a.homeState) {
+      const home = world.districts.find((d) => d.id === a.homeState || d.name === a.homeState);
+      if (home) persona.district = home.id;
     }
     // Someone arriving into a Season already under way still has to be from
     // somewhere, or they can never stand in a district race. The founding does

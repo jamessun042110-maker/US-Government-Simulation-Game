@@ -91,22 +91,39 @@ ok('the runs do not overlap and do not leave gaps',
 // lose an election — but every departure that was not a re-election was filed as
 // `defeated`, and the article said they "left the chair in defeat at the polls".
 // Three endings now: beaten, barred, or chose not to stand.
+// Pooled across three republics, not read off one.
+//
+// This is a claim about tendency — that the engine has more than one way to end
+// a presidency — and it was being measured on a single sample. One republic can
+// legitimately spend its whole history turning presidents out at the polls
+// before any of them reaches a term limit, and it did so about one run in four
+// once twenty states changed how elections land. Three histories make the claim
+// the test is actually making.
 {
-  const w2 = W.newWorld({ nation: 'Limitland', founder: 'Ann Marchetti' });
-  ACT.apply(w2, { type: 'JOIN', playerId: 'p1', name: 'Ann Marchetti' });
-  w2.phase = 'live'; w2.inaugurated = 0;
-  const h = R.headOffice(w2);
-  for (let i = 0; i < 9000; i += 1) S.tick(w2);
-  const ends = [...(w2.pastSeats || [])].filter((s) => s.office === h.id && s.why).map((s) => s.why);
+  // Each exit is kept with the republic it happened in, so the checks below can
+  // still ask that world about the person who left it.
+  const exits = [];
+  let h = null;
+  for (const nation of ['Limitland', 'Termsville', 'Barrowdale']) {
+    const wN = W.newWorld({ nation, founder: 'Ann Marchetti' });
+    ACT.apply(wN, { type: 'JOIN', playerId: 'p1', name: 'Ann Marchetti' });
+    wN.phase = 'live'; wN.inaugurated = 0;
+    h = R.headOffice(wN);
+    for (let i = 0; i < 9000; i += 1) S.tick(wN);
+    for (const seat of wN.pastSeats || []) {
+      if (seat.office === h.id && seat.why) exits.push({ seat, w: wN });
+    }
+  }
+  const ends = exits.map((e) => e.seat.why);
   ok('presidencies end for more than one reason', new Set(ends).size > 1, JSON.stringify([...new Set(ends)]));
   ok('nobody is recorded as defeated without having stood',
-    [...(w2.pastSeats || [])].filter((s) => s.office === h.id && s.why === 'defeated')
-      .every((s) => (w2.personas[s.personaId]?.terms?.[h.id] ?? 0) < (h.termLimit || Infinity)),
+    exits.filter((e) => e.seat.why === 'defeated')
+      .every((e) => (e.w.personas[e.seat.personaId]?.terms?.[h.id] ?? 0) < (h.termLimit || Infinity)),
     JSON.stringify(ends));
   // The one this was reported for: a term-limited president reads as barred.
-  const limited = [...(w2.pastSeats || [])].find((s) => s.office === h.id && s.why === 'term-limited');
+  const limited = exits.find((e) => e.seat.why === 'term-limited');
   if (limited) {
-    const article = C.composeBio(w2, limited.personaId);
+    const article = C.composeBio(limited.w, limited.seat.personaId);
     ok('and the article says they were barred, not beaten',
       /term limit/.test(article.body) && !/in defeat at the polls/.test(article.body),
       (article.body.match(/left the chair[^.]*\./) || ['none'])[0]);

@@ -234,18 +234,40 @@ export const youthOf = (world, p) =>
  * inauguration tableau and on the title screen, and three hand-tuned copies of
  * a flag is how you end up with three different flags.
  */
-export const FLAG = { hoist: '#6b3fa0', fly: '#f2c230', disc: '#141414' };
+/**
+ * The Stars and Stripes. Silver flew purple at the hoist and gold at the fly
+ * with a black disc on the seam, which was a fine flag for a country that did
+ * not exist.
+ *
+ * Seven stripes rather than thirteen, and a canton of pixels rather than fifty
+ * stars: at the sizes this is drawn — eleven pixels across on the Oval Office
+ * wall — thirteen stripes is a grey smear and fifty stars is a blue square. The
+ * count is what does not survive the scale; the arrangement is what carries it,
+ * so the arrangement is what is kept.
+ */
+export const FLAG = { red: '#b22234', white: '#f4f2ee', blue: '#3c3b6e' };
 
 /**
  * The flag as SVG markup, for the two scenes drawn in SVG rather than on the
- * pixel canvas. The disc is sized off the shorter side so it stays a disc at
- * any dimensions, and sits on the seam between the halves.
+ * pixel canvas. Thirteen stripes here, because SVG has the resolution for them.
  */
 export const flagSvg = (x, y, w, h, ink = '#141414') => {
-  const r = Math.max(1.5, Math.min(w, h) * 0.3);
-  return `<rect x="${x}" y="${y}" width="${w / 2}" height="${h}" fill="${FLAG.hoist}"/>`
-    + `<rect x="${x + w / 2}" y="${y}" width="${w / 2}" height="${h}" fill="${FLAG.fly}"/>`
-    + `<circle cx="${x + w / 2}" cy="${y + h / 2}" r="${r}" fill="${FLAG.disc}"/>`
+  const sh = h / 13;
+  let out = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${FLAG.white}"/>`;
+  for (let i = 0; i < 13; i += 2) {
+    out += `<rect x="${x}" y="${(y + i * sh).toFixed(2)}" width="${w}" height="${sh.toFixed(2)}" fill="${FLAG.red}"/>`;
+  }
+  const cw = w * 0.4, ch = sh * 7;
+  out += `<rect x="${x}" y="${y}" width="${cw.toFixed(2)}" height="${ch.toFixed(2)}" fill="${FLAG.blue}"/>`;
+  // Five rows of stars, offset row to row — the quincunx the real canton uses.
+  for (let r = 0; r < 5; r++) {
+    for (let c = 0; c < (r % 2 ? 4 : 5); c++) {
+      const sx = x + cw * ((c + (r % 2 ? 1 : 0.5)) / 5.5);
+      const sy = y + ch * ((r + 0.6) / 5.4);
+      out += `<circle cx="${sx.toFixed(2)}" cy="${sy.toFixed(2)}" r="${(Math.min(w, h) * 0.035).toFixed(2)}" fill="${FLAG.white}"/>`;
+    }
+  }
+  return out
     + `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${ink}" stroke-width="1"/>`;
 };
 

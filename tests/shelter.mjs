@@ -47,8 +47,23 @@ const after = w.districts.find((d) => d.id === worst.id);
 const ROUNDING = 2;
 ok('the reduction survives a population recompute',
   after.homeless <= before - rehoused + ROUNDING, `${after.homeless} vs ${before - rehoused}`);
+// Against the counterfactual, not against the earlier sample.
+//
+// "Lower than it was before the recompute" was the right claim when a district
+// held a seventh of the country and the relief ran to dozens. Split twenty ways
+// the relief is often a single person, and the recompute's own baseline moves by
+// about that much on its own — so a relief that was applied perfectly could
+// still come back equal, and did, about one run in six.
+//
+// Recomputing a second time with the relief cleared says exactly what the test
+// means: the same world, the same arithmetic, the relief the only difference.
+const withRelief = after.homeless;
+const heldRelief = after.shelterRelief || 0;
+after.shelterRelief = 0;
+W.distributePopulation(w, W.totalPop(w));
 ok('and it has not snapped back to the unrelieved figure',
-  after.homeless < before, `${after.homeless} < ${before}`);
+  withRelief < after.homeless, `${withRelief} relieved vs ${after.homeless} unrelieved (held ${heldRelief})`);
+after.shelterRelief = heldRelief;
 
 // Relief banked beyond the current deficit is trimmed to what is usable, so it
 // cannot drive the count negative or accumulate without bound.

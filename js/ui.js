@@ -11,6 +11,7 @@ import * as C from './chronicle.js';
 import * as ACT from './actions.js';
 import { BUILDINGS, ZONES, PARTIES, FOREIGN } from './world.js';
 import * as GEO from './geo.js';
+import { ALASKA, HAWAII } from './atlas.js';
 import * as MACRO from './macro.js';
 import * as CO from './company.js';
 import { nationalApproval, approvalDrivers, approvalByDistrict, DRAFT_SLOWDOWN, openElections, pactHolds, interestRate } from './sim.js';
@@ -2671,16 +2672,81 @@ function cityMap(world) {
   parts.push(`<path d="${GEO.pathOf(G.ring)}" fill="none" stroke="#26506a" stroke-opacity="0.45" stroke-width="1.3" stroke-linejoin="round" pointer-events="none"/>`);
 
   // Names, on the widest run of each district's own ground.
+  //
+  // **Two lines when one will not fit.** The size is solved against the room the
+  // label has, which was the whole of the sizing rule and is not enough on its
+  // own: "Pacific Northwest" is seventeen characters over a state a fraction the
+  // width of Texas, so solving for width alone drove it below legibility and it
+  // still ran out over Mountain West and the sea. Breaking the name in half buys
+  // roughly double the size for the same room, which is the only thing that
+  // actually fits a long name into a small state.
+  //
+  // The break is at the space nearest the middle, so "Pacific / Northwest" and
+  // "Upper / Midwest" split where a reader would; a single-word name has no
+  // break available and keeps whatever size it gets.
   for (const c of CG.cells) {
     if (!c.spot) continue;
-    const size = Math.min(6.5, (c.spot.w * 0.9) / Math.max(1, c.district.name.length * 0.58));
-    parts.push(`<text x="${c.spot.x.toFixed(1)}" y="${c.spot.y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle"`
-      + ` font-size="${size.toFixed(1)}" font-weight="800" letter-spacing="0.1" fill="#241708" stroke="#efe7d3"`
-      + ` stroke-width="1.8" paint-order="stroke" pointer-events="none">${esc(c.district.name)}</text>`);
+    const name = c.district.name;
+    const room = c.spot.w * 0.9;
+    const sizeFor = (chars) => Math.min(6.5, room / Math.max(1, chars * 0.58));
+
+    let lines = [name];
+    let size = sizeFor(name.length);
+    if (size < 3.4 && name.includes(' ')) {
+      // The space closest to the middle of the string.
+      let best = -1;
+      for (let i = 0; i < name.length; i++) {
+        if (name[i] !== ' ') continue;
+        if (best < 0 || Math.abs(i - name.length / 2) < Math.abs(best - name.length / 2)) best = i;
+      }
+      const two = [name.slice(0, best), name.slice(best + 1)];
+      const wrapped = sizeFor(Math.max(two[0].length, two[1].length));
+      if (wrapped > size) { lines = two; size = wrapped; }
+    }
+
+    const common = `text-anchor="middle" font-size="${size.toFixed(1)}" font-weight="800"`
+      + ` letter-spacing="0.1" fill="#241708" stroke="#efe7d3" stroke-width="1.8"`
+      + ` paint-order="stroke" pointer-events="none"`;
+    if (lines.length === 1) {
+      parts.push(`<text x="${c.spot.x.toFixed(1)}" y="${c.spot.y.toFixed(1)}" dominant-baseline="middle" ${common}>${esc(name)}</text>`);
+    } else {
+      // Centred on the spot as a block, so a two-line name sits where a one-line
+      // name would rather than hanging below it.
+      const top = c.spot.y - size * 0.5;
+      parts.push(`<text x="${c.spot.x.toFixed(1)}" y="${top.toFixed(1)}" dominant-baseline="middle" ${common}>`
+        + lines.map((l, i) => `<tspan x="${c.spot.x.toFixed(1)}" dy="${i ? size.toFixed(1) : 0}">${esc(l)}</tspan>`).join('')
+        + `</text>`);
+    }
   }
 
-  // Compass rose, out in the sea off the south-west.
-  parts.push(compassRose(vx + 11, vy + vh - 11, 7));
+  // Alaska and Hawaii, cropped into the bottom-left the way every US map does
+  // it. Both belong to the Pacific Northwest for representation; these are
+  // drawings, not districts, so they carry no parcels and take no clicks.
+  {
+    const pn = CG.cells.find((c) => c.district.name === 'Pacific Northwest');
+    const fill = pn?.district?.color || "#8aa0b8";
+    const box = (x, y, w, h, label, inner) => `<g pointer-events="none">`
+      + `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#0d2233" fill-opacity="0.5"`
+      + ` stroke="#26506a" stroke-opacity="0.5" stroke-width="0.5"/>${inner}`
+      + `<text x="${x + w / 2}" y="${y + h - 1.4}" text-anchor="middle" font-size="2.6" font-weight="700"`
+      + ` fill="#cfe0ee" letter-spacing="0.2">${label}</text></g>`;
+
+    const ax = vx + 3, ay = vy + vh - 31, as = 0.72;
+    const akPath = GEO.pathOf(ALASKA.map(([x, y]) => [ax + 2 + x * as, ay + 2 + y * as]));
+    parts.push(box(ax, ay, 28, 25, 'ALASKA',
+      `<path d="${akPath}" fill="${fill}" fill-opacity="0.85" stroke="#efe7d3" stroke-width="0.4"/>`));
+
+    const hx = vx + 34, hy = vy + vh - 31, hs = 0.85;
+    const hiInner = HAWAII.map((i) =>
+      `<circle cx="${(hx + 2 + i.cx * hs).toFixed(1)}" cy="${(hy + 3 + i.cy * hs).toFixed(1)}"`
+      + ` r="${(i.r * hs).toFixed(1)}" fill="${fill}" fill-opacity="0.85" stroke="#efe7d3" stroke-width="0.3"/>`).join('');
+    parts.push(box(hx, hy, 21, 25, 'HAWAII', hiInner));
+  }
+
+  // Compass rose, out in the sea off the south-*east* — the south-west corner is
+  // where the Alaska and Hawaii insets live now, and the rose was drawn on top
+  // of Alaska.
+  parts.push(compassRose(vx + vw - 12, vy + vh - 12, 7));
 
   const box = el('div', {
     class: 'citymap',

@@ -240,16 +240,22 @@ function flag(C, P, x, y, h, color) {
  */
 function nationalFlag(C, P, x, y, h) {
   const d = P.dim * 0.5;
-  const hoist = mix(FLAG.hoist, '#1a0f28', d);
-  const fly = mix(FLAG.fly, '#3a2c0a', d);
-  const disc = mix(FLAG.disc, '#000000', d * 0.3);
-  C.rect(x, y, 1, h, dark(P.stone, 0.5));
-  // 10 across, 6 down: enough cloth for a disc to read as a disc at this scale.
-  C.rect(x + 1, y + 1, 5, 6, hoist);
-  C.rect(x + 6, y + 1, 5, 6, fly);
-  // A fold down the fly half, so it hangs rather than floats.
-  C.rect(x + 9, y + 1, 2, 6, dark(fly, 0.22));
-  C.disc(x + 6, y + 4, 2, 2, disc);
+  const red = mix(FLAG.red, '#2a0c10', d);
+  const white = mix(FLAG.white, '#2c2c34', d);
+  const blue = mix(FLAG.blue, '#080c1c', d);
+  C.rect(x, y, 1, h, dark(P.stone, 0.5));   // the staff
+  // Eleven across, seven down. Seven stripes, not thirteen: at one pixel a
+  // stripe, thirteen of them is a grey smear and the flag stops being a flag.
+  const W = 11, ROWS = 7;
+  for (let r = 0; r < ROWS; r++) C.rect(x + 1, y + 1 + r, W, 1, r % 2 === 0 ? red : white);
+  // The canton, over the top four rows and two-fifths of the fly — the real
+  // proportion, which is what the eye actually recognises.
+  C.rect(x + 1, y + 1, 5, 4, blue);
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 5; c++) if ((r + c) % 2 === 0) C.set(x + 1 + c, y + 1 + r, white);
+  }
+  // A fold down the fly, so it hangs rather than floats.
+  C.rect(x + W - 1, y + 1, 1, ROWS, dark(red, 0.3));
 }
 
 // --- The rooms -------------------------------------------------------------
@@ -350,11 +356,24 @@ function oval(world) {
 
   C.vgrad(0, 38, OVAL.w, 16, [dark(floor, 0.18), floor, lite(floor, 0.06)]);
   for (let x = 0; x < OVAL.w; x += 9) C.rect(x, 38, 1, 16, dark(floor, 0.12));
+  // The rug: the seal, on the blue oval every President since Truman has had
+  // some version of. The ring of stars around the border is the detail that
+  // makes it the seal rather than a blue rug with a gold hoop on it, and at two
+  // pixels a star it is the largest thing on the floor that anybody will
+  // actually recognise.
   const rug = mix('#24405e', '#0d1522', P.dim * 0.58);
   C.disc(120, 48, 76, 8, dark(rug, 0.2));
   C.disc(120, 48, 73, 7, rug);
   C.ring(120, 48, 62, 5, gold);
+  for (let i = 0; i < 14; i++) {
+    const t = (i / 14) * Math.PI * 2;
+    C.set(Math.round(120 + Math.cos(t) * 55), Math.round(48 + Math.sin(t) * 4.2), lite(gold, 0.3));
+  }
+  // The eagle, as a shape and not as a bird: a pale body with the wings swept
+  // out either side of it. Anything more at this size is three brown pixels.
   C.disc(120, 48, 11, 2, dark(gold, 0.25));
+  C.rect(114, 47, 12, 1, lite(gold, 0.4));
+  C.rect(117, 46, 6, 3, mix('#e8dcb8', '#3a3320', P.dim * 0.5));
 
   const dx = 88, dw = 64, dy = 36;
   C.rect(dx + 18, dy - 8, 28, 9, dark(desk, 0.46));
@@ -2773,6 +2792,66 @@ function tower(C, P, x, y, w, h, cols, rows) {
 }
 
 /**
+ * The Washington Monument: a shaft that tapers, and a pyramidion.
+ *
+ * The taper is the whole silhouette. Drawn as a plain rectangle it is a chimney;
+ * losing two pixels of width over its height is what makes the eye read stone.
+ * The cap is a four-row pyramid rather than a point, because at this scale a
+ * true point is one lit pixel and disappears against the sky.
+ *
+ * The aircraft warning lights near the top are the one detail that dates it to
+ * now rather than to 1884, and they are the only warm colour on it.
+ */
+function monument(C, P, cx, baseY, h) {
+  const face = mix(P.far, '#e8e2d4', 0.5);
+  const lit = lite(face, 0.2), shade = dark(face, 0.32);
+  const capH = 4;
+  const shaftH = h - capH;
+  for (let i = 0; i < shaftH; i++) {
+    // Six wide at the foot, four at the shoulder.
+    const w = i < shaftH * 0.55 ? 6 : 5;
+    const y = baseY - i - capH;
+    const x = cx - Math.floor(w / 2);
+    C.rect(x, y, w, 1, face);
+    C.rect(x, y, 1, 1, lit);
+    C.rect(x + w - 1, y, 1, 1, shade);
+  }
+  for (let i = 0; i < capH; i++) {
+    const w = 5 - i;
+    if (w <= 0) break;
+    const x = cx - Math.floor(w / 2);
+    C.rect(x, baseY - h + i, w, 1, i < 2 ? lit : face);
+  }
+  C.set(cx - 1, baseY - h + capH + 1, P.warm);
+  C.set(cx + 1, baseY - h + capH + 1, P.warm);
+}
+
+/**
+ * The Lincoln Memorial: a long low colonnade on a stepped plinth.
+ *
+ * Its whole character is horizontal, which is why it sits opposite the monument
+ * rather than beside it — a vertical, a horizontal, and the dome between them is
+ * the Mall's actual composition and it reads at any size.
+ */
+function memorial(C, P, x, baseY, w, h) {
+  const face = mix(P.far, '#ded7c6', 0.46);
+  const lit = lite(face, 0.18), shade = dark(face, 0.34);
+  // Three steps.
+  for (let s = 0; s < 3; s++) C.rect(x - s, baseY - s, w + s * 2, 1, s ? shade : dark(face, 0.5));
+  const bodyY = baseY - 2 - h;
+  C.rect(x, bodyY, w, h, face);
+  C.rect(x, bodyY, w, 1, lit);                        // the attic, catching the last light
+  // Columns, with the gaps between them dark. An even count reads as a building;
+  // an odd one puts a column dead centre where the doorway belongs.
+  for (let i = 0; i < 6; i++) {
+    const cx = x + 2 + i * Math.max(2, Math.floor((w - 4) / 6));
+    C.rect(cx, bodyY + 2, 1, h - 3, lit);
+    C.rect(cx + 1, bodyY + 2, 1, h - 3, shade);
+  }
+  C.rect(x, bodyY + h - 1, w, 1, shade);
+}
+
+/**
  * The capital at dusk, with the capitol at the centre of it.
  *
  * Built once and cached. Nothing in it moves — the stars used to twinkle and two
@@ -2793,18 +2872,35 @@ export function titleScene() {
   luminary(C, P, 200, 300, 16, 60);
   clouds(C, P, 13, 34, 5, TITLE.w);
 
-  // The far bank, and the skyline standing on it. The towers thin out toward the
-  // middle so the capitol has air around it, and the two nearest the frame are
-  // the tallest — the eye is walked inward.
+  // The far bank, and the Mall standing on it.
+  //
+  // This was a generic skyline — eight lit office towers walking the eye inward
+  // to the dome. It read as a capital, but it read as *a* capital: the same
+  // picture would have served any republic with a river through it. Washington
+  // has almost no tall building in it by law, and what it has instead is a
+  // composition anyone can name: a vertical, a horizontal, and the dome between
+  // them.
+  //
+  // So the towers are gone and the Mall is here. The monument west of the dome,
+  // the Lincoln Memorial beyond it, the Jefferson across the water on the right,
+  // and a low federal terrace filling the ends of the bank where the eye would
+  // otherwise fall off the picture. The sunset, the water and the palette are
+  // untouched — the light was never the thing that made it generic.
   C.rect(0, BANK, TITLE.w, WATER - BANK, P.hill);
   C.rect(0, BANK, TITLE.w, 1, lite(P.hill, 0.14));
+
+  // Low federal blocks anchoring both ends: government offices, not skyscrapers.
   for (const [x, y, w, h, c, r] of [
-    [2, 84, 22, 44, 2, 6], [26, 98, 18, 30, 2, 4], [46, 90, 16, 38, 2, 5],
-    [64, 106, 18, 22, 2, 3], [240, 106, 18, 22, 2, 3], [260, 88, 18, 40, 2, 5],
-    [280, 100, 16, 28, 2, 4], [298, 82, 20, 46, 2, 6],
+    [0, 110, 26, 18, 3, 2], [28, 114, 20, 14, 2, 2],
+    [286, 114, 22, 14, 2, 2], [310, 108, 22, 20, 3, 2],
   ]) tower(C, P, x, y, w, h, c, r);
 
-  capitol(C, P, 160, BANK + 2);
+  memorial(C, P, 54, BANK + 1, 34, 13);
+  monument(C, P, 116, BANK + 1, 62);
+  capitol(C, P, 190, BANK + 2);
+  // The Jefferson: a small rotunda off to the east, half the dome's size, so the
+  // eye reads depth across the bank rather than one flat row of buildings.
+  dome(C, P, 268, BANK + 1, 16);
   // No wash over the dome. `wash` tints what it lands on through a Bayer
   // pattern, which works over a floor or a wall — a surface with texture in it
   // already — and fails over a flat band of sky: forty pixels of loose dither

@@ -6,7 +6,8 @@ import { apply, prunePlayers, beginSeasonIfReady, activePlayers } from './action
 import { tick, openElections } from './sim.js';
 import { el, clamp } from './util.js';
 import { PICKABLE_TEMPLATES } from './rules.js';
-import { COLLEGES, GENDERS } from './world.js';
+import { COLLEGES, GENDERS, stateCollegeName } from './world.js';
+import { STATES, postalOf } from './atlas.js';
 import * as UI from './ui.js';
 import { titleScene } from './scene.js';
 import { pixText } from './pixfont.js';
@@ -28,6 +29,22 @@ let introSeen = false; // the title screen shows once, before the founding setup
 // and enough alumni in the chamber to find a friendly vote — so the default
 // starts a player in the middle of the board rather than at one end of it.
 let founderAge = 35, founderGender = 'm', founderCollege = 'harborlight';
+// Where the founder is from. Defaults to the first region on the map rather than
+// to a favourite: any default here is a thumb on the scale for one state's
+// representation, and first-in-the-atlas is at least an arbitrary rule rather
+// than a preference.
+let founderState = STATES[0].id;
+
+/** "GA · AL · MS" — what a merged region is actually made of. */
+const abbrsOf = (s) => postalOf(s).join(' \u00b7 ');
+
+// The founder's college, named. Only one of the four needs naming — the state
+// university takes the name of the state you said you were from, and no world
+// exists yet at the founding screen to look that up in, so it is resolved from
+// the two fields directly.
+const founderCollegeName = () => (founderCollege === 'northgate'
+  ? stateCollegeName(STATES.find((s) => s.id === founderState)?.name)
+  : COLLEGES.find((c) => c.id === founderCollege)?.name || '');
 
 const $ = (id) => document.getElementById(id);
 
@@ -458,7 +475,7 @@ function renderSetup() {
     world = newWorld(cfg);
     apply(world, {
       type: 'JOIN', playerId, name, moderator: true,
-      age: founderAge, gender: founderGender, college: founderCollege,
+      age: founderAge, gender: founderGender, college: founderCollege, homeState: founderState,
       // A player's own persona is not dealt a party the way the other 24,000
       // are. makePersona rolls one off the world's seeded RNG, so which side
       // you woke up on was a coin flip you never saw tossed — and you would
@@ -477,7 +494,7 @@ function renderSetup() {
   const whoSummary = () => [
     `${founderAge}`,
     GENDERS.find((g) => g.id === founderGender)?.label,
-    COLLEGES.find((c) => c.id === founderCollege)?.name,
+    founderCollegeName(),
   ].filter(Boolean).join(' · ');
 
   // The college cards used to call rebuild() — the whole page torn down and
@@ -489,7 +506,10 @@ function renderSetup() {
   const collegeCards = COLLEGES.map((c) => el('button', {
     class: 'regime-card canon' + (founderCollege === c.id ? ' chosen' : ''),
     'data-college': c.id,
-  }, el('b', {}, c.name),
+    // The state university's card is labelled for the state currently chosen
+    // above it, so the two fields visibly agree before anything is committed.
+  }, el('b', { 'data-college-name': c.id },
+    c.id === 'northgate' ? stateCollegeName(STATES.find((s) => s.id === founderState)?.name) : c.name),
     el('div', { class: 'small' }, c.blurb),
     el('div', { class: 'tiny dimmer', style: { marginTop: '4px' } },
       `prestige ${c.prestige}/4 · about ${Math.round(c.share * 100)}% of the political class`)));
@@ -530,6 +550,12 @@ function renderSetup() {
   // Kept out of the tree above so the college buttons can call it.
   function syncWho() {
     const sum = $('whoSummary'); if (sum) sum.textContent = whoSummary();
+    // The state university's card carries the state chosen above it. Retitled in
+    // place rather than by rebuilding the panel — a <details> rebuilt is a
+    // <details> closed, which is the whole reason the college cards stopped
+    // calling rebuild() in the first place.
+    const card = document.querySelector('[data-college-name="northgate"]');
+    if (card) card.textContent = stateCollegeName(STATES.find((s) => s.id === founderState)?.name);
   }
   for (const b of collegeCards) {
     b.onclick = () => {
@@ -553,13 +579,28 @@ function renderSetup() {
       'One real second is one canon day\u2019s worth of clock. At 120 a year, a Season spans a generation.'));
 
   const body = [
-    el('h1', { class: 'page' }, 'Found the nation'),
-    el('p', { class: 'sub' }, 'Name it, and convene. Everything else about the republic is argued at the convention.'),
+    el('h1', { class: 'page' }, 'Found the republic'),
+    el('p', { class: 'sub' }, 'Say who you are and where you are from, and convene. Everything else about the republic is argued at the convention.'),
     el('div', { class: 'card' },
-      // "The nation" read as a heading over the field rather than as a label for
-      // what goes in it, on a page whose other field is "Your name".
-      el('label', { class: 'field' }, el('span', {}, 'Nation name'),
-        el('input', { value: cfg.nation, oninput: (e) => (cfg.nation = e.target.value) })),
+      // The nation is not a field any more. It was one when the country was
+      // invented and you named it; this is the United States in every Season, so
+      // asking was offering a choice that does not exist — and a table that
+      // typed something else into it got a republic whose map, states and
+      // constitution all said otherwise.
+      //
+      // Where you are *from* is a real choice, and it is the one that replaces
+      // it: it decides which state you are a citizen of, and it names your state
+      // university. The merged regions carry the abbreviations of the states
+      // they were made from, because "Deep South" is not a place anyone says
+      // they are from and "GA · AL · MS" is.
+      el('label', { class: 'field' }, el('span', {}, 'Home state'),
+        el('select', {
+          onchange: (e) => { founderState = e.target.value; syncWho(); },
+        }, ...STATES.map((s) => el('option', {
+          value: s.id, selected: founderState === s.id,
+        }, s.merged.length > 1 ? `${s.name} — ${abbrsOf(s)}` : s.name)))),
+      el('div', { class: 'tiny dimmer', style: { marginTop: '-4px' } },
+        'The state you represent, and the one your state university is named for.'),
       // "You, its founder" was flavour, not an instruction, and the greyed
       // "John Smith" under it read as a value already filled in — especially
       // sitting under a nation field that genuinely is prefilled. Say plainly
@@ -601,7 +642,7 @@ function renderSetup() {
         // said "age 45, Northgate" for as long as those were the defaults and
         // would have gone on saying it afterwards — a summary that is a copy of
         // the settings is a summary that will eventually disagree with them.
-        : `Founding on: age ${founderAge}, ${COLLEGES.find((c) => c.id === founderCollege)?.name || ''}, `
+        : `Founding on: age ${founderAge}, ${founderCollegeName()}, `
           + `${cfg.ticksPerYear} seconds a year, ${cfg.seedPop.toLocaleString()} citizens.`)),
     el('p', { class: 'small dim', style: { margin: '16px 0 10px' } },
       'At the convention every founder takes a chair and argues the document line by line. The Season begins when every seated founder readies up.'),

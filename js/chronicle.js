@@ -6,7 +6,7 @@
 // canonDate on every log line.
 import { uid, esc, count, yearAt, canonDate, dayOfYear, tickOf, nextDay, DAYS_PER_MONTH } from './util.js';
 import { headOffice, headOfficeLabel } from './rules.js';
-import { COLLEGES } from './world.js';
+import { COLLEGES, collegeNameFor } from './world.js';
 // company.js imports nothing but util, so this closes no cycle.
 import { valuation as companyValue } from './company.js';
 
@@ -717,7 +717,7 @@ export function composeBio(world, personaId, { final = false, leftAt = null } = 
   const before = record.filter((r) => r.office.id !== head?.id
     && ((r.since ?? 0) < T.from || (r.endedTick != null && r.endedTick <= T.from)));
   const home = p.district ? world.districts.find((d) => d.id === p.district)?.name : null;
-  const school = p.college ? (COLLEGES.find((c) => c.id === p.college)?.name || p.college) : null;
+  const school = p.college ? (collegeNameFor(world, p) || p.college) : null;
   // Origins in one sentence, career in the next — "Born in X, he was educated
   // at Y" then "He sat in the Assembly for Z from A to B, and ...". The old
   // version gave the schooling its own orphaned sentence at the end.
