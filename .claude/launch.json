@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "silver",
+      "name": "usgov",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["prototype/vision-engine/devserver.py", "8810"],
-      "port": 8810
+      "runtimeArgs": ["devserver.py", "8825"],
+      "port": 8825
     }
   ]
 }
