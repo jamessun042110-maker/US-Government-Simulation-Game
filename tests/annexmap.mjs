@@ -2,8 +2,9 @@
 //
 // The old contract was that it did not: `world.annexed` moved strength and money
 // and the frontier stayed exactly where it was founded. The new one is that the
-// borders are solved for the shares the treaties leave, so this holds both halves
-// of that — the line moves by the right amount, and nothing that is not a border
+// frontiers are *offset* by the share a treaty leaves — they are real coordinates
+// now and cannot be re-solved into a different shape — so this holds both halves
+// of it: the line moves by the right amount, and nothing that is not a border
 // moves at all.
 const base = new URL('../js/', import.meta.url).href;
 const W = await import(base + 'world.js');
@@ -11,17 +12,21 @@ const A = await import(base + 'acts.js');
 const GEO = await import(base + 'geo.js');
 const ok = (l, c, x = '') => console.log((c ? 'PASS ' : 'FAIL ') + l + (x ? ' | ' + x : ''));
 
-const NATION = 'The Silver Republic';
+const NATION = 'The United States';
 const map = (annexed) => GEO.geography(NATION, 0, annexed);
 const g0 = map(null);
 
-// --- The founding map calibrates ---------------------------------------------
-// The solve used to rail on this very seed: Canada came out on 27% of a
-// continent it targets 44% of, because the bracket the bisection ran in could not
-// reach the answer.
-ok('the founding map hits its target shares',
-  Math.abs(g0.share.canada - 0.44) < 0.02 && Math.abs(g0.share.us - 0.39) < 0.03,
-  `gold ${(g0.share.canada * 100).toFixed(1)}% silver ${(g0.share.us * 100).toFixed(1)}%`);
+// --- The founding map ---------------------------------------------------------
+// There are no target shares any more — the 49th parallel and the Rio Grande are
+// where they are, and the shares are what that geography gives. So what is worth
+// asserting is that the founding map is a whole continent divided three ways,
+// with a Canada big enough to be the northern power and a Mexico that exists.
+ok('the founding map divides the whole continent',
+  Math.abs((g0.share.canada + g0.share.us + g0.share.mexico) - 1) < 0.001,
+  `${((g0.share.canada + g0.share.us + g0.share.mexico) * 100).toFixed(2)}%`);
+ok('and it is North America, three ways',
+  g0.share.canada > 0.5 && g0.share.us > 0.2 && g0.share.mexico > 0.03,
+  `canada ${(g0.share.canada * 100).toFixed(1)}% us ${(g0.share.us * 100).toFixed(1)}% mexico ${(g0.share.mexico * 100).toFixed(1)}%`);
 
 // --- Taking land --------------------------------------------------------------
 const g30 = map({ canada: 30 });
@@ -31,20 +36,26 @@ ok('a third of Canada is a third off Canada',
 ok('and every acre of it is ours',
   Math.abs((g30.share.us - g0.share.us) - (g0.share.canada - g30.share.canada)) < 0.02,
   `+${((g30.share.us - g0.share.us) * 100).toFixed(1)}%`);
-// Not merely "about the same size afterwards" — the same ground. Border A is
-// Canada's southern frontier with *both* of us, so sliding the whole of it
-// north hands Mexico a strip of Canada it never fought for and then takes an
-// equal strip off it somewhere else to balance the books. The frontier steps at
-// the junction instead, and the line we share with Mexico does not move at all.
+// Not merely "about the same size afterwards" — the same ground.
+//
+// This used to be the hardest property on the map and it is now nearly free.
+// Silver's two borders met at a triple junction, so border A was Canada's
+// frontier with *both* of us: sliding the whole of it north handed Mexico a
+// strip of Canada it never fought for, and the fix was to make the frontier step
+// at the junction so only our own frontage moved. The frontiers do not meet at
+// all now — one is north of the country, one is south of it — so a northern war
+// cannot reach the southern border by any path.
 ok('the third country is untouched by a war it was not in',
   Math.abs(g30.share.mexico - g0.share.mexico) < 0.005,
   `${(g0.share.mexico * 100).toFixed(1)}% → ${(g30.share.mexico * 100).toFixed(1)}%`);
 ok('and our border with it is the same border',
   JSON.stringify(g30.borders.b) === JSON.stringify(g0.borders.b));
-ok('but their border with Canada stepped back',
-  g30.borders.a.some((p, i) => p[1] !== g0.borders.a[i][1])
-  && g30.borders.a.at(-1)[1] === g0.borders.a.at(-1)[1],
-  'the west end moved, the east end did not');
+// The whole northern frontier moves together, where the old one stepped. There
+// is no junction to step at, and a Rio Grande that bent halfway along because of
+// a war fought on the 49th parallel would be a worse map, not a better one.
+ok('and the northern frontier moved along its whole length',
+  g30.borders.a.every((p, i) => p[1] < g0.borders.a[i][1]),
+  `${g30.borders.a.filter((p, i) => p[1] < g0.borders.a[i][1]).length} of ${g0.borders.a.length} vertices moved north`);
 ok('the border between us has actually moved',
   JSON.stringify(g30.borders.a) !== JSON.stringify(g0.borders.a));
 

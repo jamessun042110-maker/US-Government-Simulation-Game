@@ -327,7 +327,14 @@ export function geography(nation, salt = 0, annexed = null) {
     };
   }
   const BASE = SHARES;
-  const toUs = (id) => (a[id] >= 0 ? BASE[id] : BASE.silver) * a[id];
+  // `BASE.us`, not `BASE.silver`. This read the old key for one commit after the
+  // rename and the branch is only taken when the cession is *negative* — ground
+  // we gave up — so annexation went on working perfectly and nothing showed it.
+  // `undefined * -0.2` is NaN, `want` became NaN, and every `f(m) < NaN`
+  // comparison in the bisection is false, so the solve railed to the bottom of
+  // its bracket: ceding a single acre to Canada handed Canada the continent,
+  // Mexico included.
+  const toUs = (id) => (a[id] >= 0 ? BASE[id] : BASE.us) * a[id];
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
   const want = {
     canada: clamp01(BASE.canada - toUs('canada')),

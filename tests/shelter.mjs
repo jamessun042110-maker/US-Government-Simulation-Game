@@ -8,7 +8,7 @@ const A = await import(base + 'acts.js');
 const R = await import(base + 'rules.js');
 const ok = (l, c, x = '') => console.log((c ? 'PASS ' : 'FAIL ') + l + (x ? ' | ' + x : ''));
 
-const w = W.newWorld({ nation: 'The Silver Republic' });
+const w = W.newWorld({ nation: 'The United States' });
 w.phase = 'live'; w.inaugurated = 0;
 const worst = w.districts.slice().sort((a, b) => b.homeless - a.homeless)[0];
 const seat = w.seats.find((s) => s.office === R.headOffice(w).id && s.personaId);
@@ -19,7 +19,13 @@ const res = A.disburse(w, pid, 500000, 'housing for the encampment');
 ok('the disbursal goes through', res.ok !== false, res.value);
 
 // The number the message names is the number the district's homeless count falls by.
-const m = /Roughly ([\d,]+) people/.exec(res.value || '');
+//
+// Both forms, because the count can legitimately be one. The relief is a share
+// of the *district's* homeless, so it fell when the country went from seven
+// districts to twenty states and each one got a third of the people — the engine
+// pluralised correctly and this regex, which only ever matched "people", read it
+// as no match at all and reported NaN.
+const m = /Roughly ([\d,]+) (?:person|people)/.exec(res.value || '');
 const rehoused = m ? parseInt(m[1].replace(/,/g, ''), 10) : NaN;
 ok('the message names a rehousing count', rehoused > 0, String(rehoused));
 ok('the district homeless count falls by exactly that many',

@@ -32,8 +32,14 @@ const bio = w.bios?.[pid];
 ok('a bio is written on leaving', !!bio, bio ? flat(bio.text).slice(0, 90) + '…' : 'none');
 ok('it names them', bio && flat(bio.text).includes('James Sun'));
 ok('it gives the office and the years', bio && /President of The Silver Republic/.test(flat(bio.text)) && /Yr \d/.test(flat(bio.text)));
-ok('it lists the earlier office', bio && /Assembly/i.test(flat(bio.text)),
-  (flat(bio?.text).match(/sat in the Assembly[^.]*\./)||[''])[0].slice(0,110));
+// Asked of the constitution rather than hardcoded. The chamber was the Assembly
+// and is the House of Representatives; it is due to be split in two, and a test
+// that names it in a literal has to be edited every time that label moves — for
+// no gain, because what is being checked is that the bio mentions the earlier
+// office at all.
+const chamber = R.office(w, 'assembly')?.name || 'House of Representatives';
+ok('it lists the earlier office', bio && new RegExp(chamber, 'i').test(flat(bio.text)),
+  (flat(bio?.text).match(new RegExp(`sat in the ${chamber}[^.]*\\.`)) || [''])[0].slice(0, 110));
 ok('it is not final yet', bio && bio.final === false);
 ok('the article has sections', !!bio.text?.sections?.length, String(bio.text?.sections?.length));
 ok('and a lede that names the office', /President of The Silver Republic/.test(bio.text?.lede || ''),

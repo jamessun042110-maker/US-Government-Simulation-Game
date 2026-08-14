@@ -11,7 +11,7 @@ const A = await import(base + 'acts.js');
 const ACT = await import(base + 'actions.js');
 const ok = (l, c, x = '') => console.log((c ? 'PASS ' : 'FAIL ') + l + (x ? ' | ' + x : ''));
 
-const w = W.newWorld({ nation: 'The Silver Republic', founder: 'James Sun' });
+const w = W.newWorld({ nation: 'The United States', founder: 'James Sun' });
 ACT.apply(w, { type: 'JOIN', playerId: 'p1', name: 'James Sun' });
 w.phase = 'live'; w.inaugurated = 0;
 
@@ -33,9 +33,17 @@ w.documents = w.documents || {}; w.documents[doc.id] = doc;
 w.docOrder = w.docOrder || []; w.docOrder.push(doc.id);
 ok('the bill needs a simple majority', R.voteRequirement(w, doc)?.fraction === 0.5, String(R.voteRequirement(w, doc)?.fraction));
 
-// A dead-even split: three aye, three nay, one abstains (no ballot).
-for (const i of [0, 1, 2]) doc.votes[members[i]] = 'yea';
-for (const i of [3, 4, 5]) doc.votes[members[i]] = 'nay';
+// A dead-even split, sized to the chamber rather than to a number.
+//
+// This used to seat three ayes against three nays, which was the whole of a
+// seven-seat chamber. The House is twenty seats now — one per state — so that
+// split left fourteen members silent and the bill failed *quorum* rather than
+// tying, which reads in the output as a tie-break that did not work. Deriving
+// the halves from the roll keeps it a tie whatever the chamber is next.
+const even = members.length - (members.length % 2);
+const half = even / 2;
+for (let i = 0; i < half; i++) doc.votes[members[i]] = 'yea';
+for (let i = half; i < even; i++) doc.votes[members[i]] = 'nay';
 
 ok('the VP is named the tie-breaker', R.tieBreaker(w, doc)?.personaId === vp.id);
 
@@ -51,11 +59,13 @@ delete doc.votes[vp.id];
 t = R.tally(w, doc);
 ok('with no VP ballot the tie stands unbroken', t.tieBroken === null, JSON.stringify(t.tieBroken));
 
-// No tie, so the VP is silent even when they hold a ballot.
-doc.votes[members[3]] = 'yea';    // now four aye, two nay
+// No tie, so the VP is silent even when they hold a ballot. Moving one nay
+// across makes it one clear — still every member voting, so still quorate.
+doc.votes[members[half]] = 'yea';
 doc.votes[vp.id] = 'nay';
 t = R.tally(w, doc);
-ok('the VP does not vote when there is no tie', t.tieBroken === null && t.passes && t.yea === 4 && t.nay === 2, `${t.yea}-${t.nay}`);
+ok('the VP does not vote when there is no tie',
+  t.tieBroken === null && t.passes && t.yea === half + 1 && t.nay === half - 1, `${t.yea}-${t.nay}`);
 
 // castVote admits the VP to the floor, but not a stranger to the chamber.
 ok('the VP may cast on the floor', A.castVote(w, doc.id, vp.id, 'yea').ok);

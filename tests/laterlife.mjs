@@ -91,7 +91,10 @@ const final = (w, pid, leftAt) => flat(C.composeBio(w, pid, { final: true, leftA
   seat.personaId = pid; seat.since = w.clock.tick;
   const text = final(w, pid, leftAt);
   ok('a return to the chamber is named', /returned to public life/.test(text), text.slice(-140));
-  ok('with the office and the years', /Assembly/.test(text) && /Yr \d/.test(text));
+  // The chamber's label by way of the seat, not a literal — it was the Assembly,
+  // it is the House of Representatives, and it is about to be split in two.
+  const chamberName = w.constitution.offices.find((o) => o.id === 'assembly')?.name || 'House';
+  ok('with the office and the years', text.includes(chamberName) && /Yr \d/.test(text));
   // And a seat held *before* the presidency is not reported as later life.
   const before = w.seats.find((s) => s.office === 'justice');
   before.personaId = pid; before.since = 0;
