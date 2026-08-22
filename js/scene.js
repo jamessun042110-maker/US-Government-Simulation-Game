@@ -2859,6 +2859,29 @@ function memorial(C, P, x, baseY, w, h) {
  * hand-drawn version and the raster is one merged field of rectangles. A title
  * card can hold still.
  */
+/**
+ * A flagstaff on a roof, flying the national flag.
+ *
+ * The Capitol flies one over each wing, and only over the wing whose chamber is
+ * actually sitting — which is a detail worth having in a game whose whole
+ * legislature is two chambers that have to agree. Here they both fly: it is a
+ * title card, and the point of it is that Congress is in session.
+ *
+ * `nationalFlag` draws the cloth; this puts a pole under it and sets it on a
+ * roofline. Reused rather than redrawn, because the whole reason that function
+ * exists is that three hand-tuned copies of a flag is how you get three flags.
+ */
+function flagstaff(C, P, x, roofY, poleH = 8) {
+  // The staff is drawn in near-full stone, not a shaded version of it. A one
+  // pixel column at half value disappears into a sunset band, and a flag on an
+  // invisible pole does not read as flying — it reads as a sticker floating in
+  // the sky above the building. It is the pole that anchors the flag, so the
+  // pole has to be the brightest thing on the roof.
+  C.rect(x, roofY - poleH, 1, poleH + 1, lite(P.stone, 0.1));
+  C.set(x, roofY - poleH - 1, lite(P.stone, 0.3));   // the truck
+  nationalFlag(C, P, x, roofY - poleH, 7);
+}
+
 let TITLE_SVG = '';
 export function titleScene() {
   if (TITLE_SVG) return TITLE_SVG;
@@ -2886,21 +2909,45 @@ export function titleScene() {
   // and a low federal terrace filling the ends of the bank where the eye would
   // otherwise fall off the picture. The sunset, the water and the palette are
   // untouched — the light was never the thing that made it generic.
+  //
+  // **The Capitol sits dead centre**, and everything else is placed around it.
+  // It used to stand at x=190 of 320, which is off to the right, and that is a
+  // composition about the Mall rather than about the building. It also meant the
+  // crop decided the subject: the scene is drawn with `xMidYMax slice`, so a tall
+  // window shows only the middle of it, and on a narrow one the dome was sliding
+  // toward the edge while the Lincoln Memorial fell off the other side. Centred,
+  // the one building the game is named for is the last thing any crop loses.
+  const MID = TITLE.w / 2;    // 160 — the Capitol's own centreline
   C.rect(0, BANK, TITLE.w, WATER - BANK, P.hill);
   C.rect(0, BANK, TITLE.w, 1, lite(P.hill, 0.14));
 
   // Low federal blocks anchoring both ends: government offices, not skyscrapers.
   for (const [x, y, w, h, c, r] of [
-    [0, 110, 26, 18, 3, 2], [28, 114, 20, 14, 2, 2],
-    [286, 114, 22, 14, 2, 2], [310, 108, 22, 20, 3, 2],
+    [-4, 112, 22, 16, 3, 2], [20, 116, 18, 12, 2, 2],
+    [284, 116, 18, 12, 2, 2], [304, 110, 22, 18, 3, 2],
   ]) tower(C, P, x, y, w, h, c, r);
 
-  memorial(C, P, 54, BANK + 1, 34, 13);
-  monument(C, P, 116, BANK + 1, 62);
-  capitol(C, P, 190, BANK + 2);
+  // West of the Capitol, in the order they stand on the ground: Lincoln, then
+  // the Monument, then the dome.
+  memorial(C, P, 44, BANK + 1, 32, 12);
+  monument(C, P, 100, BANK + 1, 56);
+  capitol(C, P, MID, BANK + 2);
   // The Jefferson: a small rotunda off to the east, half the dome's size, so the
   // eye reads depth across the bank rather than one flat row of buildings.
-  dome(C, P, 268, BANK + 1, 16);
+  dome(C, P, 248, BANK + 1, 15);
+
+  // The colours of the thing.
+  //
+  // A dusk palette of purple, orange and stone is a handsome picture of no
+  // particular country. The flag is the one element that says which republic
+  // this is, and the Capitol flies one over each wing — over the House and over
+  // the Senate, which is exactly the fact the game is built on. Two staffs, on
+  // the wing roofs, at the height the real ones sit.
+  // Short staffs, set on the wing roofs and inboard of their ends, so the cloth
+  // overlaps the building rather than hanging clear of it in open sky.
+  const wingRoof = BANK + 2 - 10;
+  flagstaff(C, P, MID - 44, wingRoof, 8);
+  flagstaff(C, P, MID + 33, wingRoof, 8);
   // No wash over the dome. `wash` tints what it lands on through a Bayer
   // pattern, which works over a floor or a wall — a surface with texture in it
   // already — and fails over a flat band of sky: forty pixels of loose dither

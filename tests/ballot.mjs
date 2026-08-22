@@ -108,18 +108,43 @@ for (let room = 0; doc5.status === 'floor' && room < 4; room++) {
 ok('a synthetic President gets no player notice', (w5.notices || []).length === before,
   `${(w5.notices || []).length} vs ${before}`);
 
-// --- the river is the same river every time ---------------------------------
-const layouts = ['The Silver Republic', 'Argenta', 'Testland', 'Vell'].map((nation) => {
-  const x = W.newWorld({ nation, founder: 'A B' });
+// --- water is where the water is --------------------------------------------
+//
+// The claim used to be "the river is the same river every time", measured by
+// founding four differently-named nations and checking they carved identically.
+// There is one nation now — this is the United States in every Season — and the
+// water is no longer carved at all: a parcel is water because a named lake is
+// sitting on it, which is a fact about the map and not about the seed. So the
+// thing worth testing changed with it. Not "does it come out the same", but
+// "is every wet parcel actually under a lake, and is every lake represented".
+const layouts = ['A B', 'C D', 'E F', 'G H'].map((founder) => {
+  const x = W.newWorld({ nation: 'The United States', founder });
   return x.city.water.slice().sort((a, b) => a - b).join(',');
 });
-ok('every Season carves the same water', new Set(layouts).size === 1, `${new Set(layouts).size} layouts`);
-ok('and there is a river in it', layouts[0].split(',').length >= 12, `${layouts[0].split(',').length} parcels`);
-const wet = W.newWorld({ nation: 'The Silver Republic', founder: 'A B' });
+ok('every Season finds the same water', new Set(layouts).size === 1, `${new Set(layouts).size} layouts`);
+const wet = W.newWorld({ nation: 'The United States', founder: 'A B' });
 ok('the parcels themselves are flagged',
   wet.city.parcels.filter((pp) => pp.water).length === wet.city.water.length,
   `${wet.city.parcels.filter((pp) => pp.water).length} flagged`);
 ok('and nothing is ever built on water', wet.city.parcels.every((pp) => !(pp.water && pp.building)));
+
+// Every wet parcel is in a state that has a Great Lake on it, and no state
+// without one has any water at all. This is the assertion that would have caught
+// the old behaviour: it thinned one or two random parcels out of every *coastal*
+// state, so Texas, the Carolinas and the Deep South all carried an inland lake
+// that is not there.
+{
+  const wetStates = new Set(wet.city.parcels.filter((pp) => pp.water)
+    .map((pp) => wet.districts.find((d) => d.id === pp.district)?.name));
+  // The states the atlas's six named lakes actually touch.
+  const LAKE_STATES = new Set(['Michigan', 'Upper Midwest', 'New York', 'Ohio Valley', 'Illinois', 'Southwest']);
+  ok('there is water on the map at all', wetStates.size > 0, [...wetStates].join(', ') || 'none');
+  ok('and every wet state has a named lake on it',
+    [...wetStates].every((n) => LAKE_STATES.has(n)), [...wetStates].join(', '));
+  ok('no landlocked state invents one',
+    ![...wetStates].some((n) => ['Texas', 'The Carolinas', 'Deep South', 'Great Plains', 'Heartland'].includes(n)),
+    [...wetStates].join(', '));
+}
 // The rest of the world must still differ, or the fix went too far.
 const a = W.newWorld({ nation: 'The Silver Republic', founder: 'A B' });
 const b = W.newWorld({ nation: 'The Silver Republic', founder: 'A B' });

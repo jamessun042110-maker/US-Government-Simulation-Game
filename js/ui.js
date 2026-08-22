@@ -72,6 +72,25 @@ export function modalDuringPolls(current, polls) {
 }
 const w = () => CTX.world;
 const me = () => CTX.world.personas[CTX.world.players[CTX.playerId]?.personaId] || null;
+
+/**
+ * What a seat is called on the map: its congressional district if it has one,
+ * and its state if it does not.
+ *
+ * A House seat carries a numbered district — TX-2 — because Texas holds several
+ * and the number is the only thing telling them apart. A Senate seat carries the
+ * state's name, because a senator represents the whole of it and a number would
+ * imply a line through the state that nobody drew.
+ */
+const seatWhere = (world, seat) => {
+  if (!seat?.district) return '';
+  const state = world.districts.find((d) => d.id === seat.district)?.name || '';
+  return seat.cd ? `${seat.cd} · ${state}` : state;
+};
+
+/** The short form, for a column that has the state written beside it already. */
+const seatCd = (world, seat) => seat?.cd
+  || (seat?.district ? (world.districts.find((d) => d.id === seat.district)?.name || '') : '');
 const myPlayer = () => CTX.world.players[CTX.playerId] || null;
 const go = (type, payload = {}) => CTX.dispatch({ type, ...payload });
 
@@ -119,9 +138,16 @@ const NAV = [
   // else knows it is there. Suing somebody is in Intrigue.
   ['chambers', '⚖', 'The Supreme Court', (world, p) => CT.mayEnterChamber(world, p?.id)],
   ['oval', '◉', 'Oval Office', (world, p) => canOval(world, p)],
-  // The chamber's own room. The legislature was the only branch with nowhere
-  // private to talk, which made it the only one that could not whip a vote.
-  ['cloakroom', '⬒', 'The Cloakroom', (world, p) => inChamber(world, p)],
+  // The chambers' own rooms — one each. The legislature was the only branch with
+  // nowhere private to talk, which made it the only one that could not whip a
+  // vote; and one shared room let each chamber read the other's whip count,
+  // which is the opposite of what a cloakroom is for. Labels are rewritten in
+  // navFor from the chamber's own name.
+  ['cloakroom', '⬒', 'House Cloakroom', (world, p) => R.mayEnterCloakroom(world, p?.id, R.chambers(world)[0])],
+  ['cloakroom_upper', '⬒', 'Senate Cloakroom', (world, p) => {
+    const up = world.constitution?.legislature?.upperChamber;
+    return !!up && R.mayEnterCloakroom(world, p?.id, up);
+  }],
   // Not an office at all — a house. The Vice President's, and nobody else's
   // unless asked. There is nothing to do in it, which is the point of it.
   ['mansion', '⌂', "Vice President's Mansion", (world, p) => R.mayEnterMansion(world, p?.id)],
@@ -527,7 +553,7 @@ function actionItems(world) {
 // be in because of what you hold — which is the whole definition of this list —
 // but what you hold is a building rather than a chair, so it comes after the
 // offices of the republic and before everything the whole country can read.
-const OFFICE_ROOMS = ['oval', 'state', 'defense', 'exchequer', 'mansion', 'chambers', 'cloakroom', 'company'];
+const OFFICE_ROOMS = ['oval', 'state', 'defense', 'exchequer', 'mansion', 'chambers', 'cloakroom', 'cloakroom_upper', 'company'];
 
 /**
  * The sidebar, with your own room first.
@@ -544,7 +570,18 @@ function navFor(world, p) {
     // sidebar reads "The Basement" until the day it reads "Headquarters".
     .map((item) => (item[0] === 'company'
       ? [item[0], item[1], CO.stageOf(CO.companyOf(world, p?.id)?.valuation || 0).tab, item[3]]
-      : item));
+      : item))
+    // Each cloakroom wears its chamber's name, so a constitution that named its
+    // rooms something else says so in the sidebar — and a unicameral one, which
+    // has exactly one, calls it what it always called it.
+    .map((item) => {
+      if (item[0] !== 'cloakroom' && item[0] !== 'cloakroom_upper') return item;
+      const L = world.constitution?.legislature || {};
+      const room = item[0] === 'cloakroom' ? L.chamber : L.upperChamber;
+      const label = !R.isBicameral(world) ? 'The Cloakroom'
+        : cloakLabel(R.office(world, room)?.name || 'Chamber');
+      return [item[0], item[1], label, item[3]];
+    });
 
   // A startup, at the first stage, closes everything else in the sidebar. The
   // hours are all-consuming — a founder in the basement is not also reading
@@ -702,9 +739,22 @@ VIEWS.nation = (root) => {
         ...world.constitution.offices.map((o) => {
           const hs = R.holders(world, o.id);
           const ap = R.approvalOfOffice(world, o.id);
+          const seats = world.seats.filter((s) => s.office === o.id).length;
+          // Who holds it, when that is a thing you can read.
+          //
+          // This printed every holder's name, which is right for a President and
+          // useless for a chamber: the House and the Senate put twenty names
+          // apiece under their approval figure, and forty names nobody is
+          // looking up buried the five offices on this card that a player
+          // actually reads. Past a handful the interesting fact is not who they
+          // are but how many chairs are full, and the Congress tab has the
+          // roster, by chamber, for when the names are the question.
+          const who = hs.length > 4
+            ? `${hs.length} of ${seats} seats filled`
+            : hs.map((h) => h.name).join(', ') || 'vacant';
           return el('div', { class: 'spread', style: { padding: '5px 0', borderBottom: '1px solid var(--rule-strong)' } },
             el('div', {}, el('div', { class: 'small' }, o.name),
-              el('div', { class: 'tiny dimmer' }, hs.map((h) => h.name).join(', ') || 'vacant')),
+              el('div', { class: 'tiny dimmer' }, who)),
             ap == null ? el('span', { class: 'tag red' }, 'vacant')
               : el('span', { class: 'mono small ' + (ap >= 50 ? 'green' : 'red') }, ap.toFixed(0) + '%'));
         })),
@@ -901,10 +951,14 @@ function districtCard() {
   const wf = waterfrontDistricts(world);
   return el('div', { class: 'card' }, el('h3', {}, 'Districts'),
     el('table', { class: 't' },
-      el('thead', {}, el('tr', {}, ...['District', 'Pop', 'Mood', 'Unemp', 'Homeless', 'Land', 'Rep'].map((h) => el('th', {}, h)))),
+      el('thead', {}, el('tr', {}, ...['State', 'Pop', 'Mood', 'Unemp', 'Homeless', 'Land', 'In Congress'].map((h) => el('th', {}, h)))),
       el('tbody', {}, ...world.districts.map((d) => {
-        const seat = world.seats.find((s) => s.district === d.id);
-        const rep = seat ? world.personas[seat.personaId] : null;
+        // A state sends a delegation, not a representative. This picked the
+        // first seat it found for the state, which under a one-seat-per-state
+        // House was the whole answer and under an apportioned one is a quarter
+        // of it — Texas has four members and this named one of them, silently.
+        const delegation = world.seats.filter((x) => x.district === d.id && x.personaId);
+        const rep = delegation.length === 1 ? world.personas[delegation[0].personaId] : null;
         return el('tr', {},
           el('td', {}, el('span', { style: { color: d.color } }, '▍'), ' ', d.name,
             wf.has(d.id) ? el('span', { class: 'tiny', title: 'Waterfront — leans to trade and industry', style: { color: '#3f7fa8', marginLeft: '4px' } }, '≈') : null,
@@ -916,7 +970,11 @@ function districtCard() {
           el('td', { class: 'mono ' + (d.unemployment > 0.1 ? 'red' : '') }, pct(d.unemployment)),
           el('td', { class: 'mono' }, num(d.homeless)),
           el('td', { class: 'mono dim' }, '$' + d.landValue),
-          el('td', { class: 'small dim' }, rep ? rep.name : '—'));
+          el('td', { class: 'small dim' },
+            rep ? rep.name
+              : delegation.length
+                ? `${delegation.length} member${delegation.length === 1 ? '' : 's'}`
+                : '—'));
       }))));
 }
 
@@ -1439,7 +1497,7 @@ VIEWS.convention = (root) => {
           // Founders see the chairs ranked by prestige — President first — rather
           // than in whatever order the seats were generated.
           const rank = (s) => R.PRESTIGE[s.office] ?? 30;
-          const seenDistricts = new Set();
+          const mineP = me();
           // At-will cabinet posts (Secretaries) are never claimed at the founding —
           // the President names them later — so they don't appear here.
           return world.seats.slice().filter((s) => !R.office(world, s.office)?.atWill).sort((a, b) => rank(b) - rank(a)).map((s) => {
@@ -1447,20 +1505,33 @@ VIEWS.convention = (root) => {
           const holder = s.personaId ? world.personas[s.personaId] : null;
           const mine = holder?.playerId === CTX.playerId;
           const otherFounder = holder?.playerId && !mine;
-          // More seats than districts: the extras get fresh districts drawn at
-          // ratification. Until then, naming them after an existing district
-          // showed the same name twice and read as a duplicate seat.
-          const dupDistrict = s.district && seenDistricts.has(s.district);
-          if (s.district) seenDistricts.add(s.district);
+          // The districts do not move any more. Seats are dealt across the
+          // states once — by population for the House, one each for the Senate —
+          // and every House chair carries the numbered district it will actually
+          // sit for, so the chair you take at the convention is the electorate
+          // you answer to. This used to read "a district drawn at ratification",
+          // which was true and was the problem.
+          // Old enough for it. The constitution sets 25 for the House, 30 for
+          // the Senate and 35 for both halves of the executive, and a chair you
+          // cannot legally sit in should not be a button that looks live and
+          // then refuses — it should say so, on the chair, before you reach for
+          // it. SEAT_SELF enforces the same rule, because the screen is a
+          // courtesy and the engine is the authority.
+          const young = mineP ? R.eligibleByAge(world, mineP.id, s.office) : { ok: true };
+          const barred = !young.ok && !mine;
           return el('button', {
-            class: mine ? 'on' : otherFounder ? 'locked' : '',
-            title: otherFounder ? `Claimed by ${holder.name} — first come, first served.` : '',
-            onclick: () => { if (!otherFounder) go('SEAT_SELF', { seatId: s.id }); },
+            class: mine ? 'on' : otherFounder || barred ? 'locked' : '',
+            title: otherFounder ? `Claimed by ${holder.name} — first come, first served.`
+              : barred ? young.reason : '',
+            onclick: () => { if (!otherFounder && !barred) go('SEAT_SELF', { seatId: s.id }); },
           }, el('div', { class: 'spread' },
-            el('span', {}, o?.name, s.district ? ' — ' + (dupDistrict ? 'a district drawn at ratification' : world.districts.find((d) => d.id === s.district)?.name) : ''),
+            el('span', {}, o?.name, s.district ? ' — ' + seatWhere(world, s) : ''),
             mine ? el('span', { class: 'tag green' }, 'you')
               : otherFounder ? el('span', { class: 'tag red' }, holder.name)
-                : el('span', { class: 'tiny dimmer' }, holder ? holder.name + ' · take' : 'take')));
+                : barred ? el('span', { class: 'tag red' }, `${young.need}+`)
+                  : el('span', { class: 'tiny dimmer' }, holder ? holder.name + ' · take' : 'take')),
+            barred ? el('div', { class: 'tiny', style: { color: 'var(--red)', marginTop: '2px' } },
+              `You are ${young.age}. The constitution sets ${young.need} for this office — eligible in ${young.years} year${young.years === 1 ? '' : 's'}.`) : null);
         }); })())),
       el('div', { class: 'card' }, el('h3', {}, 'Founders present'),
         ...Object.values(world.players).map((p) => el('div', { class: 'spread small', style: { padding: '3px 0' } },
@@ -1628,7 +1699,7 @@ VIEWS.assembly = (root) => {
             el('span', {},
               h ? h.name : el('i', { class: 'dimmer' }, 'vacant'),
               h && !h.synthetic ? el('span', { class: 'tag gold', style: { marginLeft: '6px' } }, 'player') : null),
-            el('span', { class: 'tiny dimmer' }, s.district ? world.districts.find((d) => d.id === s.district)?.name : ''));
+            el('span', { class: 'tiny dimmer' }, seatWhere(world, s)));
         }))),
     ),
   ));
@@ -1745,7 +1816,7 @@ function docCard(d) {
         const per = world.personas[v.personaId];
         const b = d.votes[v.personaId];
         const seat = world.seats.find((s) => s.personaId === v.personaId);
-        const dist = seat?.district ? world.districts.find((x) => x.id === seat.district)?.name : null;
+        const dist = seatCd(world, seat) || null;
         return el('span', {
           // Abstain is a decision, not silence: grey it so it reads apart from a
           // member who simply has not voted yet (who stays in the default colour).
@@ -2378,7 +2449,11 @@ function districtPanel(d) {
   const built = land.filter((x) => x.building);
   const zoneMix = Object.entries(ZONES).map(([k, z]) => [z, land.filter((x) => x.zone === k).length])
     .filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
-  const rep = world.seats.find((s) => s.district === d.id && s.personaId);
+  // Everyone this state sends: its House members, by district, and its senator.
+  const delegation = world.seats
+    .filter((x) => x.district === d.id && x.personaId)
+    .sort((a, b) => (R.PRESTIGE[b.office] ?? 30) - (R.PRESTIGE[a.office] ?? 30) || a.index - b.index);
+  const rep = delegation[0] || null;
   const repP = rep ? world.personas[rep.personaId] : null;
 
   const bar = (label, val, tone) => el('div', { class: 'spread', style: { margin: '3px 0' } },
@@ -2410,9 +2485,19 @@ function districtPanel(d) {
       ...zoneMix.map(([z, n]) => el('span', {},
         el('span', { style: { display: 'inline-block', width: '9px', height: '9px', background: z.color, borderRadius: '2px', marginRight: '4px' } }),
         z.label, ' ', el('span', { class: 'mono' }, n)))),
-    el('div', { class: 'spread tiny', style: { marginTop: '8px', paddingTop: '6px', borderTop: '1px solid var(--rule)' } },
-      el('span', { class: 'dim' }, 'Represented by'),
-      el('span', {}, repP ? repP.name : el('i', { class: 'dimmer' }, 'vacant'))));
+    // The whole delegation, by chamber. One line per member, with the seat they
+    // hold beside them — a numbered district for a representative, the state
+    // itself for a senator. "Represented by <one name>" was the old line, and it
+    // was accurate for exactly as long as a state held one seat.
+    el('div', { style: { marginTop: '8px', paddingTop: '6px', borderTop: '1px solid var(--rule)' } },
+      el('div', { class: 'tiny dim', style: { marginBottom: '3px' } },
+        delegation.length ? `In Congress — ${delegation.length} member${delegation.length === 1 ? '' : 's'}` : 'In Congress'),
+      ...(delegation.length
+        ? delegation.map((st) => el('div', { class: 'spread tiny', style: { padding: '1px 0' } },
+          el('span', {}, world.personas[st.personaId]?.name || '—'),
+          el('span', { class: 'dimmer mono' },
+            `${R.ADDRESS?.[st.office] || R.office(world, st.office)?.name || st.office}${st.cd ? ' ' + st.cd : ''}`)))
+        : [el('div', { class: 'tiny dimmer' }, 'vacant')])));
 }
 
 /** The smallest box holding two boxes. */
@@ -3267,16 +3352,47 @@ function officeWindow(world, which) {
  * the executive has the Oval Office and the bench has its chambers. Whips work in
  * cloakrooms; this is that room, open to anyone holding a seat in the chamber.
  */
-// Lives in rules.js now, because the Cloakroom's chat channel has to be gated on
-// exactly the same answer the tab is.
+// Lives in rules.js now, because a Cloakroom's chat channel has to be gated on
+// exactly the same answer its tab is.
 const inChamber = (world, p) => R.mayEnterCloakroom(world, p?.id);
 
-VIEWS.cloakroom = (root) => {
+/**
+ * "House of Representatives" is the chamber's name; "House Cloakroom" is the
+ * room's. A sidebar entry reading "House of Representatives Cloakroom" is four
+ * words of chrome for one door, so the long form is trimmed to the short one
+ * the building itself uses.
+ */
+const cloakLabel = (chamberName) =>
+  `${String(chamberName).replace(/^(The )?House of Representatives$/i, 'House').replace(/^The /, '')} Cloakroom`;
+
+/**
+ * A cloakroom, for one chamber.
+ *
+ * Both tabs render through here: the room is the same room, and the only things
+ * that differ are whose it is, who is standing in it, and which chat channel the
+ * whispering goes into. Written once so the two cannot drift.
+ */
+function cloakroomView(root, which) {
   const world = w();
   const p = me();
-  root.append(el('h1', { class: 'page' }, 'The Cloakroom'),
-    el('p', { class: 'sub' }, 'Off the floor, off the record. Everyone with a seat hears it; nothing here is published or binding.'));
-  if (!inChamber(world, p)) { root.append(el('div', { class: 'card dim' }, 'This room is closed to you. It belongs to the chamber.')); return; }
+  const L = world.constitution?.legislature || {};
+  const room = which === 'upper' ? L.upperChamber : L.chamber;
+  const o = R.office(world, room);
+  const channel = which === 'upper' ? 'cloakroom_upper' : 'cloakroom';
+  const bicameral = R.isBicameral(world);
+  const title = !bicameral ? 'The Cloakroom' : cloakLabel(o?.name || 'Chamber');
+
+  root.append(el('h1', { class: 'page' }, title),
+    el('p', { class: 'sub' }, bicameral
+      ? `Off the floor, off the record, and off limits to the other chamber. Everyone with a seat in the ${o?.name || 'chamber'} hears it; nothing here is published or binding.`
+      : 'Off the floor, off the record. Everyone with a seat hears it; nothing here is published or binding.'));
+
+  if (!room) { root.append(el('div', { class: 'card dim' }, 'This constitution has no such chamber.')); return; }
+  if (!R.mayEnterCloakroom(world, p?.id, room)) {
+    root.append(el('div', { class: 'card dim' },
+      `This room is closed to you. It belongs to the ${o?.name || 'chamber'}.`));
+    return;
+  }
 
   // The room, at the top. Every office-gated tab opens on the place you are
   // standing in — you arrive somewhere before you start reading paperwork,
@@ -3284,20 +3400,39 @@ VIEWS.cloakroom = (root) => {
   // a picture rather than a place.
   root.append(officeWindow(world, 'balcony'));
 
-  const seated = world.seats.filter((s) => s.personaId && (R.office(world, s.office)?.powers || []).includes('vote'));
+  // Who is actually in here: this chamber's members, plus the presiding officer
+  // where they preside. The Vice President is in the Senate's room and no other.
+  const seated = world.seats.filter((s) => s.personaId && R.mayEnterCloakroom(world, s.personaId, room));
+  const presiderName = (wld, rm) => {
+    if (R.presidedChamber(wld) !== rm) return '';
+    const st = wld.seats.find((x) => x.personaId && !R.chambers(wld).includes(x.office)
+      && (R.office(wld, x.office)?.powers || []).includes('vote'));
+    return st ? (R.office(wld, st.office)?.name || '') : '';
+  };
+  const presider = R.presidedChamber(world) === room
+    ? world.seats.find((s) => s.personaId && !R.chambers(world).includes(s.office)
+        && (R.office(world, s.office)?.powers || []).includes('vote'))
+    : null;
+
   root.append(el('div', { class: 'split' },
-    el('div', { class: 'stack' }, chatCard('cloakroom')),
+    el('div', { class: 'stack' }, chatCard(channel, bicameral
+      ? `${title} — the ${o?.name || 'chamber'}${presiderName(world, room) ? ' and the ' + presiderName(world, room) : ''}`
+      : undefined)),
     el('div', { class: 'card' }, el('h3', {}, 'Who is in the room'),
       el('div', { class: 'tiny dimmer', style: { marginBottom: '6px' } },
-        'Everyone with a seat that votes reads this, whatever they said on the floor.'),
+        bicameral
+          ? `The ${o?.name || 'chamber'}${presider ? ` and the ${R.office(world, presider.office)?.name}` : ''}, and nobody else. The other chamber has its own room and cannot read this one.`
+          : 'Everyone with a seat that votes reads this, whatever they said on the floor.'),
       ...roster(seated.map((s) => world.personas[s.personaId]).filter(Boolean)).map((per) => {
         return el('div', { class: 'spread small', style: { padding: '3px 0' } },
           el('span', {}, per.name,
             per.playerId === CTX.playerId ? el('span', { class: 'tag gold', style: { marginLeft: '6px' } }, 'you') : null),
           el('span', { class: 'tiny dimmer' }, R.titleOf(world, per.id) || ''));
       }))));
+}
 
-};
+VIEWS.cloakroom = (root) => cloakroomView(root, 'lower');
+VIEWS.cloakroom_upper = (root) => cloakroomView(root, 'upper');
 
 /**
  * A company about to fail, and the question of whether that is any of the
@@ -5139,7 +5274,7 @@ VIEWS.offices = (root) => {
               h && !h.synthetic ? el('span', { class: 'tag gold', style: { marginLeft: '6px' } }, 'player') : null,
               h ? partyChip(h) : null),
             el('div', { class: 'tiny dimmer' },
-              (s.district ? world.districts.find((d) => d.id === s.district)?.name + ' · ' : ''),
+              (s.district ? seatWhere(world, s) + ' · ' : ''),
               h ? `approval ${Math.round(h.approval)}%` : '',
               s.termEnds != null
           ? ` · term ends ${C.canonDate(world, s.termEnds)} (in ${C.canonSpan(world, s.termEnds - world.clock.tick)})` : '')),
@@ -6061,12 +6196,13 @@ function textRoom({ key, title, messages, send, placeholder = 'Speak…', stamp 
     extra);
 }
 
-function chatCard(channel) {
+function chatCard(channel, titleOverride) {
   const world = w();
   const titles = {
     floor: 'The floor',
     oval: 'Oval Office — private',
     cloakroom: 'The Cloakroom — the chamber only',
+    cloakroom_upper: 'The Cloakroom — the chamber only',
     mansion: 'The Mansion — the Vice President and guests',
     // A department is no longer only its two keyholders; either of them can ask
     // somebody in, and whoever is in the building can hear the room.
@@ -6083,7 +6219,7 @@ function chatCard(channel) {
   }
   return textRoom({
     key: 'chan-' + channel,
-    title: titles[channel] || 'Chat',
+    title: titleOverride || titles[channel] || 'Chat',
     messages: world.chat.filter((m) => m.channel === channel).slice(-60),
     send: (text) => go('CHAT', { text, channel }),
   });

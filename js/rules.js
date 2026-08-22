@@ -71,7 +71,7 @@ export const SEAT_CAP = {
   president: 1, premier: 1,
   vp: 2,
   justice: 13, magistrate: 13,
-  assembly: 20, council: 20, senate: 20,
+  assembly: 60, council: 20, senate: 20,
 };
 export const seatCap = (officeId) => SEAT_CAP[officeId] ?? MAX_SEATS;
 
@@ -192,35 +192,55 @@ export const TEMPLATES = [
       template: 'federal-republic',
       preamble: `We the People of ${midThe(nation)}, in order to bind our own hands against our own worst hours, ordain and establish this Constitution.`,
       offices: [
-        // Twenty seats, one per state, because the states *are* the electoral
-        // map: world.js seats one district per seat of the district-elected
-        // office, so seven seats meant thirteen states existed on the map with
-        // no government, no representative and nobody to vote for.
+        // **Apportioned, not one per state.** The House had twenty seats, one
+        // for each state, which made it the Senate with a shorter term — the
+        // same twenty people representing the same twenty electorates, and no
+        // answer to why there were two chambers at all. The whole point of the
+        // lower house is that it represents *people*: a state gets seats in
+        // proportion to how many live there, so Texas sends five members and
+        // the Great Plains sends one, and the two chambers finally disagree
+        // about who the country is.
+        //
+        // `apportioned` is what says so. world.js divides these seats across the
+        // states by population (Huntington–Hill, the real method), and each one
+        // gets a numbered congressional district — TX-1, TX-2 — that is fixed at
+        // the founding and does not move again.
+        //
+        // Forty-five, not four hundred and thirty-five: every member is a
+        // simulated person with a party, an approval and a vote, and the floor
+        // has to stay readable on one screen.
         //
         // The id stays `assembly` now that the chamber *has* been split in two,
         // and deliberately: `RIGHTS.assembly` is the freedom to assemble, and a
         // rename of the office id is a string sweep that cannot tell the two
         // apart. The label is what a player reads, and it reads "House".
-        { id: 'assembly', name: 'House of Representatives', seats: 20, selection: 'election', termYears: 2, electorate: 'district',
+        { id: 'assembly', name: 'House of Representatives', seats: 45, selection: 'election', termYears: 2, electorate: 'district', apportioned: true, minAge: 25,
           powers: ['propose_bill', 'vote', 'impeach', 'tax', 'declare_war'] },
-        // The upper chamber. One per state rather than two, because a district
-        // election is one contest per seat filtered to that seat's district
-        // (see sim.closeElection) — two seats in one district would run the same
-        // field twice and return the same winner twice. So the Senate's
-        // distinctness here is not its apportionment, which matches the House's;
-        // it is the six-year term, which puts a senator three House elections
-        // away from the mood of the moment, and the second vote every bill has
-        // to win.
-        { id: 'senate', name: 'Senate', seats: 20, selection: 'election', termYears: 6, electorate: 'district',
+        // The upper chamber, and **the chamber that decides how many states
+        // there are**: it is the one house whose size is the number of states,
+        // so world.js reads the map's district count off it rather than off the
+        // House, whose seats are apportioned and therefore say nothing about how
+        // many electorates exist.
+        //
+        // One per state rather than two, because a district election is one
+        // contest per seat filtered to that seat's district (see
+        // sim.closeElection) — two seats in one district with no way to tell
+        // their fields apart would run the same race twice and return the same
+        // winner twice. The House gets round that by giving every seat its own
+        // numbered district; the Senate has no districts to give.
+        //
+        // Six years against the House's two, so a senator sits three House
+        // elections away from the mood of the moment.
+        { id: 'senate', name: 'Senate', seats: 20, selection: 'election', termYears: 6, electorate: 'district', minAge: 30,
           powers: ['propose_bill', 'vote', 'impeach', 'tax', 'declare_war'] },
-        { id: 'president', name: 'President', seats: 1, selection: 'election', termYears: 4, electorate: 'nation', successor: 'vp', termLimit: 2,
+        { id: 'president', name: 'President', seats: 1, selection: 'election', termYears: 4, electorate: 'nation', successor: 'vp', termLimit: 2, minAge: 35,
           powers: ['spend', 'appoint', 'promulgate', 'veto', 'pardon', 'command_military', 'sign_treaty', 'emergency', 'propose_bill', 'arrest', 'zone'] },
         // The Vice President is elected on the President's ticket (ticket:
         // 'president' — no separate ballot; a running mate wins or loses with the
         // President), serves out that term (termFollows) and succeeds to the office
         // if the President is removed (see President.successor). appointedBy lets the
         // President fill a mid-term VP vacancy by appointment.
-        { id: 'vp', name: 'Vice President', seats: 1, selection: 'election', electorate: 'nation', ticket: 'president', appointedBy: 'president', termFollows: 'president',
+        { id: 'vp', name: 'Vice President', seats: 1, selection: 'election', electorate: 'nation', ticket: 'president', appointedBy: 'president', termFollows: 'president', minAge: 35,
           powers: ['vote', 'propose_bill'] },
         // The cabinet secretaries hold their department's power in full, but serve
         // entirely at the President's pleasure: unfilled at the founding, never
@@ -264,6 +284,23 @@ export const TEMPLATES = [
 ];
 
 export const templateById = (id) => TEMPLATES.find((t) => t.id === id) || TEMPLATES[2];
+
+/**
+ * The offices a person of a given age could not hold, under a template.
+ *
+ * For the founding screen, which has no world behind it yet and so cannot ask a
+ * live constitution. It reads the template rather than repeating the numbers,
+ * so the warning under the age box and the rule the engine enforces cannot
+ * drift apart — there is only the one place either of them comes from.
+ */
+export function officesBarredAt(age, templateId = 'federal-republic') {
+  const t = templateById(templateId);
+  if (!t) return [];
+  return (t.build('The United States').offices || [])
+    .filter((o) => (+o.minAge || 0) > age && o.selection === 'election')
+    .map((o) => ({ id: o.id, name: o.name, minAge: +o.minAge }))
+    .sort((a, b) => a.minAge - b.minAge || a.name.localeCompare(b.name));
+}
 
 // Templates a founder may pick at the Constitutional Convention. Archived
 // templates remain in TEMPLATES (so saved worlds and templateById still resolve
@@ -363,7 +400,7 @@ export function heldHeadOffice(world, personaId) {
  * players invented at the convention has no entry here and is addressed by its
  * name, which is the best guess available.
  */
-const ADDRESS = {
+export const ADDRESS = {
   president: 'President', vp: 'Vice President', premier: 'Premier',
   justice: 'Justice', magistrate: 'Magistrate',
   state: 'Secretary of State', defense: 'Secretary of Defense',
@@ -521,14 +558,44 @@ export function mayEnterMansion(world, personaId) {
 }
 
 /**
- * Who may be in the Cloakroom: anyone holding a seat that votes.
- *
- * This used to live in the UI, which meant it decided what you could *see* and
- * nothing at all about what you could do. See mayHear below.
+ * The chamber the presiding officer presides over — the Senate, or the only
+ * chamber there is. The Vice President is President of the Senate; they do not
+ * sit in the House and have no business in its cloakroom.
  */
-export function mayEnterCloakroom(world, personaId) {
+export const presidedChamber = (world) => {
+  const L = world?.constitution?.legislature || {};
+  return L.upperChamber || L.chamber || null;
+};
+
+/** Does this person preside over a chamber without sitting in one? (The VP.) */
+function presides(world, personaId) {
+  const rooms = chambers(world);
+  return officesOf(world, personaId).some((o) => !rooms.includes(o.id) && (o.powers || []).includes('vote'));
+}
+
+/**
+ * Who may be in a cloakroom.
+ *
+ * There is one per chamber, because a cloakroom is not a lounge for the
+ * legislature at large — it is the room off *your* floor, where your side counts
+ * its own votes. One shared room let a senator read the House's whip count and a
+ * representative read the Senate's, which is the opposite of what the room is
+ * for: the two chambers are checks on each other, and a check that shares a
+ * back room is not much of one.
+ *
+ * The Vice President is in the Senate's and only the Senate's. They preside over
+ * it and break its ties (see tieBreaker); they hold nothing in the House.
+ *
+ * `chamberId` omitted asks the looser question — may they enter *any* cloakroom
+ * — which is what the chat gate and the old callers want.
+ */
+export function mayEnterCloakroom(world, personaId, chamberId = null) {
   if (!personaId) return false;
-  return officesOf(world, personaId).some((o) => (o.powers || []).includes('vote'));
+  const mine = officesOf(world, personaId).map((o) => o.id);
+  const presiding = presides(world, personaId);
+  if (!chamberId) return chambers(world).some((r) => mine.includes(r)) || presiding;
+  if (mine.includes(chamberId)) return true;
+  return presiding && chamberId === presidedChamber(world);
 }
 
 /**
@@ -548,7 +615,14 @@ export function mayHear(world, personaId, channel) {
   if (channel === 'floor') return true;
   if (!personaId) return false;
   if (channel === 'oval') return mayEnterOval(world, personaId);
-  if (channel === 'cloakroom') return mayEnterCloakroom(world, personaId);
+  // One channel per chamber. `cloakroom` is the lower chamber's — the name a
+  // unicameral constitution keeps, and the one already on saved worlds — and
+  // `cloakroom_upper` is the Senate's.
+  if (channel === 'cloakroom') return mayEnterCloakroom(world, personaId, world.constitution?.legislature?.chamber || null);
+  if (channel === 'cloakroom_upper') {
+    const up = world.constitution?.legislature?.upperChamber;
+    return !!up && mayEnterCloakroom(world, personaId, up);
+  }
   if (channel === 'mansion') return mayEnterMansion(world, personaId);
   if (channel === 'state') return mayEnterDept(world, personaId, 'state');
   if (channel === 'defense') return mayEnterDept(world, personaId, 'defense');
@@ -1008,18 +1082,28 @@ export function repairConstitution(c) {
     }
   }
 
-  // Every district-elected office holds exactly one seat per district.
+  // Every *unapportioned* district-elected office holds exactly one seat per
+  // district, and they all agree on how many districts there are.
   //
-  // The districts are cut to the *first* district-elected office (world.js), and
-  // a district election is one contest per seat filtered to that seat's own
-  // district (sim.closeElection). So a second district office with a different
-  // seat count is not a bigger chamber — it is the same race run twice in some
-  // districts, returning the same winner to both seats, and no race at all in
-  // others. Trimming a chamber at the convention trims the other one with it.
-  // Zero seats still means "this office will not exist", so an abolished chamber
-  // is skipped rather than resurrected at the other one's size.
+  // A district election is one contest per seat filtered to that seat's own
+  // district (sim.closeElection), so two unapportioned seats in one district is
+  // not a bigger chamber — it is the same race run twice, returning the same
+  // winner to both, and no race at all somewhere else. An apportioned chamber is
+  // exempt because it solves that problem a different way: its seats carry a
+  // numbered congressional district of their own, so several of them can share a
+  // state and still hold separate elections.
+  //
+  // The reference is the first unapportioned district office — the Senate — and
+  // it is the one that says how many states exist. Zero seats still means "this
+  // office will not exist", so an abolished chamber is skipped rather than
+  // resurrected at the other one's size.
   const districted = c.offices.filter((o) => o.electorate === 'district' && o.seats > 0);
-  if (districted.length > 1) for (const o of districted.slice(1)) o.seats = districted[0].seats;
+  const perState = districted.filter((o) => !o.apportioned);
+  if (perState.length > 1) for (const o of perState.slice(1)) o.seats = perState[0].seats;
+  // And an apportioned chamber cannot be smaller than the number of states: every
+  // state gets at least one member of the lower house.
+  const states = perState.length ? perState[0].seats : (districted[0]?.seats || 0);
+  if (states) for (const o of districted) if (o.apportioned && o.seats < states) o.seats = states;
 
   if (c.impeachment) {
     if (!has(c.impeachment.tries)) c.impeachment.tries = L.chamber;
@@ -1043,6 +1127,46 @@ export function repairConstitution(c) {
     }
   }
   return c;
+}
+
+/**
+ * Apportion `seats` between populations, by the method the United States
+ * actually uses.
+ *
+ * Huntington–Hill: every state starts with one seat, and each remaining seat
+ * goes to whichever state has the highest priority value pop / sqrt(n(n+1)),
+ * where n is the number it already holds. That divisor is the geometric mean of
+ * n and n+1, which is what makes the method minimise the *relative* difference
+ * in people-per-seat rather than the absolute one — a small state is not
+ * rounded away.
+ *
+ * Written out rather than approximated with a largest-remainder rule because it
+ * is not much longer and it is the real answer; the whole atlas is built on the
+ * same principle.
+ *
+ * Returns a seat count per population, in the order given, summing to `seats`.
+ * Never returns a zero: a state with nobody living in it still sends a member,
+ * because a district with no representative is an electorate with no voice — the
+ * exact fault the twenty-state split was made to fix.
+ */
+export function apportion(pops, seats) {
+  const n = pops.length;
+  if (!n) return [];
+  const out = new Array(n).fill(1);
+  if (seats <= n) return out;                     // one each and no more to give
+  // A max-heap would be tidier; n is twenty and the loop runs forty times.
+  for (let given = n; given < seats; given++) {
+    let best = 0, bestPri = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const k = out[i];
+      const pri = (Math.max(0, pops[i]) || 0) / Math.sqrt(k * (k + 1));
+      // Ties break toward the earlier state, which is the atlas's own order, so
+      // the apportionment is deterministic rather than dependent on float noise.
+      if (pri > bestPri + 1e-12) { bestPri = pri; best = i; }
+    }
+    out[best]++;
+  }
+  return out;
 }
 
 /** A body that holds no seats cannot try anything. */
@@ -1202,19 +1326,56 @@ export function partialTermCounts(world, o, remaining) {
  * Returns { ok } or { ok: false, reason }, so the refusal can be printed
  * wherever it is asked — the ballot, the nomination, the seating.
  */
+/**
+ * The age the constitution sets for an office.
+ *
+ * Article I sets twenty-five for the House and thirty for the Senate; Article II
+ * sets thirty-five for the President, and the Twelfth Amendment carries that
+ * same bar to the Vice President by making anyone ineligible for the one
+ * ineligible for the other. That is why the VP's floor is thirty-five and not
+ * something of its own — it is the President's, quoted.
+ *
+ * Any office the convention invents, and every office in the older templates,
+ * falls back to the age of majority: nobody under eighteen holds anything.
+ */
+export const minAgeFor = (world, officeId) => {
+  const o = office(world, officeId);
+  const n = Math.floor(+o?.minAge);
+  return Number.isFinite(n) && n > 0 ? Math.max(n, POLITICAL_BASE_AGE) : POLITICAL_BASE_AGE;
+};
+
+/**
+ * Is this person old enough for this office *today*?
+ *
+ * Today is the operative word. Age is not a disqualification the way a spent
+ * term limit is — it expires. Someone barred at twenty-four is barred from the
+ * House until the year they turn twenty-five and no longer, so this is asked
+ * fresh at every gate rather than recorded against the persona once.
+ */
+export function eligibleByAge(world, personaId, officeId) {
+  const o = office(world, officeId);
+  const p = world.personas[personaId];
+  if (!o || !p) return { ok: true };
+  const need = minAgeFor(world, officeId);
+  const age = currentAge(world, p);
+  if (age >= need) return { ok: true };
+  return {
+    ok: false, age, need, years: need - age,
+    reason: `${p.name || 'They'} is ${age}; the constitution sets ${need} for the ${o.name}.`
+      + ` Eligible in ${need - age} year${need - age === 1 ? '' : 's'}.`,
+  };
+}
+
 export function mayHoldAgain(world, personaId, officeId) {
   const o = office(world, officeId);
   const p = world.personas[personaId];
-  // The age of majority for the head office: you must be eighteen to be sworn
-  // in as head of government. Checked before the term limit so it bites on the
-  // ballot, the nomination and the seating alike. See util.POLITICAL_BASE_AGE,
-  // which is also the floor every other age effect measures from.
-  if (o && p && o.id === headOffice(world)?.id && currentAge(world, p) < POLITICAL_BASE_AGE) {
-    return {
-      ok: false,
-      reason: `${p.name || 'They'} is ${currentAge(world, p)}; one must be ${POLITICAL_BASE_AGE} to hold ${o.name}.`,
-    };
-  }
+  // The constitution's age for the office. Checked before the term limit so it
+  // bites on the ballot, the nomination and the seating alike — and checked
+  // against the age they are now, because unlike a spent term limit this one
+  // runs out on its own. See util.POLITICAL_BASE_AGE, which is also the floor
+  // every other age effect measures from.
+  const old_enough = eligibleByAge(world, personaId, officeId);
+  if (!old_enough.ok) return { ok: false, reason: old_enough.reason };
   const limit = termLimitOf(o);
   if (!limit) return { ok: true };
   const held = termsHeld(p, officeId);

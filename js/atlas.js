@@ -169,8 +169,23 @@ const COAST_CANADA_ATLANTIC = [
  * side of it and up the other.
  */
 const COAST_MEXICO = [
-  P(21.5, -97.2), P(19.2, -96.1), P(18.5, -94.5),    // the Gulf coast running south
-  P(16.2, -95), P(15.8, -97.5), P(17.5, -101.5),     // the isthmus and the southern bight
+  // The Gulf coast, running south from the Rio Grande's mouth.
+  P(22.2, -97.8), P(19.2, -96.1), P(18.7, -95.1), P(18.4, -93.6),
+  // **The Bay of Campeche and the Yucatán.** Both were missing: the outline ran
+  // from Veracruz straight across to the Pacific side, which cut off the whole
+  // south-east of the country and drew Mexico as a wedge that stopped at the
+  // isthmus. The Yucatán is a peninsula the size of England sitting well inside
+  // this frame — a player looking for the top of Latin America was looking at
+  // open sea where it should have been.
+  P(18.6, -91.5), P(19.8, -90.6),                     // round the Bay of Campeche
+  P(21.5, -90.3), P(21.6, -88), P(21.4, -86.9),       // the Yucatán's north coast to Cabo Catoche
+  P(19.6, -87.5), P(18.5, -88.3),                     // down the Caribbean shore to Chetumal
+  // The southern frontier: Belize and Guatemala. Not drawn as a border — this is
+  // a coastline polygon — but it is where Mexico stops, and it has to be here or
+  // the country runs off the bottom of the map.
+  P(17.8, -89.1), P(16, -90.1), P(15.1, -92.2), P(14.6, -92.3),
+  // The Pacific coast, running back north-west.
+  P(15.8, -96.5), P(16.9, -99.9), P(18.5, -103.5),
   P(20, -105.5), P(23, -106.5), P(26, -109),          // the Pacific coast north
   P(28.5, -111.5), P(31.4, -114.7),                   // into the head of the Gulf of California
   P(29.5, -114.2), P(27, -112.2), P(24.5, -110.4),    // down Baja's inner shore
@@ -232,6 +247,21 @@ export function ringsAt(north = 0, south = 0) {
   const caY = frontierAt(ca);
   const held = (pts) => pts.map(([x, y]) => [x, Math.min(y, caY(x))]);
 
+  // And Mexico's coast, held *south* of its own frontier — the same clamp in the
+  // other direction, and needed for the same reason.
+  //
+  // Mexico did not have one, and got away with it for exactly as long as its
+  // coastline was shallow: the old outline stopped at the isthmus, so a frontier
+  // driven far enough south cleared the whole of it and the shape collapsed to
+  // nothing on its own. Drawing the Yucatán put land four degrees further south
+  // and a peninsula that runs back *north* to Cabo Catoche, so a frontier
+  // pushed into that latitude band cut the country in two and left the
+  // peninsula behind as a detached lobe. Annexing both neighbours outright then
+  // left 2% of the continent in Mexican hands — the same fold-through, and the
+  // same ray-casting XOR, that cost Canada 9.8% before `held` existed.
+  const mxY = frontierAt(mx);
+  const heldSouth = (pts) => pts.map(([x, y]) => [x, Math.max(y, mxY(x))]);
+
   return {
     // Clockwise: down the Pacific, along the Mexican frontier, round the Gulf
     // and up the Atlantic, then home westward along the Canadian frontier.
@@ -249,7 +279,7 @@ export function ringsAt(north = 0, south = 0) {
       ...held(COAST_CANADA_PACIFIC), ...held(COAST_CANADA_ARCTIC), ...held(COAST_CANADA_ATLANTIC),
       ...ca.slice().reverse(),
     ],
-    mexico: [...mx, ...COAST_MEXICO],
+    mexico: [...mx, ...heldSouth(COAST_MEXICO)],
     borders: { canada: ca, mexico: mx },
   };
 }
@@ -314,7 +344,7 @@ export const CONTINENT_RING = [
 
 export const STATES = [
   {
-    id: 'new-england', name: 'New England', abbr: 'NE',
+    id: 'new-england', name: 'New England', abbr: 'NE', code: 'NWE', people: 15.1,
     merged: ['Maine', 'New Hampshire', 'Vermont', 'Massachusetts', 'Rhode Island', 'Connecticut'],
     poly: [
       EASTPORT, P(43.7, -70.2), P(41.7, -70), P(41, -71.9), P(41, -73.5),
@@ -322,14 +352,14 @@ export const STATES = [
     ],
   },
   {
-    id: 'new-york', name: 'New York', abbr: 'NY', merged: ['New York'],
+    id: 'new-york', name: 'New York', abbr: 'NY', code: 'NY', people: 20.2, merged: ['New York'],
     poly: [
       P(45, -73.3), P(42.7, -73.3), P(41, -73.5), P(40.6, -74), P(41.4, -74.7),
       P(42, -75.4), P(42, -79.8), P(43.1, -79.1), P(44.1, -76.4),
     ],
   },
   {
-    id: 'mid-atlantic', name: 'Mid-Atlantic', abbr: 'MA',
+    id: 'mid-atlantic', name: 'Mid-Atlantic', abbr: 'MA', code: 'MDA', people: 30.2,
     merged: ['New Jersey', 'Pennsylvania', 'Delaware', 'Maryland', 'D.C.'],
     poly: [
       P(42, -79.8), P(42, -75.4), P(41.4, -74.7), P(40.6, -74), P(38.8, -75),
@@ -337,14 +367,14 @@ export const STATES = [
     ],
   },
   {
-    id: 'virginia', name: 'Virginia', abbr: 'VA', merged: ['Virginia', 'West Virginia'],
+    id: 'virginia', name: 'Virginia', abbr: 'VA', code: 'VRG', people: 10.4, merged: ['Virginia', 'West Virginia'],
     poly: [
       P(39.7, -80.5), P(39.7, -79.5), P(38, -78.4), P(38, -75.6), P(36.9, -76),
       P(36.5, -75.9), P(36.5, -81.7), P(37.5, -82.3), P(38.4, -82.5), P(40.6, -80.5),
     ],
   },
   {
-    id: 'carolinas', name: 'The Carolinas', abbr: 'CA',
+    id: 'carolinas', name: 'The Carolinas', abbr: 'CA', code: 'CAR', people: 15.5,
     merged: ['North Carolina', 'South Carolina'],
     poly: [
       P(36.5, -81.7), P(36.5, -75.9), P(35.2, -75.5), P(33.9, -78), P(32.8, -79.9),
@@ -352,7 +382,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'florida', name: 'Florida', abbr: 'FL', merged: ['Florida'],
+    id: 'florida', name: 'Florida', abbr: 'FL', code: 'FL', people: 21.5, merged: ['Florida'],
     poly: [
       P(31, -87.6), P(31, -85), P(30.7, -83), P(30.7, -81.5), P(30.3, -81.4),
       P(28.4, -80.6), P(25.8, -80.2), KEY_WEST, P(27.8, -82.6), P(29.7, -85),
@@ -360,7 +390,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'deep-south', name: 'Deep South', abbr: 'DS',
+    id: 'deep-south', name: 'Deep South', abbr: 'DS', code: 'DPS', people: 18.7,
     merged: ['Georgia', 'Alabama', 'Mississippi'],
     poly: [
       P(35, -84), P(34.8, -83.1), P(32.1, -81.1), P(30.7, -81.5), P(30.7, -83),
@@ -369,7 +399,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'upper-south', name: 'Upper South', abbr: 'US',
+    id: 'upper-south', name: 'Upper South', abbr: 'US', code: 'USH', people: 11.4,
     merged: ['Kentucky', 'Tennessee'],
     poly: [
       P(38.4, -82.5), P(37.5, -82.3), P(36.5, -81.7), P(35, -84), P(35, -88.2),
@@ -378,7 +408,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'ohio-valley', name: 'Ohio Valley', abbr: 'OV', merged: ['Ohio', 'Indiana'],
+    id: 'ohio-valley', name: 'Ohio Valley', abbr: 'OV', code: 'OHV', people: 18.6, merged: ['Ohio', 'Indiana'],
     poly: [
       P(41.7, -84.8), P(41.7, -83.5), P(41.5, -80.5), P(40.6, -80.5), P(38.4, -82.5),
       P(39, -84.8), P(38.8, -84.8), P(37.8, -84.8), P(38, -88), P(41.7, -87.5),
@@ -386,21 +416,21 @@ export const STATES = [
     ],
   },
   {
-    id: 'michigan', name: 'Michigan', abbr: 'MI', merged: ['Michigan'],
+    id: 'michigan', name: 'Michigan', abbr: 'MI', code: 'MI', people: 10.1, merged: ['Michigan'],
     poly: [
       P(46.5, -90), P(46.5, -84.3), P(43, -82.4), P(42.1, -83.1), P(41.7, -83.5),
       P(41.7, -84.8), P(41.7, -86.8), P(45.1, -86.3), P(45.8, -87), P(46.5, -90),
     ],
   },
   {
-    id: 'illinois', name: 'Illinois', abbr: 'IL', merged: ['Illinois'],
+    id: 'illinois', name: 'Illinois', abbr: 'IL', code: 'IL', people: 12.8, merged: ['Illinois'],
     poly: [
       P(42.5, -90.6), P(42.5, -87.8), P(41.7, -87.5), P(38, -88), P(37, -89.1),
       P(36.98, -89.5), P(38.8, -90.2), P(40.4, -91.4), P(42.5, -90.6),
     ],
   },
   {
-    id: 'upper-midwest', name: 'Upper Midwest', abbr: 'UM',
+    id: 'upper-midwest', name: 'Upper Midwest', abbr: 'UM', code: 'UMW', people: 11.6,
     merged: ['Wisconsin', 'Minnesota'],
     poly: [
       LAKE_OF_WOODS, P(48, -89.5), P(46.8, -92.1), P(46.5, -90), P(45.8, -87),
@@ -409,7 +439,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'heartland', name: 'Heartland', abbr: 'HL', merged: ['Iowa', 'Missouri'],
+    id: 'heartland', name: 'Heartland', abbr: 'HL', code: 'HTL', people: 9.3, merged: ['Iowa', 'Missouri'],
     poly: [
       P(43.5, -96.6), P(43.5, -91.2), P(42.5, -90.6), P(40.4, -91.4), P(38.8, -90.2),
       P(36.98, -89.5), P(36, -89.7), P(36, -94.6), P(40, -94.6), P(40, -95.3),
@@ -417,7 +447,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'great-plains', name: 'Great Plains', abbr: 'GP',
+    id: 'great-plains', name: 'Great Plains', abbr: 'GP', code: 'GPL', people: 6.6,
     merged: ['North Dakota', 'South Dakota', 'Nebraska', 'Kansas'],
     poly: [
       P(49, -104), P(49, -96.8), P(45.9, -96.5), P(43.5, -96.6), P(42.5, -96.4),
@@ -426,7 +456,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'south-central', name: 'South Central', abbr: 'SC',
+    id: 'south-central', name: 'South Central', abbr: 'SC', code: 'SCL', people: 11.6,
     merged: ['Arkansas', 'Louisiana', 'Oklahoma'],
     poly: [
       P(37, -103), P(37, -94.6), P(36, -94.6), P(36, -89.7), P(35, -90),
@@ -435,7 +465,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'texas', name: 'Texas', abbr: 'TX', merged: ['Texas'],
+    id: 'texas', name: 'Texas', abbr: 'TX', code: 'TX', people: 29.1, merged: ['Texas'],
     poly: [
       P(36.5, -103), P(36.5, -100), P(34.5, -100), P(33.9, -94.4), P(29.7, -93.8),
       P(29.3, -94.8), P(27.8, -97.4), BROWNSVILLE, P(27.5, -99.5), P(29.2, -102.9),
@@ -443,7 +473,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'mountain-west', name: 'Mountain West', abbr: 'MW',
+    id: 'mountain-west', name: 'Mountain West', abbr: 'MW', code: 'MTW', people: 3.5,
     merged: ['Montana', 'Idaho', 'Wyoming'],
     poly: [
       P(49, -117), P(49, -104), P(41, -104), P(41, -111), P(42, -111),
@@ -451,7 +481,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'southwest', name: 'Southwest', abbr: 'SW',
+    id: 'southwest', name: 'Southwest', abbr: 'SW', code: 'SWT', people: 21.4,
     merged: ['Colorado', 'Utah', 'Nevada', 'Arizona', 'New Mexico'],
     poly: [
       P(42, -120), P(42, -111), P(41, -111), P(41, -102), P(37, -102),
@@ -459,7 +489,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'california', name: 'California', abbr: 'CL', merged: ['California'],
+    id: 'california', name: 'California', abbr: 'CL', code: 'CA', people: 39.5, merged: ['California'],
     poly: [
       P(42, -120), P(39, -120), P(35, -114.6), YUMA, P(32.5, -117.1),
       P(33.7, -118.2), P(34.4, -120.5), P(35.4, -120.9), P(37.8, -122.5),
@@ -467,7 +497,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'pacific-northwest', name: 'Pacific Northwest', abbr: 'PN',
+    id: 'pacific-northwest', name: 'Pacific Northwest', abbr: 'PN', code: 'PNW', people: 14.1,
     merged: ['Washington', 'Oregon', 'Alaska', 'Hawaii'],
     poly: [
       P(49, -123), P(49, -117), P(42, -117), P(42, -120), P(42, -124.2),
@@ -511,14 +541,65 @@ const lakeRing = (lat, lon, dLat, dLon, n = 18, phase = 0) => {
 // has — representation, elections, population. The inset is a drawing, not a
 // district.
 
-/** Alaska, in its own little coordinate space, drawn around the origin. */
+/**
+ * Alaska's own little projection.
+ *
+ * The inset is its own map at its own scale, so it gets its own `P` — and it is
+ * written in degrees for exactly the reason the rest of this file is: the old
+ * outline was twenty-eight hand-placed integers, which is a shape nobody can
+ * check. `AK(71.4, -156.5)` is Point Barrow and can be held against an atlas;
+ * `[0, 14]` is a number.
+ *
+ * SX/SY is 0.47, the longitude correction at 62°N — much stronger than the 0.8
+ * the main map uses, because Alaska is far enough north that a degree of
+ * longitude is under half a degree of latitude. Drawn without it the state comes
+ * out twice as wide as it is tall, which is the single thing most likely to make
+ * a reader say it looks wrong without being able to say why.
+ */
+const AK = (lat, lon) => [
+  +(4 + (lon + 170) * 0.56).toFixed(2),
+  +((72 - lat) * 1.2).toFixed(2),
+];
+
+/**
+ * Alaska, clockwise from Point Barrow.
+ *
+ * The previous outline was a blob with a spur on it. What makes Alaska read as
+ * Alaska is five features, and it had none of them: the Seward Peninsula
+ * reaching west toward Russia, Norton Sound under it, Bristol Bay biting into
+ * the south-west, the Alaska Peninsula trailing away from that bay, and the
+ * panhandle running south-east along the Canadian border to Ketchikan. Those are
+ * in, in that order, and everything else is coastline joining them up.
+ */
 export const ALASKA = [
-  [0, 14], [3, 9], [2, 4], [7, 2], [12, 3], [17, 1], [22, 3], [26, 2],
-  [30, 5], [28, 9], [31, 12], [27, 15], [24, 13], [20, 17], [15, 16],
-  [11, 20], [7, 19], [4, 22], [1, 19],
-  // The panhandle, running south-east — the piece that makes it Alaska rather
-  // than a blob.
-  [30, 19], [33, 23], [31, 25], [27, 22], [24, 21], [18, 22], [12, 24], [6, 25],
+  // The Arctic coast, east from Point Barrow to the Canadian border at 141°W.
+  AK(71.4, -156.5), AK(70.4, -149), AK(70.1, -143.6), AK(69.6, -141),
+  // Straight down the 141st meridian — the one border Alaska has, and a
+  // ruler-straight one, which is a fact about it worth drawing.
+  AK(60.3, -141),
+  // The panhandle, south-east down the inland border to the tip at Portland Canal.
+  AK(59.8, -139.2), AK(59.2, -136.5), AK(58.4, -133.5), AK(56.6, -131.5), AK(55, -130),
+  // And back up its ocean side, over the islands.
+  AK(54.7, -132), AK(56.3, -134.7), AK(57.8, -136.6), AK(59.5, -139.7), AK(60, -142.5),
+  // The Gulf of Alaska coast, running west.
+  AK(60.3, -145.8), AK(59.9, -148.5),
+  // Cook Inlet: north to Anchorage and back down the Kenai Peninsula. A notch,
+  // not a smooth coast — the state's largest city sits at the head of it.
+  AK(61.3, -149.9), AK(59.6, -152.4),
+  // The Alaska Peninsula, south-west toward the Aleutians.
+  AK(58.5, -154.5), AK(57.5, -157.5), AK(56.3, -160), AK(55.2, -162.5),
+  // Back up its northern shore into Bristol Bay, round the head of the bay, and
+  // out west again to Cape Newenham.
+  AK(56.6, -160.8), AK(58.2, -157.6), AK(59, -158.5), AK(58.7, -161.8),
+  // The Yukon–Kuskokwim delta, bulging west.
+  AK(60.5, -165.3), AK(61.5, -166.2), AK(62.8, -165.5),
+  // Norton Sound: in to its head, and out along its northern shore.
+  AK(63.5, -160.8), AK(64.5, -161.5), AK(64.9, -164),
+  // The Seward Peninsula, reaching for Russia. Cape Prince of Wales is the
+  // westernmost point of the mainland United States.
+  AK(64.6, -166.5), AK(65.6, -168), AK(66.2, -166.5), AK(66.6, -164),
+  // Kotzebue Sound, Point Hope, and the Chukchi coast back to Barrow.
+  AK(66.8, -161.5), AK(67.7, -164), AK(68.3, -166), AK(69, -163), AK(70.2, -160.5),
 ];
 
 /** The Hawaiian chain: eight islands on a north-west to south-east diagonal. */
@@ -565,6 +646,66 @@ const POSTAL = {
 
 /** The postal codes a region was merged from, in the order they were listed. */
 export const postalOf = (state) => (state?.merged || []).map((n) => POSTAL[n]).filter(Boolean);
+
+/**
+ * The code that stands for a *region* — what a congressional district is
+ * numbered from, and what a player reads beside the region's name.
+ *
+ * This is a third thing, and it exists because the other two cannot do the job:
+ *
+ * - `abbr` is a map label invented per region and several of them are lies as
+ *   state codes. The Carolinas' `CA` is California's, New England's `NE` is
+ *   Nebraska's, Upper South's `US` is a country.
+ * - `postalOf` is what a region is *made of*, which is a list, and a list cannot
+ *   number a district.
+ *
+ * So a region that is one real state carries that state's real postal code, and
+ * a merged region carries an invented three-letter code — three, so that it can
+ * never collide with any of the fifty, which are all two.
+ */
+export const codeOf = (state) => state?.code || state?.abbr || '';
+
+/**
+ * How many people live there, in millions, from the 2020 census — summed over the
+ * real states each region was merged from.
+ *
+ * A real fact about a real place, so it belongs here with the polygons and gets
+ * held to the same standard: a reader can check California against 39.5 and the
+ * Great Plains against 6.6.
+ *
+ * It exists because the House is apportioned. Population in the simulation is a
+ * consequence of housing, housing is a consequence of parcels, and parcels are a
+ * consequence of *land* — so left alone the engine gives the Great Plains more
+ * people than California, and a chamber apportioned by population then hands the
+ * empty half of the country the seats. Seeding the housing against this instead
+ * is what makes "one member per so many people" mean anything.
+ */
+export const peopleOf = (state) => +state?.people || 0;
+
+/** A region by its code, for anything reading a district name back apart. */
+export const stateByCode = (code) => STATES.find((s) => s.code === code) || null;
+
+/**
+ * How a region is written in a list a player reads: the name, its own code, and
+ * what it is made of.
+ *
+ *   New York (NY) — NY
+ *   New England (NWE) — ME · NH · VT · MA · RI · CT
+ *
+ * A region of one real state repeats itself, and that is deliberate: the shape
+ * of every row is the same, so the eye can run down the codes in one column
+ * instead of learning two layouts.
+ */
+export const labelOf = (state) =>
+  `${state.name} (${codeOf(state)}) \u2014 ${postalOf(state).join(' \u00b7 ')}`;
+
+/**
+ * The regions in the order a human looks for them: alphabetical, ignoring a
+ * leading "The". "The Carolinas" is filed under C, where somebody hunting for
+ * the Carolinas will actually look.
+ */
+export const sortKey = (state) => state.name.replace(/^The\s+/i, '');
+export const STATES_AZ = [...STATES].sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
 
 /**
  * The five regions with no salt water and no Great Lake on them.

@@ -1,5 +1,9 @@
-// Age in politics. A political life is reckoned from eighteen: you must be that
-// old to hold the head office, and every age effect measures from that floor.
+// Age in politics. A political life is reckoned from eighteen — every age effect
+// measures from that floor — but holding office asks for more than that, and how
+// much more is the constitution's business: twenty-five for the House, thirty
+// for the Senate, thirty-five for the President and, by the Twelfth Amendment,
+// the same thirty-five for the Vice President.
+//
 // Younger politicians arrive a shade better liked, take praise harder, and have
 // a thinner book of favours in the chamber.
 const base = new URL('../js/', import.meta.url).href;
@@ -58,18 +62,51 @@ ok('the base age is eighteen', U.POLITICAL_BASE_AGE === 18, String(U.POLITICAL_B
   ok('makePersona writes a youth-scaled starting approval', matched);
 }
 
-// --- eighteen to be president -------------------------------------------------
+// --- the constitution's age for each office -----------------------------------
 {
   const w = mk();
   const head = R.headOffice(w);
   ok('there is a head office to gate', !!head, head?.id);
-  const under = aged(w, 16); const at = aged(w, 18); const grown = aged(w, 40);
-  ok('a sixteen-year-old may not hold the head office', R.mayHoldAgain(w, under.id, head.id).ok === false);
-  ok('an eighteen-year-old may', R.mayHoldAgain(w, at.id, head.id).ok === true);
-  ok('and so may the middle-aged', R.mayHoldAgain(w, grown.id, head.id).ok === true);
-  // The gate is the head office only — a lesser office has no age of majority here.
-  const other = w.constitution.offices.find((o) => o.id !== head.id);
-  if (other) ok('a lesser office is not age-gated', R.mayHoldAgain(w, under.id, other.id).ok === true, other.id);
+
+  // The four the document actually sets.
+  const WANT = { assembly: 25, senate: 30, president: 35, vp: 35 };
+  for (const [id, want] of Object.entries(WANT)) {
+    const o = R.office(w, id);
+    if (!o) { ok(`the constitution has a ${id}`, false, 'missing'); continue; }
+    ok(`the ${o.name} asks for ${want}`, R.minAgeFor(w, id) === want, String(R.minAgeFor(w, id)));
+  }
+  // The Twelfth Amendment's rule, stated as the test of it: whatever the
+  // President's floor is, the Vice President's is the same number.
+  ok('the Vice President carries the President\u2019s own floor',
+    R.minAgeFor(w, 'vp') === R.minAgeFor(w, 'president'),
+    `${R.minAgeFor(w, 'vp')} vs ${R.minAgeFor(w, 'president')}`);
+
+  // A year either side of each bar, at the bar itself and one below it.
+  for (const [id, want] of Object.entries(WANT)) {
+    if (!R.office(w, id)) continue;
+    const below = aged(w, want - 1);
+    const at = aged(w, want);
+    ok(`${want - 1} is too young for the ${id}`, R.mayHoldAgain(w, below.id, id).ok === false);
+    ok(`${want} is old enough for the ${id}`, R.mayHoldAgain(w, at.id, id).ok === true);
+  }
+
+  // Eighteen is still the floor under everything: an office the document sets no
+  // age for takes the age of majority and nothing more.
+  const unset = w.constitution.offices.find((o) => !o.minAge);
+  if (unset) {
+    ok('an office with no stated age falls back to majority',
+      R.minAgeFor(w, unset.id) === U.POLITICAL_BASE_AGE, `${unset.id}: ${R.minAgeFor(w, unset.id)}`);
+    ok('and a sixteen-year-old still may not hold it',
+      R.mayHoldAgain(w, aged(w, 16).id, unset.id).ok === false, unset.id);
+  }
+
+  // Age expires; a spent term limit does not. Somebody barred today is eligible
+  // the year they grow into it, and the check has to be asked fresh to see that.
+  const youth = aged(w, 30);
+  ok('a thirty-year-old may not be President today', R.mayHoldAgain(w, youth.id, 'president').ok === false);
+  w.clock.tick += 5 * w.clock.ticksPerYear;
+  ok('and may five years later, having aged into it',
+    R.mayHoldAgain(w, youth.id, 'president').ok === true, String(U.currentAge(w, youth)));
 }
 
 // --- more receptive to praise -------------------------------------------------

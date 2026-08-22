@@ -1,9 +1,10 @@
 // Genesis. Builds the map, the citizenry, the ledger and the offices.
 
 import { rng, range, pick, clamp, uid, sum, mulberry32, hashSeed, PALETTE, youthOf, YOUTH_APPROVAL } from './util.js';
-import { templateById, termEndTick } from './rules.js';
+import { templateById, termEndTick, apportion } from './rules.js';
 import { initMacro } from './macro.js';
-import { STATE_NAMES, isCoastal } from './atlas.js';
+import { STATE_NAMES, isCoastal, LAKES, STATES, codeOf, peopleOf } from './atlas.js';
+import { cityGeometry, inPoly, bounds } from './geo.js';
 
 export const ZONES = {
   unzoned: { label: 'Unzoned', color: '#2a2a2e' },
@@ -269,7 +270,7 @@ export function temperamentOf(p) {
   return TEMPERAMENTS[h % TEMPERAMENTS.length];
 }
 
-export function makePersona(world, { name, playerId = null, synthetic = false, party = null, district = null, lineage = null, gen = 1 }) {
+export function makePersona(world, { name, playerId = null, synthetic = false, party = null, district = null, lineage = null, gen = 1, minAge = 0 }) {
   const id = uid('per');
   const p = {
     id, name: name || personName(world), playerId, synthetic,
@@ -278,7 +279,12 @@ export function makePersona(world, { name, playerId = null, synthetic = false, p
     born: world.clock.tick, died: null, cause: null,
     // Everyone in the republic has an age, a college and a gender — the player
     // picks theirs at the founding, everyone else is dealt one here.
-    age: 34 + Math.floor(rng(world) * 34),
+    // Thirty-four to sixty-seven, but never younger than the chair they are
+    // being dealt. The roll's floor is 34 and the President's is 35, so exactly
+    // one year of it produced a head of state the constitution said could not
+    // hold the office — rare enough to survive a long time and wrong every time
+    // it happened.
+    age: Math.max(minAge, 34 + Math.floor(rng(world) * 34)),
     college: rollCollege(world),
     gender: pick(world, GENDERS).id,
     temperament: pick(world, TEMPERAMENTS).id,
@@ -316,7 +322,15 @@ export function newWorld(opts) {
   // Districts exist to elect representatives, so draw exactly as many as the
   // constitution's district chamber has seats — never conjure an extra one at
   // ratification. Fall back to the requested count if nothing is district-elected.
-  const districted = constitution.offices.find((o) => o.electorate === 'district' && o.seats > 0);
+  //
+  // **Which chamber, though.** The House's seats are apportioned by population
+  // now, so its size says nothing about how many electorates there are: forty-five
+  // seats do not mean forty-five states. The Senate's does — one seat per state
+  // is what an upper house *is* — so the map is cut to the first district-elected
+  // chamber that is not apportioned, and only falls back to an apportioned one if
+  // that is all the constitution has.
+  const districted = constitution.offices.find((o) => o.electorate === 'district' && o.seats > 0 && !o.apportioned)
+    || constitution.offices.find((o) => o.electorate === 'district' && o.seats > 0);
   const nDistricts = clamp(districted ? districted.seats : districtCount, 2, MAX_DISTRICTS);
 
   const world = {
@@ -428,15 +442,19 @@ export function newWorld(opts) {
   }
 
   partitionParcels(world, nDistricts);
+  // Before the water, not after: carveWater asks the map where the lakes fall,
+  // and the map cannot answer until every district's ground is settled. This
+  // only ever fires when the partition has left a district empty, but a water
+  // parcel handed to another state afterwards is a lake in the wrong place.
+  ensureEveryDistrictHasLand(world);
 
-  // Lay the river and lakes before anything is built on the land.
+  // Lay the lakes before anything is built on the land.
   carveWater(world);
 
   // Seed the existing stock deliberately, so the nation opens with problems
   // worth governing: housing a little short of the population, and rather
   // fewer jobs than there are people who want one.
   seedStock(world, seedPop);
-  ensureEveryDistrictHasLand(world);
   distributePopulation(world, seedPop);
 
   // --- seats ---------------------------------------------------------------
@@ -444,11 +462,11 @@ export function newWorld(opts) {
     for (let s = 0; s < o.seats; s++) {
       world.seats.push({
         id: `${o.id}#${s + 1}`, office: o.id, index: s, personaId: null,
-        district: o.electorate === 'district' ? world.districts[s % world.districts.length].id : null,
-        termEnds: null, since: null,
+        district: null, cd: null, termEnds: null, since: null,
       });
     }
   }
+  assignDistrictSeats(world);
   fillVacantSeats(world, true);
   seedCitizenry(world);
   recomputeEconomy(world);
@@ -481,11 +499,47 @@ function seedStock(world, pop) {
     return true;
   };
 
-  // Housing first, spread round-robin so no district starts empty.
+  // Housing first, spread so that no district starts empty — but **weighted by
+  // how many people actually live there**, not dealt flat.
+  //
+  // A flat round-robin makes population a function of parcel count, and parcel
+  // count is a function of *land*. So the Great Plains came out more populous
+  // than California and the Mountain West more populous than New York, which is
+  // survivable as scenery and fatal the moment a chamber is apportioned by
+  // population: the empty half of the country got the seats.
+  //
+  // Weighted by the atlas's census, a state's housing goes in proportion to its
+  // people, and the parcel it has to stand on is the only cap. That cap still
+  // bites — California has four parcels and thirty-nine million people — so this
+  // does not reproduce the census, it just stops the map arguing with it.
+  const weight = world.districts.map((d) => peopleOf(STATES.find((x) => x.name === d.name)) || 1);
+  const wTotal = weight.reduce((a, b) => a + b, 0) || 1;
+  // No density lever here. The obvious one — give the crowded states the taller
+  // building — does not exist to be pulled: `housing_mid` is *fewer* homes than
+  // `housing_low` in this model (620 against 900), so biasing California toward
+  // apartments would have given it fewer people, not more. The mix stays as it
+  // was and the weighting is done by count alone.
+  //
+  // Every state gets a roof before any state gets a second one. This is the
+  // "no district starts empty" promise the flat round-robin used to make for
+  // free, and the weighted pass below cannot make it: the Mountain West's share
+  // of the country is one per cent, so on entitlement alone it reached the end
+  // of the housing budget with nothing built and no population at all — an
+  // electorate with no electors, which is the exact fault the twenty-state split
+  // was made to fix.
+  for (let i = 0; i < byDistrict.length; i++) {
+    place(byDistrict[i], rng(world) < 0.55 ? 'housing_low' : 'housing_mid');
+  }
+  // And the rest by entitlement. Fractions are carried between passes so a small
+  // state still gets its turn instead of being rounded away every time round.
+  const owed = weight.map(() => 0);
   while (homes < homeTarget && guard++ < 400) {
-    for (const parcels of byDistrict) {
+    for (let i = 0; i < byDistrict.length; i++) {
       if (homes >= homeTarget) break;
-      place(parcels, rng(world) < 0.55 ? 'housing_low' : 'housing_mid');
+      owed[i] += (weight[i] / wTotal) * byDistrict.length;
+      if (owed[i] < 1) continue;
+      owed[i] -= 1;
+      place(byDistrict[i], rng(world) < 0.55 ? 'housing_low' : 'housing_mid');
     }
   }
   // Civic stock next, unevenly distributed — as it always is. It employs
@@ -531,43 +585,81 @@ function seedStock(world, pop) {
  * would get its own consistent river rather than this one, clipped.
  */
 function carveWater(world) {
-  const { w, h } = world.city;
-  const at = (x, y) => y * w + x;
-  // A private, world-independent stream. Nothing here touches world.rngState.
-  const roll = mulberry32(hashSeed(`usgov/water/${w}x${h}`));
-
-  // **Water goes where there is water.** This used to carve a river clean across
-  // the grid and drop a two-by-two lake in a corner, which is a good river for a
-  // city of twelve parcels by eight. The grid is the whole country now, so the
-  // same river ran from the Pacific to the Atlantic through the middle of the
-  // Plains, and the lake was a square inland sea nobody could name.
+  // **Water goes where there is water, and only where it has a name.**
   //
-  // A state gets water if a sea or a Great Lake actually touches it. Fifteen of
-  // the twenty do; the five that do not are landlocked in life as well.
-  const thinned = new Set();
-  for (const d of world.districts) {
-    if (!isCoastal(d.name)) continue;
-    const mine = world.city.parcels.filter((p) => p.district === d.id);
-    // Never take a state's last buildable ground: a coastline is a feature, and
-    // a state that is entirely water is a state nobody can govern.
-    const take = Math.min(roll() < 0.4 ? 2 : 1, Math.max(0, mine.length - 2));
-    for (let k = 0; k < take; k++) thinned.add(mine[Math.floor(roll() * mine.length)].i);
-  }
-  world.city.water = [...thinned];
-  for (const p of world.city.parcels) if (thinned.has(p.i)) p.water = true;
-  // Waterfront districts (holding or bordering water) open with a working-port
-  // character: a touch hungrier for jobs and worth a little more per parcel.
-  const wf = new Set();
-  for (const i of thinned) {
-    const x = i % w, y = Math.floor(i / w);
-    for (const [nx, ny] of [[x, y], [x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
-      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
-      const np = world.city.parcels[at(nx, ny)];
-      if (np) wf.add(np.district);
+  // Two versions ago this carved a river clean across the grid and dropped a
+  // two-by-two lake in a corner, which is a good river for a city of twelve
+  // parcels by eight. The grid is the whole country now, so that was replaced
+  // with: every state the sea or a Great Lake touches loses one or two of its
+  // parcels to water, picked at random.
+  //
+  // Which is still wrong, and wrong in the way a reader can see. It put a teal
+  // blot in the middle of Texas, another somewhere in the Carolinas, another in
+  // the Deep South — inland lakes that are not there, in states whose only water
+  // is a coastline three hundred miles away, and a different set of them every
+  // time the grid changed. On an invented continent that reads as landscape. On
+  // this one the reader knows there is no lake in the middle of Texas.
+  //
+  // So the dice are gone. A parcel is water if the ground it is drawn on is
+  // actually inside one of the atlas's named lakes — the five Great Lakes and
+  // the Great Salt Lake, which is the whole list, because the atlas's rule is
+  // that a lake is on the map only if it can be named. `cityGeometry` is the
+  // same subdivision the domestic map draws, so a water parcel is now the parcel
+  // the lake is genuinely sitting on, and not merely one in the right state.
+  // Measured by area, not by centre. There are ninety-six parcels for the whole
+  // country, so one of them is the size of a small state and no lake on earth
+  // contains a parcel's midpoint — testing the centre found nothing at all. What
+  // is being asked is "is this parcel mostly lake", so the parcel is sampled on a
+  // grid and the answer is the fraction of it under water.
+  const LAKE_SHARE = 0.25;
+  const lakeBoxes = LAKES.map((l) => ({ lake: l, b: bounds(l.poly) }));
+  const overlaps = (a, b) => a.x0 <= b.x1 && a.x1 >= b.x0 && a.y0 <= b.y1 && a.y1 >= b.y0;
+
+  const geom = cityGeometry(world);
+  const wet = new Set();
+  const byDistrict = new Map();
+  for (const cell of geom.cells || []) {
+    for (const pc of cell.parcels || []) {
+      if (!pc.parcel || !pc.poly || pc.poly.length < 3) continue;
+      const pb = bounds(pc.poly);
+      // Almost every parcel is nowhere near a lake, and sampling all of them is
+      // a quarter of a million point-in-polygon tests for four answers. The box
+      // check throws out everything but the dozen that could possibly qualify.
+      const near = lakeBoxes.filter((lb) => overlaps(pb, lb.b));
+      if (!near.length) continue;
+      let inside = 0, under = 0;
+      for (let y = pb.y0; y <= pb.y1; y += 0.4) {
+        for (let x = pb.x0; x <= pb.x1; x += 0.4) {
+          if (!inPoly([x, y], pc.poly)) continue;
+          inside++;
+          if (near.some((lb) => inPoly([x, y], lb.lake.poly))) under++;
+        }
+      }
+      if (!inside || under / inside < LAKE_SHARE) continue;
+      const list = byDistrict.get(cell.district.id) || [];
+      list.push(pc.parcel.i);
+      byDistrict.set(cell.district.id, list);
     }
   }
+  // Never take a state's last buildable ground. Lake Michigan covers a great
+  // deal of Michigan on this projection, and a state that is entirely water is a
+  // state nobody can govern.
+  for (const [id, list] of byDistrict) {
+    const owned = world.city.parcels.filter((p) => p.district === id).length;
+    const keep = Math.max(0, Math.min(list.length, owned - 2));
+    for (const i of list.slice().sort((a, b) => a - b).slice(0, keep)) wet.add(i);
+  }
+
+  world.city.water = [...wet].sort((a, b) => a - b);
+  for (const p of world.city.parcels) p.water = wet.has(p.i);
+
+  // The port character, from the atlas's own fact rather than from where the
+  // dice happened to land. `isCoastal` is the authored answer to "does the sea
+  // or a Great Lake touch this state" — fifteen of the twenty — and it is a
+  // better one than adjacency to a water parcel ever was: a coastal state has a
+  // working port whether or not any of its parcels came out wet.
   for (const d of world.districts) {
-    if (!wf.has(d.id)) continue;
+    if (!isCoastal(d.name)) continue;
     d.salience.jobs = clamp(d.salience.jobs + 0.15, 0, 1.2);
     d.landValue = Math.round(d.landValue * 1.08);
   }
@@ -701,6 +793,78 @@ export function distributePopulation(world, total) {
   }
 }
 
+/**
+ * Which state each district seat represents, and — for an apportioned chamber —
+ * which numbered congressional district inside it.
+ *
+ * **The districts are stable.** This used to be a round-robin done twice: once
+ * at world creation and again at ratification, where `beginSeason` re-cut the
+ * map to the House's seat count and re-dealt every seat across it. That is where
+ * "a district drawn at ratification" came from, and it meant the electorate a
+ * founder took a chair in was not necessarily the one they ended up sitting for.
+ * The states are the atlas's twenty and they do not move; the seats are dealt
+ * across them once, by population, and the numbering that comes out is fixed for
+ * the Season.
+ *
+ * An unapportioned chamber (the Senate) gets one seat per state, in the atlas's
+ * order. An apportioned one (the House) gets its seats divided by Huntington–Hill
+ * and each seat named `CODE-n` — TX-1, TX-2, TX-3 — where CODE is the region's
+ * own code from the atlas. A state holding a single seat is still numbered: it is
+ * `MI-1`, not `MI`, because "the third district of Texas" and "the district of
+ * Michigan" should read as the same kind of thing.
+ *
+ * Idempotent, and safe to run again after the map changes.
+ */
+export function assignDistrictSeats(world) {
+  const ds = world.districts || [];
+  if (!ds.length) return;
+  const codeFor = (d) => codeOf(STATES.find((x) => x.name === d.name)) || (d.name || '?').slice(0, 3).toUpperCase();
+
+  for (const o of world.constitution.offices) {
+    if (o.electorate !== 'district') continue;
+    const mine = world.seats.filter((s) => s.office === o.id).sort((a, b) => a.index - b.index);
+    if (!mine.length) continue;
+
+    if (!o.apportioned) {
+      // One per state, in the atlas's order, and no congressional district — a
+      // senator represents the whole state and numbering them would imply a line
+      // drawn through it that does not exist.
+      mine.forEach((seat, i) => {
+        seat.district = ds[i % ds.length].id;
+        seat.cd = null;
+      });
+      continue;
+    }
+
+    // Population at the moment the seats are cut. Zero everywhere is a legitimate
+    // state of the world — seats are laid out before the citizenry in some paths —
+    // and apportion() handles it by giving everybody the same one seat.
+    const share = apportion(ds.map((d) => d.pop || 0), mine.length);
+    let k = 0;
+    ds.forEach((d, i) => {
+      const code = codeFor(d);
+      for (let n = 1; n <= share[i]; n++) {
+        const seat = mine[k++];
+        if (!seat) return;
+        seat.district = d.id;
+        seat.cd = `${code}-${n}`;
+      }
+    });
+    // Any seat the apportionment could not place — only possible if the office
+    // has more seats than apportion was asked for, which repairConstitution
+    // prevents — still gets a home rather than sitting district-less.
+    for (; k < mine.length; k++) {
+      const d = ds[k % ds.length];
+      mine[k].district = d.id;
+      mine[k].cd = `${codeFor(d)}-x`;
+    }
+  }
+}
+
+/** How many seats of an office a state holds. Read by the map and the roster. */
+export const seatsOfDistrict = (world, officeId, districtId) =>
+  world.seats.filter((s) => s.office === officeId && s.district === districtId);
+
 export function fillVacantSeats(world, initial = false) {
   for (const seat of world.seats) {
     // Exile is a disqualification, not merely a death that has not happened
@@ -712,7 +876,9 @@ export function fillVacantSeats(world, initial = false) {
     const o = world.constitution.offices.find((x) => x.id === seat.office);
     if (o?.atWill) continue; // cabinet posts are staffed only by deliberate appointment, never auto-seated
     const d = seat.district ? world.districts.find((x) => x.id === seat.district) : null;
-    const p = makePersona(world, { synthetic: true, district: seat.district, party: d ? d.lean : null });
+    // A seated citizen is old enough for the chair they are seated in.
+    const needAge = Math.max(0, Math.floor(+o?.minAge) || 0);
+    const p = makePersona(world, { synthetic: true, district: seat.district, party: d ? d.lean : null, minAge: needAge });
     p.bio = `Seated citizen. ${o ? o.name : 'Office'}${d ? ' for ' + d.name : ''}.`;
     seat.personaId = p.id;
     seat.since = world.clock.tick;

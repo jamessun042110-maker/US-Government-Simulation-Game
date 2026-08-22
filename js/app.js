@@ -5,9 +5,9 @@ import { newWorld } from './world.js';
 import { apply, prunePlayers, beginSeasonIfReady, activePlayers } from './actions.js';
 import { tick, openElections } from './sim.js';
 import { el, clamp } from './util.js';
-import { PICKABLE_TEMPLATES } from './rules.js';
+import { PICKABLE_TEMPLATES, officesBarredAt } from './rules.js';
 import { COLLEGES, GENDERS, stateCollegeName } from './world.js';
-import { STATES, postalOf } from './atlas.js';
+import { STATES, STATES_AZ, labelOf } from './atlas.js';
 import * as UI from './ui.js';
 import { titleScene } from './scene.js';
 import { pixText } from './pixfont.js';
@@ -29,6 +29,23 @@ let introSeen = false; // the title screen shows once, before the founding setup
 // and enough alumni in the chamber to find a friendly vote — so the default
 // starts a player in the middle of the board rather than at one end of it.
 let founderAge = 35, founderGender = 'm', founderCollege = 'harborlight';
+
+/**
+ * The offices an age shuts you out of, in a sentence, with the year each opens.
+ *
+ * Empty at 35 and above, which is the point: the default founder is eligible
+ * for everything and sees nothing, and the line only appears when it has
+ * something to say.
+ */
+function ageBarsText(age) {
+  const barred = officesBarredAt(age);
+  if (!barred.length) return '';
+  const parts = barred.map((o) => `${o.name} (${o.minAge}, in ${o.minAge - age}yr)`);
+  const list = parts.length > 1
+    ? parts.slice(0, -1).join(', ') + ' and ' + parts.at(-1)
+    : parts[0];
+  return `At ${age} you cannot hold: ${list}. You age into them as the Season runs.`;
+}
 // Where the founder is from. Defaults to the first region on the map rather than
 // to a favourite: any default here is a thumb on the scale for one state's
 // representation, and first-in-the-atlas is at least an arbitrary rule rather
@@ -36,7 +53,6 @@ let founderAge = 35, founderGender = 'm', founderCollege = 'harborlight';
 let founderState = STATES[0].id;
 
 /** "GA · AL · MS" — what a merged region is actually made of. */
-const abbrsOf = (s) => postalOf(s).join(' \u00b7 ');
 
 // The founder's college, named. Only one of the four needs naming — the state
 // university takes the name of the state you said you were from, and no world
@@ -395,7 +411,10 @@ function renderIntro() {
     // the scene's pixels and read as a smear across the middle of the letters.
     el('div', { class: 'intro-inner' },
       el('div', { class: 'intro-mark', html: pixText('THE UNION', { ink: '#f4e0a8', edge: '#141414', gap: 3 }) }),
-      el('div', { class: 'intro-tag' }, 'A United States, governed by you')),
+      el('div', { class: 'intro-tag' }, 'A United States, governed by you'),
+      // Red, white and blue, under the wordmark. The scene behind it flies two
+      // flags off the Capitol; this is the same statement in the type.
+      el('div', { class: 'tricolour' }, el('i', {}), el('i', {}), el('i', {}))),
     // The way in is drawn in the same face as the wordmark over it. A button
     // labelled in Space Grotesk under a 5x7 bitmap title was the last bit of
     // the title screen still speaking with two voices. pixText carries its own
@@ -526,6 +545,14 @@ function renderSetup() {
       el('label', { class: 'field' }, el('span', {}, 'Gender'),
         el('select', { onchange: (e) => { founderGender = e.target.value; syncWho(); } },
           ...GENDERS.map((g) => el('option', { value: g.id, selected: founderGender === g.id }, g.label))))),
+    // What that age costs you, said before you found a republic and discover it
+    // at the convention. The constitution sets 25 for the House, 30 for the
+    // Senate and 35 for both halves of the executive — so a founder who types
+    // 26 is choosing, without being told, to spend nine years out of the only
+    // chair most tables actually want. It is not an error and does not block
+    // anything: you age into every one of them, and the line says when.
+    el('div', { id: 'ageBars', class: 'tiny', style: { color: 'var(--red)', marginTop: '-2px' } },
+      ageBarsText(founderAge)),
     el('div', { class: 'stack', style: { marginTop: '8px' } },
       el('div', { class: 'tiny dimmer' },
         'Where you read. A grander college opens with more goodwill and a steadier treasury, but hands the press a stick — and it has fewer alumni in the chamber to find you a friendly vote.'),
@@ -550,6 +577,7 @@ function renderSetup() {
   // Kept out of the tree above so the college buttons can call it.
   function syncWho() {
     const sum = $('whoSummary'); if (sum) sum.textContent = whoSummary();
+    const bars = $('ageBars'); if (bars) bars.textContent = ageBarsText(founderAge);
     // The state university's card carries the state chosen above it. Retitled in
     // place rather than by rebuilding the panel — a <details> rebuilt is a
     // <details> closed, which is the whole reason the college cards stopped
@@ -580,6 +608,7 @@ function renderSetup() {
 
   const body = [
     el('h1', { class: 'page' }, 'Found the republic'),
+    el('div', { class: 'tricolour left' }, el('i', {}), el('i', {}), el('i', {})),
     el('p', { class: 'sub' }, 'Say who you are and where you are from, and convene. Everything else about the republic is argued at the convention.'),
     el('div', { class: 'card' },
       // The nation is not a field any more. It was one when the country was
@@ -596,9 +625,13 @@ function renderSetup() {
       el('label', { class: 'field' }, el('span', {}, 'Home state'),
         el('select', {
           onchange: (e) => { founderState = e.target.value; syncWho(); },
-        }, ...STATES.map((s) => el('option', {
+        // Alphabetical, and every row the same shape: name, the region's own
+        // code, then what it is made of. A region of one real state repeats
+        // itself — New York (NY) — NY — because a list where some rows carry a
+        // code column and others do not is a list you have to read twice.
+        }, ...STATES_AZ.map((s) => el('option', {
           value: s.id, selected: founderState === s.id,
-        }, s.merged.length > 1 ? `${s.name} — ${abbrsOf(s)}` : s.name)))),
+        }, labelOf(s))))),
       el('div', { class: 'tiny dimmer', style: { marginTop: '-4px' } },
         'The state you represent, and the one your state university is named for.'),
       // "You, its founder" was flavour, not an instruction, and the greyed

@@ -8,8 +8,9 @@ The live code is this repo — `/Users/james/Claude Code/congressional app
 challenge`, GitHub `jamessun042110-maker/US-Government-Simulation-Game`. **The
 folder name contains spaces: quote every path.**
 
-**Suite: 2184 passed / 0 failed, 124 files.** The bicameral work is committed on
-branch `bicameral-congress` — **not merged to `main`, and not pushed.**
+**Suite: 2202 passed / 0 failed, 124 files.** The bicameral work and the eleven
+fixes after it are committed on branch `bicameral-congress` — **not merged to
+`main`, and not pushed.**
 
 ---
 
@@ -99,9 +100,9 @@ Fifty merged to twenty — the target is not arbitrary, `MAX_DISTRICTS` was
 already 20. New York, Florida, Texas, California, Michigan and Illinois stay
 whole; the rest are regional. See `DESIGN-us.md` for the table.
 
-**The House has 20 seats, one per state**, because `world.js` seats one district
-per seat of the district-elected office. At seven seats, thirteen states existed
-on the map with no government and nobody to vote for.
+The **Senate** has 20 seats, one per state — and it is the chamber `world.js`
+reads the district count off. The **House** is apportioned across those states
+and has 45. See "The House is apportioned" below.
 
 ### Geography facts that cost time
 
@@ -119,8 +120,73 @@ on the map with no government and nobody to vote for.
   Without it, a frontier driven north crosses the coastline, the ring folds
   through itself, and ray-casting reports the XOR: a country annexed outright
   kept 9.8% of the map in scattered pieces.
-- Shares at the founding: **Canada 49%, US 42%, Mexico 8%**. Measured, not
-  targeted — the 49th parallel is where it is.
+- **Mexico's coast is clamped to its own frontier too** (`heldSouth`), and for the
+  same reason Canada's is. It got away without one only while its outline stopped
+  at the isthmus; drawing the Yucatán put a peninsula four degrees further south
+  that runs back *north*, so a frontier pushed into that band cut the country in
+  two and left the peninsula behind. Annexing both neighbours then left 2% of the
+  continent in Mexican hands.
+- Shares at the founding: **Canada 49%, US 41.7%, Mexico 9.3%**. Measured, not
+  targeted — the 49th parallel is where it is, and Mexico gained the Yucatán.
+
+### Ages, water, and the two cloakrooms
+
+- **`office.minAge` is the constitution's qualification** — 25 House, 30 Senate,
+  35 President, and 35 VP because the Twelfth Amendment makes anyone ineligible
+  for the one ineligible for the other. `rules.eligibleByAge` is the gate;
+  `mayHoldAgain` calls it, so it bites on the ballot, the nomination and the
+  seating alike. **It expires** — someone barred today is eligible the year they
+  grow into it — so it is asked fresh every time and never recorded on a persona.
+- **Anything that mints a persona for a chair must pass `minAge`.**
+  `makePersona` rolls from 34 and the executive asks 35, so one synthetic in
+  thirty-four was silently refused. That cost an empty presidential ballot about
+  once in twelve republics — `fillVacantSeats` and `sim`'s challenger-maker both
+  pass it now.
+- **Water is where a named lake is.** `carveWater` used to thin one or two
+  *random* parcels out of every coastal state, which put an inland lake in Texas.
+  It now samples each parcel's drawn polygon against `atlas.LAKES` and takes the
+  ones ≥25% under water — four of them, on the Great Lakes. Testing the *centre*
+  finds nothing: a parcel is the size of a small state.
+- **`cityGeometry` is called during `newWorld` now** (carveWater needs it), and
+  `ensureEveryDistrictHasLand` moved before it — a water parcel handed to another
+  state afterwards is a lake in the wrong place.
+- **One cloakroom per chamber.** `mayEnterCloakroom(world, id, chamberId)`;
+  channels `cloakroom` (lower) and `cloakroom_upper`. The VP is in the Senate's
+  and no other — `presidedChamber`.
+
+### The House is apportioned
+
+The two chambers were the same size, which made the lower one the Senate with a
+shorter term. It is now **45 seats divided between the states by population**,
+against the Senate's 20.
+
+- **`office.apportioned` is the flag.** `world.assignDistrictSeats` divides an
+  apportioned office's seats across the states by **Huntington–Hill**
+  (`rules.apportion` — the real method) and gives each one a numbered
+  congressional district on `seat.cd`: `TX-1`, `NWE-3`. An unapportioned district
+  office gets one seat per state and no `cd`.
+- **The Senate decides how many states there are.** `world.js` and
+  `actions.beginSeason` read the district count off the first district-elected
+  chamber that is *not* apportioned. Reading it off the House would cut the
+  country into forty-five pieces.
+- **Districts are stable.** `assignDistrictSeats` is the one place seats are
+  dealt, called at world creation and again at ratification. It used to be two
+  different round-robins, which is where "a district drawn at ratification" came
+  from — the chair you took at the convention was not the electorate you sat for.
+- **An apportioned chamber runs one contest per seat.** `sim.nominate` stamps
+  `cand.seatId`, and `closeElection` cuts the field by it. Without that, four
+  Texas seats saw one field and returned the same person four times.
+- **Region codes are a third thing.** `atlas.codeOf` — not `abbr` (a map label
+  that collides with real postal codes: the Carolinas' `CA` is California's) and
+  not `postalOf` (a list, which cannot number a district). Merged regions carry
+  invented **three**-letter codes so they can never collide with the fifty.
+- **`atlas.peopleOf` is the 2020 census**, in millions, per region. `seedStock`
+  weights housing by it. **It does not reproduce the census** and cannot: there
+  are 96 parcels for the whole country, a parcel holds one building, and a state
+  has four or five of them. It gets the ordering roughly right and stops the
+  empty half of the country holding the most people, which is what an apportioned
+  chamber needed. Expect a state to be a seat or two off what an American would
+  guess.
 
 ### Two chambers
 
@@ -170,19 +236,31 @@ capitalised article, dropped mid-sentence. Without it the founding document read
    found four faults nothing else had. Bicameralism makes this more urgent, not
    less — every bill now takes two floor cycles, and nothing has been played at
    that pace.
-2. **Balance after 7 → 20 seats, and now × 2 chambers.** Quorum, pass fractions
-   and floor votes run across twenty members, twice. Nothing was retuned. A bill
-   now needs two majorities and takes roughly twice as long to become law.
-   Expect the statute book to fill more slowly than it did.
-3. **Icons and palette.** Still Silver's indigo/gold. `css/app.css` has
-   `--silver` and `--silver-dim` as colour tokens; those are greys and the name
-   is the only thing wrong with them.
+2. **Balance after 7 → 65 legislators.** Quorum, pass fractions and floor votes
+   now run across a 45-seat House *and* a 20-seat Senate, and a bill needs both.
+   Nothing was retuned. Expect the statute book to fill more slowly than it did.
+3. **Icons and palette.** Still Silver's indigo/gold in the app proper. The title
+   screen and the founding page are federal blue with a tricolour rule now; the
+   rest is not. `css/app.css` still sets `--brand: var(--purple)`, and has
+   `--silver` / `--silver-dim` as colour tokens — those are greys and the name is
+   the only thing wrong with them.
 4. **Senate elections are not staggered.** The real Senate turns over in thirds.
    Elections here are scheduled per *office*, not per seat, so all twenty seats
    go to the country at once every six years. Staggering means per-seat election
    scheduling, which is a real piece of work and was left alone.
+5. **Re-apportionment never happens.** The House is apportioned once, at the
+   founding. A state whose population moves over a Season keeps the seats it
+   started with. Real apportionment is decennial; a Season is about a generation,
+   so this is a feature-shaped hole rather than a bug.
+6. **A state's House delegation votes as a bloc.** Every congressional district
+   in a state draws on the same electorate — there is no sub-state geography for
+   voters — so TX-1 and TX-3 are decided by the same partisanship and tend to
+   break the same way. Real delegations are mixed. Fixing it means districts
+   below state level, which is the parcel grid's job and a large change.
 
-**Done since the fork:** bicameral Congress (see `DESIGN-us.md` §3).
+**Done since the fork:** bicameral Congress and an apportioned House (see
+`DESIGN-us.md` §3), constitutional ages, real lake water, a redrawn Alaska, the
+Yucatán, per-chamber cloakrooms.
 
 **Known rough edges:**
 
@@ -191,6 +269,10 @@ capitalised article, dropped mid-sentence. Without it the founding document read
   district's homeless. The executive spending door is capped at $1M, so you
   cannot simply spend more — above that it is a bill.
 - `Chronicle` has no `h1.page`. Pre-existing, not breakage.
+- **`macro.mjs` fails about once in seventy runs.** Seen once in a full sweep and
+  not reproduced in 70 consecutive runs afterwards, so the failing assertion was
+  never captured. Do not go hunting it on a single sample — if you see it, save
+  the FAIL line first.
 - Two of the three constitution templates are archived (`PICKABLE_TEMPLATES`).
   `federal-republic` is the only one a table can pick.
 
@@ -290,8 +372,11 @@ claims and measuring *that*, not by widening a tolerance until it passed.
 - Annexation moves real frontiers in both directions, and a power can be annexed
   off the continent entirely (0.0% left) without touching the third country.
 - Water parcels appear only in the fifteen states with a sea or a Great Lake.
-- All nine views render with no console errors, and so do the four department
-  rooms, on a bicameral world with a bill mid-passage.
+- All nine views render with no console errors, and so do the department rooms
+  and both cloakrooms, on a bicameral world with a bill mid-passage.
+- A 45-seat House apportioned 1–5 per state, every seat with a unique numbered
+  district, and 45 distinct winners from a single election — no state returns the
+  same person to two of its seats.
 - A bill hand-carried through both chambers in the browser: House 20–0 → the
   floor card reads "Already carried: House of Representatives 20–0" and
   "simple majority of the Senate" over a completely different roll → Senate 20–0

@@ -1326,15 +1326,27 @@ function tickElections(world) {
       for (const s of world.seats.filter((s) => s.office === e.office)) {
         if (!s.personaId) continue;
         if (world.personas[s.personaId]?.everPlayer) continue; // theirs to declare
-        nominate(world, e, s.personaId, s.district);
+        nominate(world, e, s.personaId, s.district, null, s.id);
       }
       const seats = world.seats.filter((s) => s.office === e.office);
+      const office = R.office(world, e.office);
       const challenger = (s) => {
         const d = s.district ? world.districts.find((x) => x.id === s.district) : pick(world, world.districts);
-        const p = makePersona(world, { synthetic: true, district: s.district, party: d?.lean });
+        // Old enough for the chair they are standing for. makePersona rolls an
+        // age from 34, and the constitution asks 35 of anyone standing for the
+        // executive — so about one challenger in thirty-four was refused by
+        // nominate on the way in, silently, and the guarantee below then thought
+        // it had filled the ballot. On a single-seat race with a retiring
+        // incumbent that is an empty ballot, a stopped clock, and a President
+        // held in a chair they had just chosen to leave: the exact fault this
+        // block exists to prevent, reintroduced by the age rule.
+        const p = makePersona(world, {
+          synthetic: true, district: s.district, party: d?.lean,
+          minAge: R.minAgeFor(world, e.office),
+        });
         p.approval = 44 + rng(world) * 18;
         p.bio = `Challenger${s.district ? ' for ' + d?.name : ''}.`;
-        nominate(world, e, p.id, s.district);
+        return nominate(world, e, p.id, s.district, null, s.id).ok;
       };
       // Usually contested: three seats in four draw a challenger.
       for (const s of seats) if (chance(world, 0.75)) challenger(s);
@@ -1352,13 +1364,22 @@ function tickElections(world) {
       // leave. Measured: 10 of 40 retirements, every one of them held over.
       //
       // Nominations open once, at age 4, and never again, so this is the only
-      // place the gap can be closed. Seats with a district are checked against
-      // their own district; a seat without one (the presidency, the vice
-      // presidency) simply needs the race not to be short of candidates.
+      // place the gap can be closed. A seat is checked against whatever actually
+      // decides its field at the count: its own numbered district if it has one,
+      // its state if the chamber is one seat per state, and the length of the
+      // race if the office has no district at all (the presidency, the vice
+      // presidency).
+      //
+      // The seat-level check is what an apportioned chamber needs. Asking only
+      // "does this state have a candidate" was right while a state held one
+      // seat; with four Texas seats it is satisfied by one Texan, and the other
+      // three go to the count with nobody on them.
       for (const s of seats) {
-        const bare = s.district
-          ? !e.candidates.some((c) => (c.district ?? null) === s.district)
-          : e.candidates.length < seats.length;
+        const bare = !s.district
+          ? e.candidates.length < seats.length
+          : office?.apportioned
+            ? !e.candidates.some((c) => c.seatId === s.id)
+            : !e.candidates.some((c) => (c.district ?? null) === s.district);
         if (bare) challenger(s);
       }
     }
@@ -1386,7 +1407,7 @@ function tickElections(world) {
   }
 }
 
-export function nominate(world, election, personaId, district = null, runningMate = null) {
+export function nominate(world, election, personaId, district = null, runningMate = null, seatId = null) {
   if (election.candidates.some((c) => c.personaId === personaId)) return { ok: false, reason: 'Already nominated.' };
   const p = world.personas[personaId];
   if (!p || !p.alive || p.exiled || p.imprisoned) return { ok: false, reason: 'This persona cannot stand.' };
@@ -1397,6 +1418,31 @@ export function nominate(world, election, personaId, district = null, runningMat
   const eligible = R.mayHoldAgain(world, personaId, election.office);
   if (!eligible.ok) return eligible;
   const cand = { personaId, district: district ?? p.district ?? null, votes: 0, breakdown: null };
+  // **An apportioned chamber runs one contest per seat, not one per state.**
+  //
+  // closeElection filters the field to the seat's own district, which is the
+  // right rule when a state holds one seat and a disaster when it holds four:
+  // every seat sees the same field, so the same person wins all of them and the
+  // other three quarters of the state's delegation is that one person again. A
+  // candidate for an apportioned seat therefore declares for a *seat* — a
+  // numbered congressional district — and the field is cut by that instead.
+  if (o?.apportioned && o.electorate === 'district' && cand.district) {
+    const seats = world.seats.filter((s) => s.office === o.id && s.district === cand.district);
+    // A named seat wins, because the caller that names one is the guarantee that
+    // no seat goes to the count empty — and it has to be able to fill *that*
+    // seat rather than whichever one the heuristic below prefers. Otherwise the
+    // guarantee walks the seats in order, and every challenger it makes for a
+    // bare seat lands on the earliest empty one instead.
+    const named = seatId && seats.find((s) => s.id === seatId);
+    // An incumbent stands again for their own district. Anyone else takes the
+    // emptiest one going, so a state's races fill out evenly instead of the whole
+    // field piling into whichever seat happens to be listed first.
+    const held = seats.find((s) => s.personaId === personaId);
+    const declared = (sid) => election.candidates.filter((c) => c.seatId === sid).length;
+    const target = named || held
+      || seats.slice().sort((a, b) => declared(a.id) - declared(b.id) || a.index - b.index)[0];
+    if (target) { cand.seatId = target.id; cand.cd = target.cd; }
+  }
   // A ticket office (the President) may name a running mate for the office elected
   // on its ticket (the VP). A synthetic mate joins at once; a player must accept.
   const mate = R.ticketMateOffice(world, election.office);
@@ -1515,6 +1561,7 @@ function scheduleRunoff(world, prev, o, topTwo) {
     opens: world.clock.tick, age: 0, runs: RUNOFF_RUNS, closes: world.clock.tick + RUNOFF_RUNS,
     candidates: topTwo.map((c) => ({
       personaId: c.personaId, district: c.district ?? null,
+      seatId: c.seatId ?? null, cd: c.cd ?? null,
       runningMate: c.runningMate, mateAccepted: c.mateAccepted,
       votes: 0, breakdown: null,
     })),
@@ -1603,7 +1650,15 @@ export function closeElection(world, e) {
   const seats = world.seats.filter((s) => s.office === e.office);
 
   for (const seat of seats) {
-    const field = e.candidates.filter((c) => (seat.district ? c.district === seat.district : true));
+    // A seat's own field. `seatId` is set on nomination for an apportioned
+    // chamber, where several seats share a state and the district alone cannot
+    // tell their races apart; everything else still sorts by district, and a
+    // candidate carrying neither runs everywhere the district allows.
+    const field = e.candidates.filter((c) => {
+      if (!seat.district) return true;
+      if (c.seatId) return c.seatId === seat.id;
+      return c.district === seat.district;
+    });
     if (!field.length) continue;
 
     // The citizenry is one electorate, not one per candidate: partisanship and

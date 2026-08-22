@@ -23,7 +23,13 @@ const mk = () => {
 ok('one president', R.seatCap('president') === 1, String(R.seatCap('president')));
 ok('two vice presidents', R.seatCap('vp') === 2, String(R.seatCap('vp')));
 ok('thirteen justices', R.seatCap('justice') === 13, String(R.seatCap('justice')));
-ok('twenty in the chamber', R.seatCap('assembly') === 20, String(R.seatCap('assembly')));
+// Sixty in the lower chamber, twenty in the upper. They differ because the two
+// chambers count different things: the Senate's size *is* the number of states,
+// so its ceiling is the number of states there are; the House's seats are
+// apportioned between those states, so its ceiling is only "as many members as
+// the floor can hold and the reader can follow".
+ok('sixty in the lower chamber', R.seatCap('assembly') === 60, String(R.seatCap('assembly')));
+ok('and twenty in the upper', R.seatCap('senate') === 20, String(R.seatCap('senate')));
 ok('an invented office keeps the general ceiling', R.seatCap('ministryofthings3') === R.MAX_SEATS);
 
 // repairConstitution is the enforcement point, because a constitution can
@@ -40,7 +46,7 @@ ok('an invented office keeps the general ceiling', R.seatCap('ministryofthings3'
   ok('a nine-headed presidency is cut to one', at('president') === 1, String(at('president')));
   ok('seven deputies to two', at('vp') === 2, String(at('vp')));
   ok('forty justices to thirteen', at('justice') === 13, String(at('justice')));
-  ok('ninety-nine members to twenty', at('assembly') === 20, String(at('assembly')));
+  ok('ninety-nine members to sixty', at('assembly') === 60, String(at('assembly')));
   // Zero still means "this office will not exist", which the cap must not undo.
   c.offices.find((o) => o.id === 'vp').seats = 0;
   R.repairConstitution(c);

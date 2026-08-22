@@ -797,6 +797,27 @@ table.t tr:hover td { background: var(--panel2); }
    screen is laid out around the building rather than on top of it: the wordmark
    in the sky above the dome, the way in down on the water below the steps. */
 #intro { height: 100vh; position: relative; overflow: hidden; background: #15305a; display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
+/* The way in is federal blue, not the brand's purple. Purple was Silver's
+   colour and it is the one thing on the title screen still speaking for a
+   country that no longer exists — the scene behind it now flies two flags. The
+   founding page already wears this blue (it is federal-republic's own template
+   colour), so this makes the first two screens agree. */
+#intro { --accent: #2f6fdb; --accent-hi: #4680e4; --accent-text: #fff; }
+
+/* The tricolour rule.
+   Red, white and blue in equal parts, three pixels deep — a rule, not a
+   graphic. It sits under the wordmark on the title screen and under the page
+   title on the founding pages, which are the two screens a player sees before
+   there is a republic to look at and therefore the two with nothing else in
+   them saying which country this is. Deliberately thin: the flags in the scene
+   are the statement, and a second loud one would fight them. */
+.tricolour { display: flex; height: 3px; width: clamp(120px, 22vw, 260px); margin: 20px auto 0; box-shadow: 0 1px 0 rgba(0,0,0,.4); }
+.tricolour i { flex: 1; }
+.tricolour i:nth-child(1) { background: #b22234; }
+.tricolour i:nth-child(2) { background: #f4f2ee; }
+.tricolour i:nth-child(3) { background: #3c3b6e; }
+/* On a left-aligned page it starts at the margin instead of centring. */
+.tricolour.left { margin: 10px 0 18px; width: 168px; }
 .intro-scene { position: absolute; inset: 0; }
 .intro-scene svg { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
 /* A scrim under the type. The flagpole rises through the wordmark at some

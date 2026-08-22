@@ -16,7 +16,7 @@ import * as CONDUCT from './conduct.js';
 import * as DEP from './depts.js';
 import * as MACRO from './macro.js';
 import * as CO from './company.js';
-import { makePersona, fillVacantSeats, recomputeEconomy, reshapeDistricts, BUILDINGS, PARTIES, collegeById, personName } from './world.js';
+import { makePersona, fillVacantSeats, recomputeEconomy, reshapeDistricts, assignDistrictSeats, BUILDINGS, PARTIES, collegeById, personName } from './world.js';
 import { nominate, castBallot, sealBallot, endSeason, endorse } from './sim.js';
 
 function notice(world, playerId, text, tone = 'error') {
@@ -370,6 +370,13 @@ export const HANDLERS = {
     const holder = seat.personaId ? world.personas[seat.personaId] : null;
     if (holder && holder.playerId && holder.playerId !== a.playerId)
       return notice(world, a.playerId, `The ${R.office(world, seat.office)?.name || 'chair'} is already taken by ${holder.name}. Seats are first come, first served.`);
+    // Old enough for it. The convention is the one route into a chair that did
+    // not pass through mayHoldAgain — every other one goes through a nomination
+    // or a ballot — so a founder who set their age to 26 could simply take the
+    // presidency at the founding, and the constitution they had just written
+    // said thirty-five.
+    const oldEnough = R.eligibleByAge(world, pid, seat.office);
+    if (!oldEnough.ok) return notice(world, a.playerId, oldEnough.reason, 'bad');
     // Leave the chair you were in; it goes back to a seated citizen.
     for (const s of world.seats) if (s.personaId === pid) s.personaId = null;
     seat.personaId = pid;
@@ -1480,18 +1487,24 @@ function beginSeason(world) {
     R.repairConstitution(world.constitution);
     world.seats = world.seats.filter((s) => R.office(world, s.office));
   }
-  // One district per seat in the chamber the districts elect, so every district
-  // has exactly one representative. The map is re-partitioned to match the
-  // constitution the founders actually wrote.
+  // The map is re-cut to the constitution the founders actually wrote — but to
+  // the chamber that *represents states*, not the one whose seats are
+  // apportioned. The House can be forty-five seats over twenty states; reading
+  // the district count off it would have cut the country into forty-five pieces
+  // and given the Senate forty-five members.
+  //
+  // And the seats are then dealt across those states **once**, by
+  // assignDistrictSeats, which is the same function that dealt them at world
+  // creation. It used to be a second, different round-robin here, which is where
+  // "a district drawn at ratification" came from: the chair a founder took at the
+  // convention was not necessarily the electorate they ended up sitting for.
   const c0 = world.constitution;
-  const districted = c0.offices.find((o) => o.electorate === 'district' && o.seats > 0);
+  const districted = c0.offices.find((o) => o.electorate === 'district' && o.seats > 0 && !o.apportioned)
+    || c0.offices.find((o) => o.electorate === 'district' && o.seats > 0);
   if (districted) {
     const changed = reshapeDistricts(world, districted.seats);
-    for (const seat of world.seats) {
-      if (seat.office !== districted.id) continue;
-      seat.district = world.districts[seat.index % world.districts.length]?.id || null;
-    }
-    if (changed) log(world, 'founding', `${world.nation} is divided into ${world.districts.length} districts, one for each seat of the ${districted.name}.`);
+    assignDistrictSeats(world);
+    if (changed) log(world, 'founding', `${world.nation} is divided into ${world.districts.length} states, one for each seat of the ${districted.name}.`);
   }
 
   // Everyone lives somewhere. A district seat is filled by the people who live

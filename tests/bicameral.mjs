@@ -42,16 +42,40 @@ const bill = (w, authorId, title) => A.createDoc(w, {
   const senate = R.office(w, 'senate');
   ok('the House sits for two years', house.termYears === 2, String(house.termYears));
   ok('the Senate sits for six', senate.termYears === 6, String(senate.termYears));
-  ok('both chambers are the same size', house.seats === senate.seats, `${house.seats} / ${senate.seats}`);
-  ok('one seat per state in each', house.seats === w.districts.length, `${house.seats} seats, ${w.districts.length} states`);
 
-  // A district that elected two members of the same chamber would run one
-  // contest and seat the winner twice — see repairConstitution.
-  for (const room of R.chambers(w)) {
+  // The two chambers represent different things, and the sizes are how you can
+  // tell. The Senate is the states — one seat each. The House is the people —
+  // apportioned, and therefore bigger than the number of states.
+  ok('the Senate is one seat per state', senate.seats === w.districts.length,
+    `${senate.seats} seats, ${w.districts.length} states`);
+  ok('the House is apportioned', house.apportioned === true);
+  ok('and is larger than the Senate', house.seats > senate.seats, `${house.seats} / ${senate.seats}`);
+
+  // A state that elected two *senators* would run one contest and seat the
+  // winner twice — see repairConstitution. The House gets round it by giving
+  // every seat a numbered congressional district of its own.
+  {
     const byDistrict = {};
-    for (const s of w.seats.filter((x) => x.office === room)) byDistrict[s.district] = (byDistrict[s.district] || 0) + 1;
-    ok(`no state holds two ${room} seats`, Object.values(byDistrict).every((n) => n === 1),
+    for (const s of w.seats.filter((x) => x.office === 'senate')) byDistrict[s.district] = (byDistrict[s.district] || 0) + 1;
+    ok('no state holds two Senate seats', Object.values(byDistrict).every((n) => n === 1),
       Object.entries(byDistrict).filter(([, n]) => n !== 1).map(([d, n]) => `${d}×${n}`).join(' ') || 'all singular');
+  }
+  {
+    const seats = w.seats.filter((x) => x.office === 'assembly');
+    ok('every House seat carries a numbered district', seats.every((s) => !!s.cd),
+      seats.filter((s) => !s.cd).length + ' without');
+    ok('and no two share one', new Set(seats.map((s) => s.cd)).size === seats.length,
+      `${new Set(seats.map((s) => s.cd)).size} of ${seats.length}`);
+    // The numbering reads back to the state it belongs to.
+    ok('a district is numbered from its own state', seats.every((s) => {
+      const d = w.districts.find((x) => x.id === s.district);
+      return d && s.cd.endsWith('-' + s.cd.split('-').pop()) && s.cd.split('-').length === 2;
+    }));
+    // Some state holds more than one, or the House is not apportioned at all.
+    const counts = {};
+    for (const s of seats) counts[s.district] = (counts[s.district] || 0) + 1;
+    ok('at least one state sends several members',
+      Object.values(counts).some((n) => n > 1), JSON.stringify(Object.values(counts)));
   }
   ok('every state is represented in both', w.districts.every((d) =>
     R.chambers(w).every((room) => w.seats.some((s) => s.office === room && s.district === d.id))));
@@ -69,7 +93,8 @@ const bill = (w, authorId, title) => A.createDoc(w, {
   ok('carrying the House does not send it to the desk', doc.status === 'floor', doc.status);
   ok('it stands before the Senate instead', bodyOf(w, doc) === 'senate', bodyOf(w, doc));
   ok('the House vote is kept on the record', (doc.chamberTallies || []).length === 1
-    && doc.chamberTallies[0].body === 'assembly' && doc.chamberTallies[0].yea === 20,
+    && doc.chamberTallies[0].body === 'assembly'
+    && doc.chamberTallies[0].yea === w.seats.filter((s) => s.office === 'assembly' && s.personaId).length,
   JSON.stringify(doc.chamberTallies));
   ok('the second roll is the senators', R.electorateFor(w, doc)
     .every((v) => w.seats.find((s) => s.personaId === v.personaId)?.office === 'senate'));
