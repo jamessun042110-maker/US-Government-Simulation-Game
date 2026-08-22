@@ -1,4 +1,4 @@
-# The Union — handoff, Aug 14 2026 (a)
+# The Union — handoff, Aug 22 2026
 
 Paste-into-a-new-session context for **The Union**, a simplified United States
 government simulator. It is a fork of the *Silver: The Living Republic*
@@ -8,9 +8,10 @@ The live code is this repo — `/Users/james/Claude Code/congressional app
 challenge`, GitHub `jamessun042110-maker/US-Government-Simulation-Game`. **The
 folder name contains spaces: quote every path.**
 
-**Suite: 2202 passed / 0 failed, 124 files.** The bicameral work and the eleven
-fixes after it are committed on branch `bicameral-congress` — **not merged to
-`main`, and not pushed.**
+**State:** branch `bicameral-congress`, working tree clean. **Not merged to
+`main`, and not pushed.** `main` is still at `6bb31c8`, two code commits behind:
+`5777a20` (the second chamber) and `425cbd9` (the apportioned House, and ten
+smaller things). Suite: **2202 passed / 0 failed, 124 files**, ~31k lines of JS.
 
 ---
 
@@ -29,8 +30,10 @@ edit reads exactly like a regression.
 
 **`preview_start` reads `/Users/james/Downloads/.claude/launch.json`, not this
 repo's.** The entry is `usgov`, on port 8825. The repo's own
-`.claude/launch.json` is not what the tool consults. `http://localhost:8825`
-is blocked from direct `navigate` — go through `preview_start` first.
+`.claude/launch.json` is not what the tool consults.
+
+**`preview_stop` wants the `serverId` from `preview_list`**, not the `previewId`
+that `preview_start` hands back. They look alike and only one works.
 
 ---
 
@@ -76,13 +79,37 @@ happened here: a duplicate `const` in shelter.mjs read as twelve clean runs.
 
 ---
 
+## The shape of the thing
+
+One chain runs through the whole engine, and most confusion is a step of it
+missed:
+
+```
+constitution.offices  →  world.seats  →  seat.district  →  world.districts
+    (the document)        (the chairs)      (the map)         (the states)
+```
+
+- **The constitution is data**, built from a template in `rules.js` and editable
+  at the convention. `repairConstitution` is the one place that makes an edited
+  document coherent again, and it runs after every structural change.
+- **`world.seats` is one row per chair.** A seat carries `office`, `index`,
+  `personaId`, `district`, and — for the House — `cd`, its numbered
+  congressional district.
+- **`world.districts` is the twenty states.** They are also the economic unit:
+  population, mood, unemployment, land value and parcels all hang off a district.
+- **Everything that votes goes through `rules.voteRequirement`.** The roll, the
+  tally, the quorum, the tie-break and every legislative view ask it who the
+  body is. That single indirection is why bicameralism landed in one function.
+
+---
+
 ## What changed from Silver
 
 ### The atlas — `js/atlas.js`
 
-**New file, and the source of truth for all geography.** Written in **degrees**
-and projected once, so every coordinate can be held against a real map and
-checked. `P(25.8, -80.2)` is Miami; `[216.3, 159.7]` is not checkable by anyone.
+**The source of truth for all geography.** Written in **degrees** and projected
+once, so every coordinate can be held against a real map and checked.
+`P(25.8, -80.2)` is Miami; `[216.3, 159.7]` is not checkable by anyone.
 
 - **It imports nothing.** `geo.js` imports it, so importing back would be the
   first module cycle in the codebase. The frame size is repeated as two numbers,
@@ -91,18 +118,26 @@ checked. `P(25.8, -80.2)` is Miami; `[216.3, 159.7]` is not checkable by anyone.
   it the country comes out half again as wide as it is tall. Texas is the tell —
   it is close to square on the ground, so the test asserts that ratio rather
   than any single coordinate.
+- **Alaska has its own projection** (`AK`), also in degrees, with a **0.47**
+  correction — at 62°N a degree of longitude is under half a degree of latitude,
+  and without it the state comes out twice as wide as it is tall.
 - `ringsAt(north, south)` reassembles all three countries at any frontier
   displacement. **This is the whole annexation mechanism.**
 
-### Twenty states, not seven districts
+**Four things in the atlas look alike and are not:**
 
-Fifty merged to twenty — the target is not arbitrary, `MAX_DISTRICTS` was
-already 20. New York, Florida, Texas, California, Michigan and Illinois stay
-whole; the rest are regional. See `DESIGN-us.md` for the table.
+| field | what it is | example |
+|---|---|---|
+| `abbr` | a map label, invented per region | Carolinas `CA` — collides with California |
+| `codeOf` | the region's own code, for numbering districts | `NWE`, `TX` — merged regions are **three** letters so they can never collide with the fifty |
+| `postalOf` | the real states a region was merged from | `ME · NH · VT · MA · RI · CT` |
+| `peopleOf` | 2020 census, millions, per region | California 39.5 |
 
-The **Senate** has 20 seats, one per state — and it is the chamber `world.js`
-reads the district count off. The **House** is apportioned across those states
-and has 45. See "The House is apportioned" below.
+### Twenty states
+
+Fifty merged to twenty — not arbitrary, `MAX_DISTRICTS` was already 20. New
+York, Florida, Texas, California, Michigan and Illinois stay whole; the rest are
+regional. See `DESIGN-us.md` for the table.
 
 ### Geography facts that cost time
 
@@ -116,106 +151,117 @@ and has 45. See "The House is apportioned" below.
 - **`CONTINENT_RING` uses a 2-unit margin, not `OUT`.** Country polygons want a
   generous closure because the coast clips them. The continent *defines* land, so
   a generous closure counts ocean as territory — Canada came out at 79.7%.
-- **Canada's coast is clamped to its own frontier** (`held()` in `ringsAt`).
-  Without it, a frontier driven north crosses the coastline, the ring folds
-  through itself, and ray-casting reports the XOR: a country annexed outright
-  kept 9.8% of the map in scattered pieces.
-- **Mexico's coast is clamped to its own frontier too** (`heldSouth`), and for the
-  same reason Canada's is. It got away without one only while its outline stopped
-  at the isthmus; drawing the Yucatán put a peninsula four degrees further south
-  that runs back *north*, so a frontier pushed into that band cut the country in
-  two and left the peninsula behind. Annexing both neighbours then left 2% of the
-  continent in Mexican hands.
+- **Both neighbours' coasts are clamped to their own frontier** — `held()` for
+  Canada, `heldSouth()` for Mexico, in `ringsAt`. Without it a frontier driven
+  past the coastline folds the ring through itself and ray-casting reports the
+  XOR. Canada was annexed outright and kept 9.8% of the map in scattered pieces;
+  Mexico did the same for 2% the moment the Yucatán was drawn, because a
+  peninsula that runs back *north* gets cut off and left behind.
 - Shares at the founding: **Canada 49%, US 41.7%, Mexico 9.3%**. Measured, not
-  targeted — the 49th parallel is where it is, and Mexico gained the Yucatán.
+  targeted — the 49th parallel is where it is, and Mexico has its Yucatán now.
 
-### Ages, water, and the two cloakrooms
+---
+
+## Congress
+
+Full design in `DESIGN-us.md` §3. **The House and the Senate are different
+shapes on purpose**, and most of the subtlety is in keeping them that way.
+
+|  | House (`assembly`) | Senate (`senate`) |
+|---|---|---|
+| seats | **45**, apportioned | **20**, one per state |
+| term | 2 years | 6 years |
+| district | numbered `TX-1` on `seat.cd` | the state, no `cd` |
+| `office.apportioned` | `true` | absent |
+
+### How a measure moves
+
+- **`legislature.chamber` is still the first chamber**, not a pair.
+  `legislature.upperChamber` is the second, and `null` means unicameral. Nothing
+  that read `chamber` had to change meaning.
+- **A measure stands in one room at a time.** `doc.chamberStage` indexes
+  `R.chambers(world)`; `acts.closeFloor` advances it, reusing the two-stage shape
+  the impeachment trial already had. **If you add a new kind of vote, route it
+  through `voteRequirement` and it is bicameral for free.**
+- Bills and amendments pass both, House first. A treaty is the **Senate's alone**.
+  The **House impeaches, the Senate tries**. A veto is overridden only by both,
+  at the override fraction, starting again from the House.
+- **Bills originate in the House whoever files them**, senators included.
+- `doc.chamberTallies` keeps the rooms a measure has already carried, because
+  `doc.tally` is overwritten by the second chamber's count.
+
+### How the seats are dealt
+
+- **`world.assignDistrictSeats` is the only place it happens** — at world
+  creation and again at ratification. It used to be two different round-robins,
+  which is where "a district drawn at ratification" came from: the chair you took
+  at the convention was not necessarily the electorate you sat for.
+- An **apportioned** office is divided across the states by **Huntington–Hill**
+  (`rules.apportion`, the real method) and each seat gets a numbered district.
+  An **unapportioned** one gets one seat per state and no `cd`.
+- **The Senate decides how many states there are.** `world.js` and
+  `actions.beginSeason` read the district count off the first district-elected
+  chamber that is *not* apportioned. Reading it off the House would cut the
+  country into forty-five pieces.
+- `repairConstitution` forces every **unapportioned** district office to the same
+  seat count, and floors an apportioned one at the number of states. It does
+  *not* force them all equal — that rule is what apportionment had to escape.
+
+### Three rules that bite if you touch this
+
+- **An apportioned chamber runs one contest per seat.** `sim.nominate` stamps
+  `cand.seatId` and `closeElection` cuts the field by it. Without that, four
+  Texas seats see one field and return the same person four times. The guarantee
+  that no seat goes to the count empty checks **per seat** for an apportioned
+  office and per district otherwise, and it passes the seat id explicitly so it
+  fills the bare seat rather than the earliest empty one.
+- **Do not give the Senate two seats per state** without first making district
+  elections multi-winner. Two unapportioned seats in one district is the same
+  race run twice, returning the same winner twice.
+- **A tie fails** (`tally.deadlocked`) unless a tie-breaker settles it, and the
+  VP only breaks ties in the Senate. Confining the tie-break without the deadlock
+  rule silently restores the 10–10-passes bug in the House. The tie-break scan
+  also skips **every** chamber, not just the voting one — the Senate holds a
+  `vote` power, so a tied House bill was otherwise settled by whichever senator
+  sat first in `world.seats`.
+
+**The office id of the House is still `assembly`**, deliberately: a rename is a
+string sweep that cannot tell it from `RIGHTS.assembly`, the freedom to assemble.
+
+---
+
+## Ages, water, cloakrooms
 
 - **`office.minAge` is the constitution's qualification** — 25 House, 30 Senate,
   35 President, and 35 VP because the Twelfth Amendment makes anyone ineligible
   for the one ineligible for the other. `rules.eligibleByAge` is the gate;
   `mayHoldAgain` calls it, so it bites on the ballot, the nomination and the
   seating alike. **It expires** — someone barred today is eligible the year they
-  grow into it — so it is asked fresh every time and never recorded on a persona.
+  grow into it — so it is asked fresh every time and never stamped on a persona.
 - **Anything that mints a persona for a chair must pass `minAge`.**
   `makePersona` rolls from 34 and the executive asks 35, so one synthetic in
-  thirty-four was silently refused. That cost an empty presidential ballot about
-  once in twelve republics — `fillVacantSeats` and `sim`'s challenger-maker both
-  pass it now.
-- **Water is where a named lake is.** `carveWater` used to thin one or two
-  *random* parcels out of every coastal state, which put an inland lake in Texas.
-  It now samples each parcel's drawn polygon against `atlas.LAKES` and takes the
-  ones ≥25% under water — four of them, on the Great Lakes. Testing the *centre*
-  finds nothing: a parcel is the size of a small state.
-- **`cityGeometry` is called during `newWorld` now** (carveWater needs it), and
-  `ensureEveryDistrictHasLand` moved before it — a water parcel handed to another
-  state afterwards is a lake in the wrong place.
+  thirty-four was refused by `nominate` on the way in, silently. That cost an
+  empty presidential ballot about once in twelve republics. `fillVacantSeats`
+  and `sim`'s challenger-maker both pass it now. **This is the trap to remember
+  if you add another qualification.**
+- **Water is where a *named* lake is.** `carveWater` used to thin one or two
+  random parcels out of every coastal state, which put an inland lake in the
+  middle of Texas. It now samples each parcel's drawn polygon against
+  `atlas.LAKES` and takes the ones ≥25% under water. Testing the parcel's
+  **centre** finds nothing at all — a parcel is the size of a small state.
+- **`cityGeometry` is called during `newWorld`** now, because `carveWater` needs
+  the drawn geometry, and `ensureEveryDistrictHasLand` moved ahead of it: a water
+  parcel handed to another state afterwards is a lake in the wrong place.
+- The **port character** comes from `atlas.isCoastal` — the authored answer to
+  "does the sea or a Great Lake touch this state" — not from adjacency to a water
+  parcel. Fifteen states have a port; three have water parcels.
 - **One cloakroom per chamber.** `mayEnterCloakroom(world, id, chamberId)`;
   channels `cloakroom` (lower) and `cloakroom_upper`. The VP is in the Senate's
-  and no other — `presidedChamber`.
+  and no other — see `presidedChamber`.
 
-### The House is apportioned
+---
 
-The two chambers were the same size, which made the lower one the Senate with a
-shorter term. It is now **45 seats divided between the states by population**,
-against the Senate's 20.
-
-- **`office.apportioned` is the flag.** `world.assignDistrictSeats` divides an
-  apportioned office's seats across the states by **Huntington–Hill**
-  (`rules.apportion` — the real method) and gives each one a numbered
-  congressional district on `seat.cd`: `TX-1`, `NWE-3`. An unapportioned district
-  office gets one seat per state and no `cd`.
-- **The Senate decides how many states there are.** `world.js` and
-  `actions.beginSeason` read the district count off the first district-elected
-  chamber that is *not* apportioned. Reading it off the House would cut the
-  country into forty-five pieces.
-- **Districts are stable.** `assignDistrictSeats` is the one place seats are
-  dealt, called at world creation and again at ratification. It used to be two
-  different round-robins, which is where "a district drawn at ratification" came
-  from — the chair you took at the convention was not the electorate you sat for.
-- **An apportioned chamber runs one contest per seat.** `sim.nominate` stamps
-  `cand.seatId`, and `closeElection` cuts the field by it. Without that, four
-  Texas seats saw one field and returned the same person four times.
-- **Region codes are a third thing.** `atlas.codeOf` — not `abbr` (a map label
-  that collides with real postal codes: the Carolinas' `CA` is California's) and
-  not `postalOf` (a list, which cannot number a district). Merged regions carry
-  invented **three**-letter codes so they can never collide with the fifty.
-- **`atlas.peopleOf` is the 2020 census**, in millions, per region. `seedStock`
-  weights housing by it. **It does not reproduce the census** and cannot: there
-  are 96 parcels for the whole country, a parcel holds one building, and a state
-  has four or five of them. It gets the ordering roughly right and stops the
-  empty half of the country holding the most people, which is what an apportioned
-  chamber needed. Expect a state to be a seat or two off what an American would
-  guess.
-
-### Two chambers
-
-Full design in `DESIGN-us.md` §3. The parts that will bite:
-
-- **`legislature.chamber` is still the first chamber**, not a pair.
-  `legislature.upperChamber` is the second, and `null` means unicameral. Nothing
-  that read `chamber` had to change meaning.
-- **A measure stands in one room at a time.** `doc.chamberStage` indexes
-  `R.chambers(world)`; `acts.closeFloor` advances it. Everything else goes
-  through `R.voteRequirement`, so it follows the stage without knowing. **If you
-  add a new kind of vote, route it through `voteRequirement` and it is bicameral
-  for free.**
-- **The office id of the House is still `assembly`.** Deliberately — a rename is
-  a string sweep that cannot tell it from `RIGHTS.assembly`, the freedom to
-  assemble. `senate` is the Senate.
-- **The Senate is one seat per state, not two.** A district election is one
-  contest per seat filtered to that district, so two seats in one district elect
-  the same person twice. `repairConstitution` now forces every district-elected
-  office to the same seat count for this reason. **Do not raise the Senate to 40
-  without first making district elections multi-winner.**
-- **A tie now fails** (`tally.deadlocked`) unless a tie-breaker settles it, and
-  the VP only breaks ties in the Senate. Confining the tie-break without the
-  deadlock rule silently restores the 10–10-passes bug in the House.
-- **Bills originate in the House whoever files them**, including senators.
-- `doc.chamberTallies` keeps the rooms a measure has already carried, because
-  `doc.tally` is overwritten by the second chamber's count.
-
-### Naming
+## Naming
 
 `Silver` → `The United States`, `goldland` → `canada`, `electrum` → `mexico`,
 and the power id for our own country is **`us`**, not `silver`. Storage keys and
@@ -231,48 +277,51 @@ capitalised article, dropped mid-sentence. Without it the founding document read
 
 **Queued, not started:**
 
-1. **Play a full Season end to end.** Now the biggest gap by a distance, and the
+1. **Play a full Season end to end.** The biggest gap by a distance, and the
    handoff this forked from was emphatic about it: one hand-played presidency
-   found four faults nothing else had. Bicameralism makes this more urgent, not
-   less — every bill now takes two floor cycles, and nothing has been played at
+   found four faults nothing else had. Bicameralism makes it more urgent, not
+   less — every bill now takes two floor cycles and nothing has been played at
    that pace.
 2. **Balance after 7 → 65 legislators.** Quorum, pass fractions and floor votes
-   now run across a 45-seat House *and* a 20-seat Senate, and a bill needs both.
+   run across a 45-seat House *and* a 20-seat Senate, and a bill needs both.
    Nothing was retuned. Expect the statute book to fill more slowly than it did.
-3. **Icons and palette.** Still Silver's indigo/gold in the app proper. The title
-   screen and the founding page are federal blue with a tricolour rule now; the
-   rest is not. `css/app.css` still sets `--brand: var(--purple)`, and has
-   `--silver` / `--silver-dim` as colour tokens — those are greys and the name is
-   the only thing wrong with them.
+3. **Icons and palette.** The title screen and the founding page are federal blue
+   with a tricolour rule; the app proper is still Silver's indigo/gold.
+   `css/app.css` still sets `--brand: var(--purple)` and carries `--silver` /
+   `--silver-dim` as colour tokens — those are greys and the name is the only
+   thing wrong with them.
 4. **Senate elections are not staggered.** The real Senate turns over in thirds.
-   Elections here are scheduled per *office*, not per seat, so all twenty seats
-   go to the country at once every six years. Staggering means per-seat election
-   scheduling, which is a real piece of work and was left alone.
+   Elections are scheduled per *office*, not per seat, so all twenty go to the
+   country at once every six years. Staggering means per-seat scheduling.
 5. **Re-apportionment never happens.** The House is apportioned once, at the
-   founding. A state whose population moves over a Season keeps the seats it
-   started with. Real apportionment is decennial; a Season is about a generation,
-   so this is a feature-shaped hole rather than a bug.
+   founding, so a state whose population moves keeps the seats it started with.
+   Real apportionment is decennial and a Season is about a generation, so this is
+   a feature-shaped hole rather than a bug.
 6. **A state's House delegation votes as a bloc.** Every congressional district
    in a state draws on the same electorate — there is no sub-state geography for
-   voters — so TX-1 and TX-3 are decided by the same partisanship and tend to
-   break the same way. Real delegations are mixed. Fixing it means districts
-   below state level, which is the parcel grid's job and a large change.
-
-**Done since the fork:** bicameral Congress and an apportioned House (see
-`DESIGN-us.md` §3), constitutional ages, real lake water, a redrawn Alaska, the
-Yucatán, per-chamber cloakrooms.
+   voters — so TX-1 and TX-3 break the same way. Real delegations are mixed.
+   Fixing it means electorates below state level, which is the parcel grid's job
+   and a large change.
 
 **Known rough edges:**
 
+- **Simulated population does not match the census, and cannot.** `seedStock`
+  weights housing by `atlas.peopleOf`, but there are 96 parcels for the whole
+  country and a state holds four or five, so the parcel grid is the binding
+  constraint. The ordering is roughly right — which is all apportionment needs —
+  but expect a state to be a seat or two off what an American would guess.
+- **Apportionment differs between Seasons.** Population seeding draws on
+  `world.rngState`, so the same state can send four members in one Season and two
+  in the next; currently the spread is one to five. Not a bug — but do not write
+  a test that asserts a specific state's seat count.
 - **The 20-district split diluted every per-district effect.** A housing
-  disbursal now rehouses about one person, because the relief is a share of the
+  disbursal rehouses about one person, because the relief is a share of the
   district's homeless. The executive spending door is capped at $1M, so you
   cannot simply spend more — above that it is a bill.
-- `Chronicle` has no `h1.page`. Pre-existing, not breakage.
 - **`macro.mjs` fails about once in seventy runs.** Seen once in a full sweep and
   not reproduced in 70 consecutive runs afterwards, so the failing assertion was
-  never captured. Do not go hunting it on a single sample — if you see it, save
-  the FAIL line first.
+  never captured. **If you see it, save the FAIL line before doing anything else.**
+- `Chronicle` has no `h1.page`. Pre-existing, not breakage.
 - Two of the three constitution templates are archived (`PICKABLE_TEMPLATES`).
   `federal-republic` is the only one a table can pick.
 
@@ -286,13 +335,17 @@ Yucatán, per-chamber cloakrooms.
   newline-separated list passes the whole list as one filename and silently
   changes nothing. Use `| tr '\n' '\0' | xargs -0`.
 - **BSD sed has no `\b`.** A `s/\bfoo: /bar: /g` silently does nothing on macOS.
+  For anything structural a python heredoc that asserts its anchor is present
+  beats sed outright: it fails loudly when the anchor has moved, which is exactly
+  when a silent no-op would cost you an hour.
 - **The engine is the authority, the screen is a courtesy.** Actions arrive from
   other tabs and are applied straight to the world, so a check that lives only in
-  a disabled button is not a check.
+  a disabled button is not a check. Every gate needs an engine half.
 - **`tick 0` is a real tick and is falsy.** Stamp flags `world.clock.tick || 1`.
 - **Several engine functions return `{ok, …}`, not a boolean.**
 - **Module cycles are avoided deliberately.** `util.js` imports nothing;
-  `atlas.js` imports nothing.
+  `atlas.js` imports nothing. `world.js` imports `geo.js` (added for
+  `carveWater`) — safe, because `geo.js` reaches only `util` and `atlas`.
 - **`world.rngState` is seeded from `Math.random()`.** Seasons are *not*
   reproducible. **Never diagnose a difference between two runs as a regression**,
   and never assert on a single sample — see the flakes below.
@@ -306,6 +359,7 @@ Yucatán, per-chamber cloakrooms.
   are the ones who ceded.
 - `company.found(world, personaId, name, officesOf, sector)` takes positional
   arguments.
+- A seat is `{id, office, index, personaId, district, cd, termEnds, since}`.
 
 ---
 
@@ -314,44 +368,57 @@ Yucatán, per-chamber cloakrooms.
 - The browser pane reports `document.hidden === true`, so **the clock does not
   advance**. `__usgov.render(true)` forces a paint; `__usgov.world`,
   `__usgov.dispatch({type:…})`, `__usgov.playerId`.
-- **Reload after every source edit** — and note a reload only re-fetches modules
-  the page imports fresh. Adding an export to `atlas.js` and importing
-  `world.js?v=2` gives you the *cached* atlas and a confusing missing-export
-  error. Navigate, don't cache-bust.
-- **A reload after >150s away drops you on the join screen** (`GONE_AFTER`).
-- **A saved Season keeps the constitution it was founded under.** An in-progress
-  world has no Senate and never will — the constitution is per-world, and
-  `repairConstitution` nulls `upperChamber` for it, so it stays unicameral and
-  correct. **To see anything constitutional you changed, you must found a new
-  republic.** This reads exactly like a stale module; it is not.
+- **The commonest false alarm is a stale saved world, not a stale module.** A
+  page loads its Season from `localStorage` at init, so a world founded before
+  your edit comes back looking exactly like cached code — identical symptoms.
+  Found a fresh republic before you go module-hunting.
 - **Clearing `localStorage` from the running page does not stick.** The live page
-  writes its world back before you can reload, and you come back to the same
-  Season. Clear and reload in *one* expression:
-  `Object.keys(localStorage).filter(k=>k.startsWith('usgov')).forEach(k=>localStorage.removeItem(k)); location.reload();`
-- **The convention's Begin/Ready buttons sit below the fold** and the pane's
-  scroll can hang. `__usgov.dispatch({type:'READY'})` then `{type:'RATIFY'}` puts
-  you in a live Season in one call.
-- **Set `world.paused = true`** — clicking Pause files a table motion.
-- **The oath modal comes up even with `w.inaugurated = 0`.**
-- **Walk every tab after touching ui.js.** All nine are green at `c238fbd`.
+  writes its world back before you can reload. Clear and reload in *one*
+  expression, then wait a round-trip before doing anything else:
+  ```js
+  Object.keys(localStorage).filter(k=>k.startsWith('usgov')).forEach(k=>localStorage.removeItem(k)); location.reload();
+  ```
+- **A reload after >150s away drops you on the join screen** (`GONE_AFTER`).
+- **A saved Season keeps the constitution it was founded under**, for ever. An
+  in-progress world has no Senate and never will; `repairConstitution` nulls its
+  `upperChamber` so it stays unicameral and correct. **To see anything
+  constitutional you changed, found a new republic.**
+- **Driving the founding from the console** is far faster than the UI. Fill
+  `#foundername` and dispatch an `input` event, click Convene, then:
+  ```js
+  __usgov.dispatch({type:'SEAT_SELF', seatId: someSeat.id});
+  __usgov.dispatch({type:'READY'});
+  __usgov.dispatch({type:'RATIFY'});
+  ```
+- **The founding tableau blocks on the NPC President's oath**, and the oath needs
+  the clock. Set `world.paused = true` before it clears and the modal has no
+  buttons and waits for ever. Let it run a second, click "Enter the republic",
+  *then* pause.
+- **Set `world.paused = true`** rather than clicking Pause — the button files a
+  table motion.
+- **Walk every tab after touching ui.js.** Nine views, four department rooms and
+  the cloakroom; all green at `425cbd9`.
+- **A cache-busted `import('/js/atlas.js?x=1')` is safe** *because atlas.js
+  imports nothing*. Doing it to a module with dependencies gives you the fresh
+  module over cached deps and a confusing missing-export error. Prefer a fresh
+  tab.
 - `tools/mapcheck.mjs` renders the atlas to SVG. **It earns its keep**: every
   numeric test passed while Canada drew as a wedge pointing at Seattle and
   Mexico painted the Pacific as its own territory. Areas and adjacencies cannot
-  see that; an eye can.
+  see that; an eye can. For one shape, injecting an SVG overlay into the live
+  page and screenshotting is quicker — **size the viewBox to the pane's aspect**
+  or you will diagnose a crop as a fold, which cost time here.
 
 ---
 
-## The three flakes, and the lesson
+## The flakes, and the lesson
 
-All three were claims about a **tendency** measured on a **single sample**. All
-three got quieter as districts got smaller, so twenty states uncovered them
-rather than causing them.
+Every one was a claim about a **tendency** measured on a **single sample**.
 
 - **`hiring.mjs`** took `districts[0]` and tripled its population to clear the
   unemployment floor. `local` is `clamp(1 - jobs/labour, 0.01, 0.7)` — clamped at
-  **both** ends, so raising the multiplier overshoots into the ceiling. `pop * 9`
-  failed every run; an absolute 10,000 failed 14 in 15. It now picks the district
-  nearest the middle of the range and needs no calibration.
+  **both** ends, so raising the multiplier overshoots into the ceiling. It now
+  picks the district nearest the middle of the range and needs no calibration.
 - **`shelter.mjs`** asserted homelessness was lower than a sample taken before
   the recompute. The relief is often one person and the recompute's own baseline
   moves by about that much, so a perfect relief could come back equal. It
@@ -359,6 +426,17 @@ rather than causing them.
 - **`allterms.mjs`** asked whether presidencies end for more than one reason and
   read it off one republic, which can legitimately spend its whole history
   turning presidents out at the polls. Pooled across three.
+- **`chamber.mjs`** waited for a seated member to file a bill, on one Season.
+  Four things have to line up inside the window — the 1-in-360 draw, a House
+  member rather than a senator, a clear floor (a bicameral bill occupies it for
+  two full cycles), and a grievance bad enough to produce an appropriation. One
+  republic in six never got there. Pooled across three.
+
+**And one that was not a flake.** `emptyballot.mjs` asserts a **guarantee** —
+every ballot carries somebody — so a single failure was a real bug, and it was
+the age gate refusing a 34-year-old challenger for a 35+ office. Read what the
+test claims before you widen anything: **a guarantee that fails once is a bug; a
+tendency that fails once is a sample.**
 
 **The method is the point.** Each was fixed by asking what the test actually
 claims and measuring *that*, not by widening a tolerance until it passed.
@@ -371,14 +449,19 @@ claims and measuring *that*, not by widening a tolerance until it passed.
   another's centre.
 - Annexation moves real frontiers in both directions, and a power can be annexed
   off the continent entirely (0.0% left) without touching the third country.
-- Water parcels appear only in the fifteen states with a sea or a Great Lake.
-- All nine views render with no console errors, and so do the department rooms
-  and both cloakrooms, on a bicameral world with a bill mid-passage.
-- A 45-seat House apportioned 1–5 per state, every seat with a unique numbered
-  district, and 45 distinct winners from a single election — no state returns the
-  same person to two of its seats.
-- A bill hand-carried through both chambers in the browser: House 20–0 → the
-  floor card reads "Already carried: House of Representatives 20–0" and
-  "simple majority of the Senate" over a completely different roll → Senate 20–0
-  → "has passed the Senate and is on your desk".
-- 2184 assertions green across 124 files.
+- **Water parcels sit only on named lakes** — four of them, in New York, Michigan
+  and the Upper Midwest. No state without a Great Lake has any.
+- A **45-seat House** apportioned one to five per state, every seat with a unique
+  numbered district, and **45 distinct winners** from a single election — no state
+  returns the same person to two of its seats.
+- A bill hand-carried through both chambers in the browser: the floor card reads
+  "Already carried: House of Representatives 45–0" and "simple majority of the
+  Senate" over a completely different roll, then "has passed the Senate and is on
+  your desk".
+- The age gate refuses a 26-year-old the Senate ("Eligible in 4 years") and the
+  presidency, and admits them to the House.
+- A House member sees only the House Cloakroom; a senator sees only the Senate's,
+  with the Vice President in the room.
+- All nine views, the four department rooms and both cloakrooms render with no
+  console errors beyond the expected websocket one.
+- **2202 assertions green across 124 files.**
