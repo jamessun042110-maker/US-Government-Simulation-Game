@@ -520,9 +520,26 @@ capitalised article, dropped mid-sentence. Without it the founding document read
   matching the census, apportionment moving between Seasons, and per-district
   effects being diluted to nothing — went with it. Treat the whole change as
   unplayed: it is verified by tests and by two unattended runs, not by a Season.
-- **`macro.mjs` fails about once in seventy runs.** Seen once in a full sweep and
-  not reproduced in 70 consecutive runs afterwards, so the failing assertion was
-  never captured. **If you see it, save the FAIL line before doing anything else.**
+- **`macro.mjs` fails about once in fifteen runs, and the line is captured.**
+  It is the debt block:
+
+  ```
+  FAIL a real surplus pays it down | 10714724M -> 11138802M
+  ```
+
+  So a Season that was asked to run a surplus finished the year **$424B deeper
+  in debt** — not a rounding error, and not a near miss. Measured at 2 failures
+  in 20 runs, and 1 in 20 on the commit before the jobs work, so it is
+  pre-existing and it is **far more frequent than the "once in seventy" this
+  file used to claim**. It was never the rare flake it was written up as; it was
+  under-sampled.
+
+  **This is a claim about a guarantee, not a tendency** — the test names a
+  surplus and asserts the debt falls — so by this file's own rule it is a bug
+  and not a sample. The obvious suspect is that the surplus is being spent
+  before `MACRO.financeDeficit` runs at the year's close (`sim.tickEconomy`),
+  or that interest is charged against the opening balance rather than the
+  closing one. Nobody has looked yet.
 - `Chronicle` has no `h1.page`. Pre-existing, not breakage.
 - Two of the three constitution templates are archived (`PICKABLE_TEMPLATES`).
   `federal-republic` is the only one a table can pick.
