@@ -67,7 +67,6 @@ export const isJustice = (world, personaId) =>
 // arrest order after it is argued in the shadow of that holding.
 const DOCTRINE = {
   ARREST: { id: 'ARREST', name: 'detention by order', weight: 3 },
-  EXILE: { id: 'EXILE', name: 'exile by order', weight: 3 },
   GRANT_POWER: { id: 'GRANT_POWER', name: 'the enlargement of an office', weight: 3 },
   CREATE_OFFICE: { id: 'CREATE_OFFICE', name: 'the creation of an office', weight: 2 },
   AMEND: { id: 'AMEND', name: 'amendment of the constitution itself', weight: 3 },
@@ -75,7 +74,6 @@ const DOCTRINE = {
   SET_TAX: { id: 'SET_TAX', name: 'the power of taxation', weight: 1 },
   REDISTRICT: { id: 'REDISTRICT', name: 'the drawing of districts', weight: 2 },
   DECLARE_WAR: { id: 'DECLARE_WAR', name: 'the war power', weight: 3 },
-  CALL_ELECTION: { id: 'CALL_ELECTION', name: 'the calling of elections', weight: 2 },
   REMOVE: { id: 'REMOVE', name: 'removal from office', weight: 3 },
   EMERGENCY: { id: 'EMERGENCY', name: 'the emergency power', weight: 4 },
   GENERAL: { id: 'GENERAL', name: 'the limits of the granted power', weight: 1 },
@@ -146,11 +144,14 @@ export function overreachOf(world, doc) {
 
   for (const c of doc.clauses || []) {
     // Liberty. The sharpest ground there is, and sharper still by decree.
-    if (c.kind === 'ARREST' || c.kind === 'EXILE') {
-      const verb = c.kind === 'EXILE' ? 'exiles a citizen' : 'detains a citizen';
+    // Detention is an order now and only an order — a bill naming a person for
+    // it is a bill of attainder and the drafting screen will not offer it — so
+    // `byOrder` is all but always true here. The other branch is kept because a
+    // saved Season founded before that change can still carry such a bill.
+    if (c.kind === 'ARREST') {
       score += byOrder ? 0.42 : 0.24;
-      grounds.push(`it ${verb}${byOrder ? ' by executive decree, without trial' : ''}`);
-      const right = R.rightBlocking(world, c.kind === 'EXILE' ? 'ARREST_NOCHARGE' : 'ARREST_SPEECH')
+      grounds.push(`it detains a citizen${byOrder ? ' by executive decree, without trial' : ''}`);
+      const right = R.rightBlocking(world, 'ARREST_SPEECH')
         || R.rightBlocking(world, 'ARREST_NOCHARGE');
       if (right) { score += 0.2; rights = true; grounds.push(`it cannot be squared with ${right.name}`); }
       // Nothing written covers it — but if the republic kept the rights it
@@ -181,7 +182,6 @@ export function overreachOf(world, doc) {
     if (c.kind === 'REMOVE') { score += 0.26; grounds.push('it removes an officeholder without the required trial'); }
     if (c.kind === 'DECLARE_WAR' && byOrder) { score += 0.3; grounds.push('war is declared without the chamber'); }
     if (c.kind === 'REDISTRICT') { score += 0.16; grounds.push('the districts are redrawn by those who stand in them'); }
-    if (c.kind === 'CALL_ELECTION' && byOrder) { score += 0.14; grounds.push('the timing of an election is set by decree'); }
   }
 
   // Money by decree, past the line the constitution drew.

@@ -33,7 +33,6 @@ export const POWERS = {
   strike_law: 'Strike laws as unconstitutional',
   zone: 'Zone land & order construction',
   impeach: 'Bring articles of impeachment',
-  call_election: 'Call elections',
 };
 
 /**
@@ -47,7 +46,6 @@ export const POWER_GROUPS = [
   { label: 'Money', ids: ['spend', 'tax'] },
   { label: 'Executive', ids: ['appoint', 'zone', 'emergency', 'command_military', 'sign_treaty', 'declare_war'] },
   { label: 'Justice', ids: ['arrest', 'pardon', 'strike_law', 'impeach'] },
-  { label: 'Elections', ids: ['call_election'] },
 ];
 
 export const MAX_SEATS = 20;
@@ -128,7 +126,7 @@ export const TEMPLATES = [
       preamble: `We, the founders of ${nation}, vest the whole executive, legislative and judicial power of the state in one office, and trust to the character of the one who holds it.`,
       offices: [
         { id: 'president', name: 'President', seats: 1, selection: 'election', termYears: 6, electorate: 'nation', termLimit: 2,
-          powers: ['propose_bill', 'vote', 'promulgate', 'spend', 'tax', 'appoint', 'pardon', 'arrest', 'emergency', 'declare_war', 'sign_treaty', 'command_military', 'zone', 'strike_law', 'call_election'] },
+          powers: ['propose_bill', 'vote', 'promulgate', 'spend', 'tax', 'appoint', 'pardon', 'arrest', 'emergency', 'declare_war', 'sign_treaty', 'command_military', 'zone', 'strike_law'] },
         { id: 'minister', name: 'Minister', seats: 3, selection: 'appointment', appointedBy: 'president', termYears: 6,
           powers: ['propose_bill', 'vote', 'zone'] },
       ],
@@ -166,7 +164,7 @@ export const TEMPLATES = [
         { id: 'council', name: 'Council', seats: 7, selection: 'election', termYears: 3, electorate: 'district',
           powers: ['propose_bill', 'vote', 'impeach', 'tax'] },
         { id: 'premier', name: 'Premier', seats: 1, selection: 'appointment', appointedBy: 'council', termYears: 3,
-          powers: ['spend', 'appoint', 'promulgate', 'command_military', 'sign_treaty', 'zone', 'emergency', 'call_election'] },
+          powers: ['spend', 'appoint', 'promulgate', 'command_military', 'sign_treaty', 'zone', 'emergency'] },
         { id: 'magistrate', name: 'Magistrate', seats: 1, selection: 'appointment', appointedBy: 'council', termYears: 6,
           powers: ['strike_law', 'pardon', 'arrest'] },
       ],
@@ -240,8 +238,12 @@ export const TEMPLATES = [
         // engine leaves `cohorts` unset and polls as one body.
         { id: 'senate', name: 'Senate', seats: 20, selection: 'election', termYears: 6, cohorts: 3, electorate: 'district', minAge: 30,
           powers: ['propose_bill', 'vote', 'impeach', 'tax', 'declare_war'] },
+        // No `arrest`. The President of the United States does not detain
+        // anybody: law officers do, under a warrant, and they answer to the
+        // Attorney General — who holds the power here. The pardon stays, because
+        // that one really is the President's alone (Article II §2).
         { id: 'president', name: 'President', seats: 1, selection: 'election', termYears: 4, electorate: 'nation', successor: 'vp', termLimit: 2, minAge: 35,
-          powers: ['spend', 'appoint', 'promulgate', 'veto', 'pardon', 'command_military', 'sign_treaty', 'emergency', 'propose_bill', 'arrest', 'zone'] },
+          powers: ['spend', 'appoint', 'promulgate', 'veto', 'pardon', 'command_military', 'sign_treaty', 'emergency', 'propose_bill', 'zone'] },
         // The Vice President is elected on the President's ticket (ticket:
         // 'president' — no separate ballot; a running mate wins or loses with the
         // President), serves out that term (termFollows) and succeeds to the office
@@ -288,7 +290,12 @@ export const TEMPLATES = [
       // opens a trial, and the Senate sits as the court and convicts at 2/3 to
       // remove. `convicts` is the trial's chamber; a unicameral constitution
       // leaves it null and the same body does both, as it always did.
-      impeachment: { proposalRights: ['assembly'], fraction: 0.5, convictFraction: 0.667, tries: 'assembly', convicts: 'senate', appliesTo: ['president', 'vp', 'state', 'defense', 'exchequer', 'ag', 'justice', 'assembly', 'senate'] },
+      // `appliesTo` is the civil officers of the United States, and that is
+      // not the same list as "everybody with a chair". *Blount* settled in 1797
+      // that a member of Congress is not a civil officer and cannot be
+      // impeached; each chamber expels its own by two thirds instead, under
+      // Article I §5. The two chambers came off this list with that case.
+      impeachment: { proposalRights: ['assembly'], fraction: 0.5, convictFraction: 0.667, tries: 'assembly', convicts: 'senate', appliesTo: ['president', 'vp', 'state', 'defense', 'exchequer', 'ag', 'justice'] },
       amendment: { fraction: 0.75, chamber: 'assembly', alsoRequires: [] },
       judiciary: { office: 'justice', canStrike: true },
       emergency: { office: 'president', suspendsLegislature: false, maxYears: 1 },
@@ -757,7 +764,12 @@ export function grantOf(world, personaId, power) {
   if (em && em.active) {
     const eo = world.constitution.emergency;
     if (eo && officesOf(world, personaId).some((o) => o.id === eo.office)) {
-      if (['spend', 'arrest', 'zone', 'propose_bill'].includes(power)) {
+      // Not `arrest`. A state of emergency in the United States unlocks money,
+      // land and the legislative initiative — the National Emergencies Act is a
+      // budgeting instrument — and it does not hand the executive the power to
+      // detain people. That was the one item on this list with no statute
+      // behind it, and the one that mattered most.
+      if (['spend', 'zone', 'propose_bill'].includes(power)) {
         return { ...office(world, eo.office), viaEmergency: true };
       }
     }
@@ -952,12 +964,15 @@ export function mayPropose(world, personaId, type) {
 export function mayCloseFloor(world, personaId, doc) {
   if (!personaId || !doc) return { ok: false, reason: 'No measure.' };
   if (doc.authorId === personaId) return { ok: true };
-  if (hasPower(world, personaId, 'call_election')) return { ok: true };
+  // The `call_election` power used to open this door too, which was the second
+  // and quieter thing wrong with it: an office granted the power to set an
+  // election date could also move the question on anybody's measure. Both are
+  // gone; the floor is the author's and the presiding officer's.
   const req = voteRequirement(world, doc);
   if (req && presides(world, personaId) && req.body === presidedChamber(world)) return { ok: true };
   return {
     ok: false,
-    reason: 'Only the author, the chamber\u2019s presiding officer, or an office with the power to call may close the floor early.',
+    reason: 'Only the author or the chamber\u2019s presiding officer may close the floor early.',
   };
 }
 

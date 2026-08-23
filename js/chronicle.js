@@ -1270,9 +1270,9 @@ function clauseTally(docs) {
     GRANT_POWER: 'the powers of office', CREATE_OFFICE: 'new offices',
     AMEND: 'amendments', DECLARE_WAR: 'war',
     TREATY_DEFENSE: 'alliance', TREATY_NONAGGRESSION: 'non-aggression',
-    MILITARY: 'the army', PARDON: 'pardons', ARREST: 'detention', EXILE: 'exile',
+    MILITARY: 'the army', PARDON: 'pardons', ARREST: 'detention',
     DEMAND_ACCOUNTS: 'the public accounts', TERM_LIMIT: 'term limits',
-    PLURALITY: 'plurality of office', CALL_ELECTION: 'the timing of elections',
+    PLURALITY: 'plurality of office',
   };
   const counts = {};
   for (const d of docs) for (const c of d.clauses || []) {

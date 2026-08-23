@@ -42,17 +42,39 @@ export const DOC_TYPES = {
  */
 const ALL_CLAUSE_KINDS = ['PROSE', 'SET_TAX', 'APPROPRIATE', 'BAILOUT', 'BUILD', 'ZONE', 'REDISTRICT', 'DEMAND_ACCOUNTS',
   'AMEND', 'CREATE_OFFICE', 'GRANT_POWER', 'RIGHT', 'TERM_LIMIT', 'PLURALITY', 'DECLARE_WAR', 'TREATY_DEFENSE',
-  'TREATY_NONAGGRESSION', 'TREATY_PEACE', 'MILITARY', 'RAISE_DIVISIONS', 'RAISE_AIRWINGS', 'PARDON', 'ARREST', 'EXILE', 'REMOVE', 'CALL_ELECTION'];
+  'TREATY_NONAGGRESSION', 'TREATY_PEACE', 'MILITARY', 'RAISE_DIVISIONS', 'RAISE_AIRWINGS', 'PARDON', 'ARREST', 'REMOVE'];
+
+/**
+ * What an ordinary bill may not do, however the chamber votes.
+ *
+ * A bill used to be able to enact everything except an amendment and a
+ * removal — which meant Congress could name a person and order them detained,
+ * name a person and pardon them, and set the date of an election by statute.
+ * None of those is a thing the United States Congress can do:
+ *
+ * - **ARREST** naming a person is a bill of attainder, forbidden outright by
+ *   Article I §9. Detention is an executive act carried out by law officers,
+ *   and it is the Attorney General's to order and the court's to review.
+ * - **PARDON** is the President's alone (Article II §2). Congress has no share
+ *   in it, and an amnesty statute is a different instrument than this one.
+ * - **REDISTRICT** moves a *state* line. Article IV §3 requires the consent of
+ *   the legislatures of both states concerned; it stays available to an
+ *   amendment, which is the honest version of "the country agreed".
+ *
+ * They are still clauses — an order carries ARREST and PARDON, and an amendment
+ * carries REDISTRICT. What they are not is legislation.
+ */
+const NOT_BY_STATUTE = ['ARREST', 'PARDON', 'REDISTRICT'];
 
 export const DOC_CLAUSES = {
-  bill: ALL_CLAUSE_KINDS.filter((k) => !['AMEND', 'REMOVE'].includes(k)),
+  bill: ALL_CLAUSE_KINDS.filter((k) => !['AMEND', 'REMOVE', ...NOT_BY_STATUTE].includes(k)),
   // Amendments touch the rules of the running game: the text, the offices, the
   // powers attached to them, the rights, and the lines on the map.
   amendment: ['PROSE', 'AMEND', 'CREATE_OFFICE', 'GRANT_POWER', 'RIGHT', 'TERM_LIMIT', 'PLURALITY', 'REDISTRICT'],
   // An order is whatever the executive's own powers already reach. It cannot
   // legislate — no rights, no offices, no amendments — and the court is what
   // answers an order that overreaches on the rest.
-  order: ['PROSE', 'APPROPRIATE', 'BAILOUT', 'BUILD', 'ZONE', 'MILITARY', 'RAISE_DIVISIONS', 'RAISE_AIRWINGS', 'PARDON', 'ARREST', 'EXILE', 'CALL_ELECTION', 'DECLARE_WAR'],
+  order: ['PROSE', 'APPROPRIATE', 'BAILOUT', 'BUILD', 'ZONE', 'MILITARY', 'RAISE_DIVISIONS', 'RAISE_AIRWINGS', 'PARDON', 'ARREST', 'DECLARE_WAR'],
   treaty: ['PROSE', 'TREATY_DEFENSE', 'TREATY_NONAGGRESSION', 'TREATY_PEACE', 'APPROPRIATE'],
   impeachment: ['PROSE', 'REMOVE'],
   declaration: ['PROSE', 'DECLARE_WAR'],
@@ -907,19 +929,15 @@ export const CLAUSES = {
       log(w, 'court', `${p.name} is detained on the charge of ${c.charge || 'unspecified'}. The character is imprisoned, not the player.`, { actors: [p.id], weight: 3 });
     },
   },
-  EXILE: {
-    label: 'Exile', power: 'arrest',
-    fields: [{ k: 'persona', t: 'persona', label: 'Person' }],
-    text: (w, c) => `${w.personas[c.persona]?.name || 'The named person'} is exiled from ${w.nation} and stripped of office.`,
-    apply: (w, c) => {
-      const p = w.personas[c.persona];
-      if (!p) return;
-      p.exiled = true;
-      const seat = R.seatOf(w, p.id);
-      if (seat) vacate(w, seat, 'exiled');
-      log(w, 'death', `${p.name} is exiled. Exile is a game state, not a ban — they may return under another name.`, { actors: [p.id], weight: 3 });
-    },
-  },
+  // No EXILE clause. Banishing a citizen is not a power the United States gives
+  // anybody: there is no constitutional route to it by order, and as legislation
+  // naming a person it is a bill of attainder, forbidden by Article I §9. It was
+  // inherited from a generic republic where the executive could do it on the
+  // `arrest` power.
+  //
+  // `p.exiled` survives as a persona state and every gate still honours it,
+  // because a *coup* can still drive somebody out (see intrigue.js) — what has
+  // gone is the lawful instrument for doing it.
   REMOVE: {
     label: 'Remove from office', power: null,
     fields: [{ k: 'persona', t: 'persona', label: 'Officeholder' }],
@@ -932,12 +950,13 @@ export const CLAUSES = {
       if (office) succeed(w, office); // the deputy steps up, if the office has one
     },
   },
-  CALL_ELECTION: {
-    label: 'Call an election', power: 'call_election',
-    fields: [{ k: 'office', t: 'office', label: 'For office' }],
-    text: (w, c) => `Elections for the ${R.office(w, c.office)?.name || 'office'} shall be held forthwith.`,
-    apply: (w, c) => scheduleElection(w, c.office, 60),
-  },
+  // No CALL_ELECTION clause, and no `call_election` power behind it. Nothing in
+  // the United States lets an office set the date of an election by decree —
+  // the calendar is fixed and the country goes to the polls when a term runs
+  // out, which is exactly what sim.tickTerms already does. No office in the
+  // template ever held the power; what made it worth deleting rather than
+  // leaving inert is that GRANT_POWER could hand it to the President, and that
+  // holding it also silently conferred the power to close any floor.
 };
 
 const nm = (w, id) => w.districts.find((d) => d.id === id)?.name || 'a district';
@@ -1371,13 +1390,6 @@ export function revokeLaw(world, doc) {
         p.imprisoned = false;
         p.charges = (p.charges || []).filter((x) => x !== (c.charge || 'unspecified'));
         log(world, 'court', `${p.name} is released — the order that held them is void.`, { actors: [p.id], weight: 2 });
-      }
-    }
-    if (c.kind === 'EXILE') {
-      const p = world.personas[c.persona];
-      if (p && p.exiled) {
-        p.exiled = false;
-        log(world, 'court', `${p.name}'s exile is void; they may return.`, { actors: [p.id], weight: 2 });
       }
     }
     if (c.kind === 'GRANT_POWER' && !c.revoke) {
