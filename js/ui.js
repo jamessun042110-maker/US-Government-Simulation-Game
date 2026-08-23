@@ -871,6 +871,7 @@ const DRIVER_WHY = {
   War: 'War exhaustion. Every tick of war costs a little; peace recovers it slowly.',
   Emergency: 'A state of emergency is in force, and the country can tell.',
   Treasury: 'Years of spending in reserve. Full marks at two; drawing it down costs you, a deficit more.',
+  Foreign: 'Wars being fought, pacts standing, and how hostile the neighbourhood is on average.',
   Partisanship: 'Which side this state is on, against the party of the President. It cuts both ways and it cancels out nationally.',
 };
 

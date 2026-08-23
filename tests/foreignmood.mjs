@@ -33,7 +33,14 @@ const ok = (l, c, x = '') => console.log((c ? 'PASS ' : 'FAIL ') + l + (x ? ' | 
   ok('an ongoing war drags it down further', atWar < hostile, `${atWar.toFixed(2)} < ${hostile.toFixed(2)}`);
 
   // Never unbounded.
-  ok('it is capped', Math.abs(atWar) <= 8 + 1e-9 && Math.abs(calm) <= 8 + 1e-9);
+  // The cap is a property of the term, not a magic number this file also
+  // knows: it is worth twelve points now that foreign policy reaches the
+  // country's mood and not only the executive's own standing, and it will
+  // move again the next time somebody tunes a war. Read it off the extremes
+  // the function itself can reach.
+  const CAP = 12;
+  ok('it is capped', Math.abs(atWar) <= CAP + 1e-9 && Math.abs(calm) <= CAP + 1e-9,
+    `${atWar.toFixed(2)} / ${calm.toFixed(2)}`);
 }
 {
   const w = W.newWorld({ nation: 'The Silver Republic' });

@@ -474,6 +474,17 @@ export function districtMoodTarget(world, d) {
     // amenities, and it decays, so a health service is a thing you keep paying
     // for rather than a box you tick once.
     Health: (((d.health ?? 55) - 55) / 45) * 6 * d.salience.amenity,
+    // Foreign policy, which until now reached the country not at all.
+    //
+    // `foreignStability` has always existed and has always been folded into the
+    // *executive's own* approval — so a President could lose a war, tear up
+    // every pact and let the neighbourhood go hostile, and the twenty states
+    // would go on rating the government on housing and taxes. National approval
+    // is a population-weighted mean of district mood, so nothing outside the
+    // borders ever touched it except war exhaustion. It does now, at full
+    // weight: this is the same number the President already felt, and there is
+    // no reason the country should feel it less than he does.
+    Foreign: foreignStability(world),
     // Which side the state is on.
     //
     // The map has carried a partisan split per state since the census landed —
@@ -592,14 +603,27 @@ export function nationalApproval(world) {
 
 // How much a peaceful, well-managed neighbourhood is worth to the government's
 // standing, and what a war or a wall of hostility costs it. Folded into the
-// approval the executive converges toward (tickOpinion), not shoved — so it is a
-// standing background pressure a government feels for as long as the condition
-// holds, on top of the discrete shocks of declaring a war or losing a battle.
-const FOREIGN_WAR_PENALTY = 5;      // per ongoing war
-const FOREIGN_PACT_BONUS = 1.5;     // per standing pact or alliance
+// approval the executive converges toward (tickOpinion) *and* into the mood of
+// every district (districtMoodTarget), not shoved — so it is a standing
+// background pressure a government feels for as long as the condition holds, on
+// top of the discrete shocks of declaring a war or losing a battle.
+//
+// The executive therefore feels it twice: once as a citizen of a country in the
+// state it is in, and once again as the person whose policy put it there. That
+// is deliberate. Foreign policy is the one field where the office is the actor
+// and the country is the audience, and the President should carry more of it
+// than the average voter does.
+//
+// The weights are up by half over the founding set. Foreign policy reached the
+// country not at all until it was added to district mood, so it has never once
+// been tuned against what a war actually feels like — and a war that cost the
+// government five points of one office-holder's approval, and nothing anywhere
+// else, was not a war anybody had to end.
+const FOREIGN_WAR_PENALTY = 8;      // per ongoing war
+const FOREIGN_PACT_BONUS = 2.5;     // per standing pact or alliance
 const FOREIGN_CALM_HOSTILITY = 40;  // mean hostility below this reads as calm
-const FOREIGN_HOSTILITY_WEIGHT = 0.06;
-const FOREIGN_STABILITY_CAP = 8;
+const FOREIGN_HOSTILITY_WEIGHT = 0.09;
+const FOREIGN_STABILITY_CAP = 12;
 
 /**
  * The state of the republic's foreign relations, as a signed nudge to the
