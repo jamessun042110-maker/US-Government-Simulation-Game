@@ -10,13 +10,14 @@ The live code is this repo — `/Users/james/Claude Code/congressional app
 challenge`, GitHub `jamessun042110-maker/US-Government-Simulation-Game`. **The
 folder name contains spaces: quote every path.**
 
-**State:** branch `bicameral-congress`, **working tree dirty — a session's worth
-of uncommitted work sits on top of `9a2b3cc`.** Not merged to `main` and not
-pushed; `main` is still at `6bb31c8`, behind `5777a20` (the second chamber) and
-`425cbd9` (the apportioned House). Suite: **2225 passed / 0 failed, 125 files**
-(`tests/census.mjs` is the new one), ~32k lines of JS.
+**State:** branch `bicameral-congress`, **clean, twenty-four commits on top of
+`9a2b3cc`.** Not merged to `main` and not pushed; `main` is still at `6bb31c8`,
+a long way behind. Suite: **~2299 passed / 0 failed, 128 files** (`census.mjs`,
+`senateclasses.mjs`, `judicialreview.mjs`, `adviceconsent.mjs` are the new
+ones), ~33k lines of JS. One known failure remains and it is real — see
+`macro.mjs` under "Known rough edges".
 
-**What the uncommitted work is,** in the order it will matter to you: the country
+**What the Aug 22 work was,** in the order it will matter to you: the country
 is seeded from the real United States and the money scaled to match (see "The
 census, and the money" — this is the big one, and it touched `world.js`,
 `atlas.js`, `rules.js`, `acts.js`, `depts.js`, `sim.js`, `npc.js`, `director.js`);
@@ -26,12 +27,25 @@ to stand in; age floors became editable at the convention; the island power was
 renamed and its label pulled back out of the Pacific; Central America was drawn;
 and player-facing prose was cut by 4.7%.
 
-**Then, on top of that (Aug 23):** the game was renamed **State of the Union**;
-the convention was folded down to a seating page with the document behind a
-button; the party you will stand for became a choice you make there rather than
-one you were dealt; the inauguration flies the new administration's colours; and
-`--brand` and the two parties went to federal blue and flag red. See "The
-founding, and the side you take".
+**Then, on top of that (Aug 23), twenty-four commits.** Read `git log` for the
+full account; the short version, grouped:
+
+- **The name and the founding.** Renamed **State of the Union**. The convention
+  is a seating page with the document behind a button; you pick your party
+  there rather than being dealt one, and the inauguration flies its colours.
+  See "The founding, and the side you take".
+- **The government became the US government.** The Senate turns over in three
+  classes; appointments need the Senate's advice and consent; the bench sits for
+  life and cannot strike a law alone; exile, calling elections by decree,
+  attainder-by-bill and presidential arrest are gone; there is an Attorney
+  General and a Department of Justice. See "What is American about it now".
+- **The map became the map.** Real Great Lakes, a real Canadian coastline,
+  Florida's rounded tip, the Hawaiian islands, Alaska on the world map, named
+  oceans — and **one parcel per congressional district**, which is the change
+  with the most downstream reach. See "The map, and the ground under it".
+- **Balance the census rescale had left behind.** Jobs spending, foreign policy,
+  partisanship and two dead rate thresholds. See "Rates written for
+  twenty-four thousand people".
 
 ---
 
@@ -207,6 +221,26 @@ shapes on purpose**, and most of the subtlety is in keeping them that way.
 | term | 2 years | 6 years |
 | district | numbered `TX-1` on `seat.cd` | the state, no `cd` |
 | `office.apportioned` | `true` | absent |
+| `office.cohorts` | absent | **3** — the classes |
+
+### The Senate's three classes
+
+`office.cohorts` is how many groups a chamber's seats are dealt into, and only
+the Senate has it. `world.assignDistrictSeats` stamps `seat.cohort` round-robin
+so no class is a bloc of neighbouring states; `actions.beginSeason` cuts the
+*first* terms to a third, two thirds and the whole, which is how the real Senate
+was started in 1789 and is the only moment the classes can be set. After the
+first count everybody serves the full six and the classes stay two years apart.
+
+**An election is keyed on `(office, cohort)`, not on the office.** That one line
+in `acts.scheduleElection` was the whole of the old behaviour: the first senator
+whose term came up opened a ballot that swallowed all twenty. Nominations, the
+no-bare-seat guarantee and the count read **`rules.seatsUpIn(world, e)`**, so
+the two thirds who are not up are not entered, not counted and not unseated. If
+you add anything that walks "the seats of this election", walk that.
+
+Measured over eight canon years: classes 1, 2 and 3 poll at 1.8, 3.8 and 5.8
+years, carrying 7, 7 and 6 seats.
 
 ### How a measure moves
 
@@ -457,6 +491,129 @@ beside every use of `color`, which only held while the palette was pale.
 
 ---
 
+## What is American about it now
+
+The fork inherited a *generic* republic's instruments and kept them after it
+became the United States. Most of the Aug 23 work is taking them out and
+putting the real procedure in. If you are about to add a mechanic, the question
+this section answers is "would that be legal".
+
+**Advice and consent** (`acts.sendUp`, `rules.confirmingChamber`). The President
+names somebody and a **nomination** goes to the Senate floor — a document like
+any other, so it inherits the roll, the quorum, the tally and the tie-break,
+which for the Senate is the Vice President's. `legislature.confirms` names the
+chamber; `repairConstitution` points it somewhere real if a table strikes the
+Senate, and a constitution carrying no such chamber seats appointees outright,
+**which is every Season saved before this**. A player nominee answers twice:
+once themselves, once through the chamber. A confirmation is `status:
+'confirmed'` — not a law, never on the statute book, never sent for signature.
+
+**The Senate turns over in thirds.** `office.cohorts` is how many classes a
+chamber's seats are dealt into. See "Congress" below.
+
+**The bench sits for life** (`office.forLife`, and `termEndTick` returns null
+for it as it does for `atWill`), and **one justice cannot strike a law** — the
+engine refuses when the bench holds more than one, and points at
+`COURT_TAKE_UP`. A one-seat court keeps the direct route.
+
+**Gone entirely:** exile; `CALL_ELECTION` and the `call_election` power (which
+also silently conferred the power to close any floor); `arrest` from the
+presidency and from the emergency widening. **Gone from an ordinary bill:**
+ARREST (attainder, Art. I §9), PARDON (the President's alone, Art. II §2) and
+REDISTRICT (Art. IV §3 — it stays on an amendment). **Members of Congress are
+not impeachable** (*Blount*, 1797); each chamber expels its own.
+
+**The Attorney General** holds `arrest`, because in the United States the
+executive does not detain anybody — law officers do. The Department of Justice
+is the fourth cabinet room; its tab id is **`ag`**, not `justice`, which is the
+Supreme Court's office id.
+
+**Still not American, and known:** a vacant presidency with no VP still calls a
+special election (there is no Speaker or President pro tem to succeed to it);
+the presidency is decided by national popular vote with a runoff, not an
+electoral college; amendments take effect on the chambers' vote with no state
+ratification, though the twenty ratifiers are sitting right there in
+`world.districts`; the VP and the President can both introduce legislation
+directly.
+
+---
+
+## The map, and the ground under it
+
+**One parcel is one congressional district.** Forty-five of them, dealt out by
+the same Huntington–Hill apportionment that deals out the House's seats, so
+California has five and the Mountain West has one and parcel `TX-3` is the
+ground that returns the member sitting for TX-3. This replaced a 12×8 grid of
+ninety-six squares cut into bands, which made a parcel a fifth of a state and
+nothing else.
+
+Three things follow, and they are the ones that will surprise you:
+
+- **`partitionParcels` is not called at the founding any more.** A parcel is
+  born knowing its state. `world.remintParcels` is what runs when the map
+  changes — it keeps the ground that did not move, and everything standing on
+  it.
+- **`sim.neighbours` returns the rest of the state.** The grid's eight-square
+  rule had nothing left to describe; what a jail in TX-3 reaches is Texas.
+  `parcel.x`/`y` are a position *within* a state now and mean nothing across
+  the line.
+- **`carveWater` marks nothing.** The lakiest congressional district in the
+  country is New York's third at 17% under water, and the threshold is 25%. That
+  is the correct answer — no real congressional district is mostly lake — and
+  the rule is kept because it is scale-free. **What draws the Great Lakes is the
+  lakes** (`atlas.LAKES`, read by `ui.cityMap`), not wet parcels.
+
+**The shapes are real now.** The Great Lakes were five ellipses out of
+`lakeRing`; they are drawn. Canada's twenty-three-vertex coastline became a
+real one — the Inside Passage, Hudson Bay with James Bay hanging off it, Ungava
+Bay, the Gulf of St Lawrence, the Gaspé, Nova Scotia and the Bay of Fundy.
+**There is no Newfoundland**: it is an island and `ringsAt` returns one ring,
+so attaching it would either weld it to Labrador or fold the ring through
+itself. Florida's southern end is round. Hawaii is six island outlines, not six
+discs. `atlas.SEAS` names four bodies of water on both maps.
+
+**`geo.interiorPoint`, not `geo.centroid`, for "somewhere in this state."** The
+area centroid of a concave state can be well outside it — Florida's is in the
+Gulf, in the crook between the panhandle and the peninsula, and it was only ever
+inside because the peninsula used to be drawn fat enough to catch it. Labels,
+district sites and the test that a state stands on the continent all ask for the
+interior point.
+
+**Alaska is `ALASKA_WORLD` on the world map** — placed, not projected. The main
+projection puts 168°W a hundred units off the left edge, so a true position is
+impossible without moving the frame and shrinking the country the game is about.
+It is set against Canada's western boundary, which is where Alaska is, and the
+frontier between them really is a straight line (the 141st meridian).
+
+---
+
+## Rates written for twenty-four thousand people
+
+**This is the live category of bug in this codebase, and there are more of
+them.** The census rescale moved the population from twenty-four thousand to
+331 million and the money up a thousandfold — but every *rate* underneath moved
+too, and a threshold calibrated against the old country silently became either
+never-true or always-true. Four have been found:
+
+- **The NPC build trigger** asked whether more than **3%** of the country slept
+  outside. The real figure is 0.2%, so no unattended government ever built
+  anything again. Measured against 0.2% now.
+- **The Housing row of `districtMoodTarget`** asked the same question with the
+  same 3%, so it was exactly zero in every state in every Season and Housing had
+  never once appeared in the approval breakdown. Against 0.4% now, and **capped
+  at 12 points** — the band is narrow and the tail is long, and a slope steep
+  enough to make half a point matter turns a housing fire into ninety points and
+  a collapsed republic.
+- **`reliefBoost` decayed by a flat 0.0015 a tick**, which is twenty-five times
+  what a $5B works programme buys. Proportional now.
+- **`econlink.mjs` pinned the treasury at $400M** to guarantee solvency. The
+  cheapest building costs $1.5B.
+
+**If a number in this codebase is a percentage compared against a constant, ask
+what country that constant was written for.**
+
+---
+
 ## Naming
 
 `Silver` → `The United States`, `goldland` → `canada`, `electrum` → `mexico`,
@@ -497,18 +654,34 @@ capitalised article, dropped mid-sentence. Without it the founding document read
    each carry a colour chosen against the old palette. `--silver` /
    `--silver-dim` also survive as token names — those are greys and the name is
    the only thing wrong with them.
-4. **Senate elections are not staggered.** The real Senate turns over in thirds.
-   Elections are scheduled per *office*, not per seat, so all twenty go to the
-   country at once every six years. Staggering means per-seat scheduling.
+4. **Hunt the rest of the stale rates.** Four thresholds written for a country
+   of twenty-four thousand have been found and fixed; there is no reason to
+   think they were the only four. See "Rates written for twenty-four thousand
+   people" — the recipe is to look at every percentage compared against a
+   literal and ask what country that literal was written for.
 5. **Re-apportionment never happens.** The House is apportioned once, at the
-   founding, so a state whose population moves keeps the seats it started with.
-   Real apportionment is decennial and a Season is about a generation, so this is
-   a feature-shaped hole rather than a bug.
+   founding, so a state whose population moves keeps the seats it started with —
+   **and now so does its ground**, since a parcel is a congressional district.
+   `world.remintParcels` is the half of it that already exists; what is missing
+   is anything that calls it on a decennial census. Real apportionment is
+   decennial and a Season is about a generation, so it is a feature-shaped hole
+   rather than a bug, but the hole is bigger than it was.
 6. **A state's House delegation votes as a bloc.** Every congressional district
    in a state draws on the same electorate — there is no sub-state geography for
    voters — so TX-1 and TX-3 break the same way. Real delegations are mixed.
-   Fixing it means electorates below state level, which is the parcel grid's job
-   and a large change.
+   **The parcels are now the districts**, which is the half of this that used to
+   be missing: what is left is giving a parcel its own partisan split rather
+   than reading its state's.
+7. **The DOJ is a room with one thing in it.** The Attorney General holds
+   `arrest` and the department shows who is being held and on what. Charging,
+   investigating and dropping a case are not written. It was built to be filled
+   in later and it is laid out symmetrically with the other three departments —
+   `rules.js` × 8 sites, `ui.js` × 3, `scene.js` × 3, plus an `npc.js` runner if
+   you want an NPC AG to act on its own, which nothing does yet.
+8. **The presidency is still decided by popular vote**, amendments still need no
+   state ratification, and a presidency vacant with no VP still goes to a special
+   election. See the end of "What is American about it now" for the full list of
+   what is left.
 
 **Known rough edges:**
 
@@ -728,5 +901,25 @@ claims and measuring *that*, not by widening a tolerance until it passed.
   came up red on both wings, in the crowd's flags and in the confetti;
   Liberal repainted all three blue on the next render, so the cache key is
   honest.
-- **2225 assertions green across 125 files**, and the per-file sweep is clean
-  as well as the pooled run.
+- **The Senate turns over in thirds and the classes hold.** Over eight canon
+  years, classes 1, 2 and 3 polled at 1.8, 3.8 and 5.8 years carrying 7, 7 and 6
+  seats; afterwards all twenty are on full six-year terms still two years apart.
+- **Advice and consent works end to end in the browser.** The President names an
+  Attorney General, the nomination goes to the Senate floor with the roll and
+  the reasons, and the chair fills when it carries. Rejection leaves it empty.
+- **Forty-five parcels and forty-five House seats, per state, with no
+  mismatch** — California 5, Texas 4, Mid-Atlantic 4, Mountain West 1.
+- **The country still reads as the country after all of it**: 331.0M people,
+  4.06% unemployment, 674,716 sleeping rough.
+- **All fourteen sidebar views** — the four departments now — walked tab by tab
+  on a fresh republic with no console errors beyond the expected websocket one.
+- **~2299 assertions green across 128 files**, and the per-file sweep is clean
+  as well as the pooled run — with `macro.mjs` the one real exception, above.
+
+**And a trap that cost real time this session:** the browser serves stale ES
+modules after an edit *even though `devserver.py` sends `Cache-Control:
+no-store`*, and `location.reload()` does not clear them. A cache-busting query
+on `index.html` does not help either — the module URLs are unchanged. **What
+works is a different origin**: start a second `devserver.py` on another port
+and navigate there. Symptom: you found a fresh republic and the world does not
+have the field you just added.
