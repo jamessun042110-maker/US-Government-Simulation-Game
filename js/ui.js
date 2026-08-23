@@ -35,6 +35,7 @@ export const S = {
   seen: 0,
   adv: {},             // which "Advanced" disclosures the user has opened
   conventionDoc: false, // the convention's document page, behind the seating one
+  summitArm: null,     // which foreign power's state visit has been opened up
   electionMin: false,  // ballot docked to the corner instead of taking the screen
 };
 
@@ -4072,9 +4073,23 @@ function treatyOdds(world, f) {
  *
  * It sits under the ambassador's row because it is the same three pieces of
  * business through a different door, and the player should be able to see the
- * choice: wait for the delegation the department can summon once a year, or
- * spend a week of the President's own time and go now. Only the chair sees it,
- * because only the chair can do it.
+ * choice: wait for the delegation the department can summon, or spend a week of
+ * the President's own time and go now. Only the chair sees it, because only the
+ * chair can do it.
+ *
+ * **It takes two clicks, and it did not.** The three approaches were three loose
+ * buttons carrying the same three labels as the ambassador's, minus the word
+ * "them" — and this row is the one that shows when *nobody is in the building*,
+ * so when there was no delegation to talk to, "✈ Reassure" was the only button
+ * on the card called Reassure anything. A President reaching for the free thing
+ * the department does spent the year's only trip and a week of their own powers,
+ * and found out afterwards. A ✈ and a tooltip is not enough of a difference for
+ * a decision that expensive.
+ *
+ * So: the free door first — "Ask them in" is the primary button above this and
+ * costs nothing — and the trip behind a control that says what it costs before
+ * it will show you a thing to press. The arming lives in S, per power, so a
+ * rebuild on the tick does not shut it under whoever just opened it.
  */
 function summitRow(world, p, f) {
   if (!p) return null;
@@ -4086,17 +4101,41 @@ function summitRow(world, p, f) {
   if (may.ok === false) {
     return el('div', { class: 'tiny dimmer', style: { marginTop: '5px' } }, may.reason);
   }
+  // Whether the cheap door is actually open. If they will come when asked, the
+  // trip buys nothing but haste and the copy says so; if they have been shown
+  // out and will not return for a year, it is the only door there is.
+  const waiting = DEP.recallLeft(world, DEP.envoys(world)[f.id]);
+  const cost = `a week abroad — ${C.canonSpan(world, weeks)} with none of your office’s powers — and the only trip you get this year`;
+
+  if (S.summitArm !== f.id) {
+    return el('div', { style: { marginTop: '5px' } },
+      el('button', {
+        class: 'btn sm ghost',
+        onclick: () => { S.summitArm = f.id; CTX.rerender(true); },
+      }, '✈ Go to ', f.name, ' yourself…'),
+      el('div', { class: 'tiny dimmer', style: { marginTop: '4px' } },
+        `Costs ${cost}. `,
+        waiting > 0
+          ? 'Their delegation will not come; this is the only way to talk to them.'
+          : 'Asking them in costs neither.'));
+  }
   return el('div', { style: { marginTop: '5px' } },
+    el('div', { class: 'blocked', style: { marginBottom: '6px' } },
+      `Going in person spends ${cost}. `,
+      waiting > 0
+        ? 'Their ambassador will not return in time, so there is no cheaper way to do this.'
+        : 'Everything below can also be said to their ambassador here, for nothing — ask them in instead.'),
     el('div', { class: 'row', style: { gap: '4px', flexWrap: 'wrap' } },
       ...Object.entries(DEP.APPROACHES).map(([k, a]) => el('button', {
         class: 'btn sm ghost',
         title: `Go to ${f.name} yourself and ${a.label.toLowerCase()}. ${a.blurb}`
           + (a.cost ? ` Costs ${money(a.cost)}.` : ''),
-        onclick: () => go('SUMMIT', { foreignId: f.id, kind: k }),
+        onclick: () => { S.summitArm = null; go('SUMMIT', { foreignId: f.id, kind: k }); },
       }, '✈ ', a.label.replace(/ them$/, ''), a.cost ? el('span', { class: 'dimmer' }, ' · ' + money(a.cost)) : null))),
-    el('div', { class: 'tiny dimmer' },
-      `Go yourself, no waiting on their delegation. Costs a week abroad, `
-      + `${C.canonSpan(world, weeks)} with none of your office’s powers. Once a year.`));
+    el('button', {
+      class: 'btn sm ghost', style: { marginTop: '6px' },
+      onclick: () => { S.summitArm = null; CTX.rerender(true); },
+    }, 'Never mind'));
 }
 
 VIEWS.state = (root) => {
