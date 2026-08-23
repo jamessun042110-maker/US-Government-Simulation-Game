@@ -956,20 +956,24 @@ function approvalCard() {
   return el('div', { class: 'card' }, el('h3', {}, 'Why the approval'), approvalBreakdown());
 }
 
-// Districts that hold or border water — computed live from the (stable) water
-// geometry, so it stays right even after the chamber re-partitions the map.
+/**
+ * Districts that hold or border water.
+ *
+ * It read the old 12×8 parcel grid, walking off each wet index to the four
+ * squares around it — arithmetic that only worked while the parcels were a
+ * rectangle. They are congressional districts now: one per House seat, dealt
+ * out by apportionment, and there is no grid to walk.
+ *
+ * Two answers instead, and both are better than the arithmetic was. A state
+ * holding a wet parcel holds a lake, and `atlas.isCoastal` is the authored
+ * answer to whether the sea or a Great Lake touches a state at all — which is
+ * what "waterfront" was reaching for, and it is right for the fifteen coastal
+ * states whether or not any of their parcels came out wet.
+ */
 function waterfrontDistricts(world) {
-  const water = world.city?.water;
-  if (!water || !water.length) return new Set();
-  const W = world.city.w, H = world.city.h, out = new Set();
-  for (const i of water) {
-    const x = i % W, y = Math.floor(i / W);
-    for (const [nx, ny] of [[x, y], [x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
-      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-      const np = world.city.parcels[ny * W + nx];
-      if (np) out.add(np.district);
-    }
-  }
+  const out = new Set();
+  for (const p of world.city?.parcels || []) if (p.water) out.add(p.district);
+  for (const d of world.districts || []) if (ATL.isCoastal(d.name)) out.add(d.id);
   return out;
 }
 

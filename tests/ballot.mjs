@@ -138,7 +138,15 @@ ok('and nothing is ever built on water', wet.city.parcels.every((pp) => !(pp.wat
     .map((pp) => wet.districts.find((d) => d.id === pp.district)?.name));
   // The states the atlas's six named lakes actually touch.
   const LAKE_STATES = new Set(['Michigan', 'Upper Midwest', 'New York', 'Ohio Valley', 'Illinois', 'Southwest']);
-  ok('there is water on the map at all', wetStates.size > 0, [...wetStates].join(', ') || 'none');
+  // Not "there is water" any more. A parcel is a congressional district now, and
+  // no congressional district in the country is mostly lake — the lakiest is
+  // New York's third at 17% — so `carveWater` correctly marks nothing. The rule
+  // is what is being tested, and the rule is that anything it *does* mark is on
+  // a lake: if the ground is ever cut finer than a district again this catches
+  // the old behaviour, which thinned a parcel out of every coastal state and put
+  // an inland lake in the middle of Texas.
+  ok('no congressional district is written off as open water', wetStates.size === 0,
+    [...wetStates].join(', ') || 'none, as it should be');
   ok('and every wet state has a named lake on it',
     [...wetStates].every((n) => LAKE_STATES.has(n)), [...wetStates].join(', '));
   ok('no landlocked state invents one',

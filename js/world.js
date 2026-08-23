@@ -473,33 +473,55 @@ export function newWorld(opts) {
     });
   }
 
-  // Parcels are created first and districted by partitionParcels() below, over the
-  // districts that actually exist — `nDistricts`, taken from the constitution's
-  // district chamber, not `districtCount`, the requested figure. Getting that
-  // wrong is how a Season shipped with seven districts and a six-way partition:
-  // the seventh held no parcel, so it had no land, no people and no unemployment
-  // figure, and yet the Assembly had a seat for it and returned a member. An
-  // electorate with no electors.
-  const { w, h } = world.city;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      // Districted below by partitionParcels, so there is no district to ask
-      // yet. Land value is seeded in seedCensus once there is — it used to be
-      // rolled off `districts[0]` here, which gave every parcel in the country
-      // New England's prices and then averaged them back into every state.
-      const d = world.districts[0];
+  // One parcel per congressional district.
+  //
+  // It was a 12×8 grid of 96 squares cut into horizontal bands, which made a
+  // parcel a fifth of a state and nothing else — an arbitrary unit with no
+  // meaning outside this file. California could not be five times Montana
+  // because the grid did not have five times the ground to give it, and a
+  // building "in California" was in a fifth of California for no reason anyone
+  // could say.
+  //
+  // A congressional district is the unit the country actually divides itself
+  // into, so it is the unit the map divides itself into: one parcel each,
+  // forty-five of them, dealt out by the same Huntington–Hill apportionment
+  // that deals out the seats (rules.apportion). California gets five, Texas
+  // four, the Mountain West one — so the parcels are proportional to population
+  // for free, because that is the whole of what apportionment means. And they
+  // are the *same* division: parcel `TX-3` is the ground that returns the
+  // member sitting for TX-3, and `assignDistrictSeats` numbers both.
+  //
+  // `x` and `y` survive as a position *within the state* — a small grid laid
+  // over the state's own parcels — because a handful of things still ask which
+  // parcels are near which. Across state lines they mean nothing and nothing
+  // asks; see sim.neighbours.
+  const seats = houseSeatsPer(world);
+  let idx = 0;
+  world.districts.forEach((d, di) => {
+    const n = Math.max(1, seats[di] || 1);
+    const cols = Math.ceil(Math.sqrt(n));
+    for (let k = 0; k < n; k++) {
       const seeded = rng(world);
       const zone = seeded < 0.42 ? 'residential' : seeded < 0.62 ? 'commercial' : seeded < 0.74 ? 'industrial' : seeded < 0.8 ? 'civic' : 'unzoned';
       world.city.parcels.push({
-        i: y * w + x, x, y, district: d.id, zone,
+        i: idx++, x: k % cols, y: Math.floor(k / cols), district: d.id,
+        // The numbered district this ground is, matching seat.cd. One-based,
+        // like every congressional district anybody has ever said out loud.
+        cd: k + 1,
+        zone,
         building: null, project: null,
+        // Priced properly by priceParcels once every parcel knows its state.
         landValue: Math.round(d.landValue * range(world, 0.7, 1.35)),
         pop: 0,
       });
     }
-  }
+  });
+  world.city.seats = world.city.parcels.length;
 
-  partitionParcels(world, nDistricts);
+  // No partitionParcels: a parcel is born knowing its state, because it *is* a
+  // congressional district of that state. The banded partition it replaced was
+  // the only reason the grid had to be a rectangle.
+  //
   // Before the water, not after: carveWater asks the map where the lakes fall,
   // and the map cannot answer until every district's ground is settled. This
   // only ever fires when the partition has left a district empty, but a water
@@ -767,11 +789,23 @@ function carveWater(world) {
   // that a lake is on the map only if it can be named. `cityGeometry` is the
   // same subdivision the domestic map draws, so a water parcel is now the parcel
   // the lake is genuinely sitting on, and not merely one in the right state.
-  // Measured by area, not by centre. There are ninety-six parcels for the whole
-  // country, so one of them is the size of a small state and no lake on earth
-  // contains a parcel's midpoint — testing the centre found nothing at all. What
+  // Measured by area, not by centre. There are forty-five parcels for the whole
+  // country — one per congressional district — so one of them is the size of a
+  // small state and no lake on earth contains a parcel's midpoint — testing the centre found nothing at all. What
   // is being asked is "is this parcel mostly lake", so the parcel is sampled on a
   // grid and the answer is the fraction of it under water.
+  // A quarter of the parcel under water, and at the scale the parcels are drawn
+  // at now, nothing reaches it — which is the correct answer rather than a
+  // failure of the threshold. A parcel is a congressional district, and no
+  // congressional district in the United States is mostly lake: the lakiest of
+  // ours is New York's third at 17% and Michigan's first at 13%, both of which
+  // are lakeshore districts full of people, not stretches of open water.
+  //
+  // The rule is kept because it is the right rule and it is scale-free: `water`
+  // means "there is nothing here to build on", and if the ground is ever cut
+  // finer than a district again, the parcels that are genuinely lake will be
+  // marked and stay unbuildable. What draws the Great Lakes on the map is the
+  // lakes themselves (ui.cityMap reads atlas.LAKES), not this.
   const LAKE_SHARE = 0.25;
   const lakeBoxes = LAKES.map((l) => ({ lake: l, b: bounds(l.poly) }));
   const overlaps = (a, b) => a.x0 <= b.x1 && a.x1 >= b.x0 && a.y0 <= b.y1 && a.y1 >= b.y0;
@@ -805,9 +839,15 @@ function carveWater(world) {
   // Never take a state's last buildable ground. Lake Michigan covers a great
   // deal of Michigan on this projection, and a state that is entirely water is a
   // state nobody can govern.
+  //
+  // One parcel, not two. A parcel is a congressional district now, so a state
+  // with one seat has one parcel and there is no second to hold back — under
+  // the old rule the Mountain West could never be given a lake, and Michigan,
+  // which has three, could only ever be given one. What has to be true is that
+  // a state keeps somewhere to build.
   for (const [id, list] of byDistrict) {
     const owned = world.city.parcels.filter((p) => p.district === id).length;
-    const keep = Math.max(0, Math.min(list.length, owned - 2));
+    const keep = Math.max(0, Math.min(list.length, owned - 1));
     for (const i of list.slice().sort((a, b) => a - b).slice(0, keep)) wet.add(i);
   }
 
@@ -840,6 +880,42 @@ function carveWater(world) {
  * one rectangle, they tile the city exactly, and the largest is never more than
  * one parcel-row bigger than the smallest.
  */
+/**
+ * Deal the ground out again after the map has changed.
+ *
+ * Every state gets as many parcels as it has congressional districts, which is
+ * what `houseSeatsPer` says and what the House itself is apportioned by. A
+ * state that kept its name and its seats keeps its parcels intact — the
+ * buildings on them, the zoning, the prices — because there is nothing to
+ * change about ground that did not move. A state that gained a seat gets a new
+ * empty parcel; one that lost a seat loses its last, and whatever was standing
+ * on it goes with it, which is what losing a district means.
+ */
+export function remintParcels(world) {
+  const want = houseSeatsPer(world);
+  const kept = [];
+  world.districts.forEach((d, di) => {
+    const n = Math.max(1, want[di] || 1);
+    const own = world.city.parcels.filter((p) => p.district === d.id)
+      .sort((a, b) => (a.cd || 0) - (b.cd || 0));
+    for (let k = 0; k < n; k++) {
+      const cols = Math.ceil(Math.sqrt(n));
+      const p = own[k] || {
+        district: d.id, zone: 'unzoned', building: null, project: null,
+        landValue: Math.round(d.landValue || 100), pop: 0,
+      };
+      p.district = d.id; p.cd = k + 1;
+      p.x = k % cols; p.y = Math.floor(k / cols);
+      kept.push(p);
+    }
+  });
+  kept.forEach((p, i) => { p.i = i; });
+  world.city.parcels = kept;
+  world.city.seats = kept.length;
+  // The water indices are parcel ids and the ids have just been rewritten.
+  world.city.water = kept.filter((p) => p.water).map((p) => p.i);
+}
+
 export function partitionParcels(world, n) {
   const { w, h } = world.city;
 
@@ -1003,6 +1079,33 @@ export function distributePopulation(world, total) {
  *
  * Idempotent, and safe to run again after the map changes.
  */
+/**
+ * How many congressional districts each state has — which is how many parcels.
+ *
+ * The same Huntington–Hill apportionment that deals out the House's seats, over
+ * the same populations, so a state's ground and a state's delegation cannot
+ * disagree about how many pieces it is in. Read off `atlas.peopleOf` rather than
+ * `d.pop`, because this runs before `distributePopulation` has put anybody
+ * anywhere — the census is the source of truth for both, so both get the same
+ * answer.
+ *
+ * Falls back to one parcel each if the constitution has no apportioned chamber:
+ * a table that struck the House at the convention still has a country, and a
+ * country still has ground in it.
+ */
+function houseSeatsPer(world) {
+  const ds = world.districts || [];
+  if (!ds.length) return [];
+  const house = (world.constitution?.offices || [])
+    .find((o) => o.apportioned && o.electorate === 'district' && o.seats > 0);
+  if (!house) return ds.map(() => 1);
+  const pops = ds.map((d) => {
+    const st = STATES.find((x) => x.name === d.name);
+    return st ? peopleOf(st) : 1;
+  });
+  return apportion(pops, Math.max(ds.length, house.seats));
+}
+
 export function assignDistrictSeats(world) {
   const ds = world.districts || [];
   if (!ds.length) return;
@@ -1137,9 +1240,15 @@ export function reshapeDistricts(world, count) {
     if (part.lean) d.lean = part.lean;
   }
 
-  // Re-partition the map into `target` contiguous blocks so districts stay
-  // geographically coherent — which is what makes gerrymandering meaningful.
-  partitionParcels(world, target);
+  // Re-cut the ground for the states that now exist.
+  //
+  // This used to call `partitionParcels`, which sliced the old 12×8 rectangle
+  // into contiguous bands. There is no rectangle: a parcel is a congressional
+  // district, dealt out by apportionment, so the number of them changes with the
+  // number of states and the way they divide changes with the census. Minting
+  // them again is the only honest answer — and anything standing on ground that
+  // still belongs to the same state stays standing on it.
+  remintParcels(world);
   ensureEveryDistrictHasLand(world);
   // The map has moved, so the census has to be taken again: parcels have changed
   // hands, a district may be new, and the baseline is defined as whatever a state

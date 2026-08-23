@@ -394,7 +394,14 @@ function tickConstruction(world) {
 
 function neighbours(world, p) {
   const { w } = world.city;
-  return world.city.parcels.filter((q) => Math.abs(q.x - p.x) <= 1 && Math.abs(q.y - p.y) <= 1 && q !== p);
+  // The rest of the state.
+  //
+  // A parcel is a congressional district now, so "next door" is a hundred miles
+  // wide and the eight-neighbour rule that came with the 12×8 grid has nothing
+  // left to describe — `x` and `y` are a position *within* a state and mean
+  // nothing across the line. What a jail or a park in TX-3 actually reaches is
+  // Texas, and that is what this returns.
+  return world.city.parcels.filter((q) => q.district === p.district && q !== p);
 }
 
 // --- opinion ----------------------------------------------------------------
