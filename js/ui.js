@@ -2088,7 +2088,7 @@ const newDraft = (type = 'bill', lockType = false) => ({ type, title: '', preamb
 function proposable(world, p) {
   if (!p) return [];
   return Object.keys(A.DOC_TYPES)
-    .filter((k) => !['ruling', 'order'].includes(k))
+    .filter((k) => !['ruling', 'order', 'nomination'].includes(k))
     .filter((k) => R.mayPropose(world, p.id, k).ok);
 }
 
@@ -2122,7 +2122,12 @@ export function composeModal() {
         // President "Articles of Impeachment" and then refusing in red once the
         // form is filled in tells them what they cannot do at the point it is
         // most annoying to learn it.
-        ...Object.entries(A.DOC_TYPES).filter(([k]) => !['ruling', 'order'].includes(k))
+        //
+        // Three are never drafted here at all: a ruling is written by the court,
+        // an order is signed in the Oval Office, and a nomination is filed by
+        // acts.appoint when the President names somebody. A name is not a thing
+        // you compose on the floor.
+        ...Object.entries(A.DOC_TYPES).filter(([k]) => !['ruling', 'order', 'nomination'].includes(k))
           .filter(([k]) => !p || R.mayPropose(world, p.id, k).ok).map(([k, v]) =>
           el('button', {
             class: 'btn sm' + (d.type === k ? ' primary' : ' ghost'),

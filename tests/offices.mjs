@@ -3,8 +3,28 @@ const W = await import(base + 'world.js');
 const A = await import(base + 'acts.js');
 const R = await import(base + 'rules.js');
 const I = await import(base + 'intrigue.js');
+const S = await import(base + 'sim.js');
 const ACT = await import(base + 'actions.js');
 const ok = (l, c, x = '') => console.log((c ? 'PASS ' : 'FAIL ') + l + (x ? ' | ' + x : ''));
+
+// --- advice and consent ------------------------------------------------------
+// An appointment is a nomination on the confirming chamber's floor now (Article
+// II §2), so a test that wants somebody actually seated has to let that chamber
+// vote. The roll is cast by hand and the question called: it keeps these
+// assertions about appointment rather than about the floor clock, and a floor
+// closed with nobody having voted fails on quorum instead of confirming.
+const consent = (w) => {
+  for (const d of Object.values(w.documents)) {
+    if (d.type !== 'nomination' || d.status !== 'floor') continue;
+    for (const s of w.seats) {
+      if (s.office !== d.requirement.body || !s.personaId) continue;
+      const p = w.personas[s.personaId];
+      if (p?.synthetic) A.castVote(w, d.id, p.id, S.syntheticBallot(w, p, d));
+    }
+    A.closeFloor(w, d.id, { auto: true });
+  }
+};
+
 
 const mk = () => {
   const w = W.newWorld({ nation: 'The Silver Republic', founder: 'James Sun' });
@@ -41,6 +61,7 @@ const mk = () => {
   // A private citizen still can.
   const cit = Object.values(w.personas).find((x) => x.alive && !R.officesOf(w, x.id).length);
   ACT.apply(w, { type: 'APPOINT', playerId: 'p1', seatId: seat.id, personaId: cit.id });
+  consent(w);
   ok('a citizen can', seat.personaId === cit.id);
 }
 
@@ -55,6 +76,7 @@ const mk = () => {
   A.CLAUSES.PLURALITY.apply(w, { allow: true });
   ok('the amendment records itself', R.allowsPlurality(w));
   ACT.apply(w, { type: 'APPOINT', playerId: 'p1', seatId: seat.id, personaId: vpId });
+  consent(w);
   ok('the VP may now serve', seat.personaId === vpId);
 
   const seat2 = w.seats.filter((s) => s.office === cabinet.id)[1] || seat;
@@ -66,7 +88,8 @@ const mk = () => {
   const offered = (w.nominations || []).some((n) => n.seatId === seat2.id && n.personaId === pid);
   ok('and the President may appoint themselves', offered, (w.notices.at(-1)?.text || 'offer made').slice(0, 60));
   ACT.apply(w, { type: 'ACCEPT_POST', playerId: 'p1', seatId: seat2.id });
-  ok('...and take the seat on accepting', seat2.personaId === pid);
+  consent(w);
+  ok('...and take the seat once the chamber consents', seat2.personaId === pid);
 
   A.CLAUSES.PLURALITY.apply(w, { allow: false });
   ok('repeal puts it back', !R.allowsPlurality(w));

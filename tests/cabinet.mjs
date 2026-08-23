@@ -5,9 +5,30 @@
 // cannot run headless, so this pins the invariants under it.)
 const base = new URL('../js/', import.meta.url).href;
 const W = await import(base + 'world.js');
+const A = await import(base + 'acts.js');
+const S = await import(base + 'sim.js');
 const R = await import(base + 'rules.js');
 const ACT = await import(base + 'actions.js');
 const ok = (l, c, x = '') => console.log((c ? 'PASS ' : 'FAIL ') + l + (x ? ' | ' + x : ''));
+
+// --- advice and consent ------------------------------------------------------
+// An appointment is a nomination on the confirming chamber's floor now (Article
+// II §2), so a test that wants somebody actually seated has to let that chamber
+// vote. The roll is cast by hand and the question called: it keeps these
+// assertions about appointment rather than about the floor clock, and a floor
+// closed with nobody having voted fails on quorum instead of confirming.
+const consent = (w) => {
+  for (const d of Object.values(w.documents)) {
+    if (d.type !== 'nomination' || d.status !== 'floor') continue;
+    for (const s of w.seats) {
+      if (s.office !== d.requirement.body || !s.personaId) continue;
+      const p = w.personas[s.personaId];
+      if (p?.synthetic) A.castVote(w, d.id, p.id, S.syntheticBallot(w, p, d));
+    }
+    A.closeFloor(w, d.id, { auto: true });
+  }
+};
+
 
 const w = W.newWorld({ nation: 'The Silver Republic' });
 ACT.apply(w, { type: 'JOIN', playerId: 'p1', name: 'James Sun' });
@@ -41,6 +62,7 @@ ok('a new President is sworn in over an empty cabinet', before.length === atWill
 // Appointing to one seat clears exactly that vacancy — the badge count falls.
 const nominee = W.makePersona(w, { synthetic: true });
 ACT.apply(w, { type: 'APPOINT', playerId: 'p1', seatId: before[0].id, personaId: nominee.id });
+consent(w);
 const after = vacancies();
 ok('filling a seat clears its vacancy', after.length === before.length - 1, `${before.length} → ${after.length}`);
 ok('and it is the seat that was filled that cleared',

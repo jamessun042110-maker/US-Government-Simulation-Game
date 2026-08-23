@@ -30,6 +30,24 @@ const filled = (w) => w.seats.filter((s) => DEPTS.includes(s.office) && s.person
 const run = (w, n) => { for (let i = 0; i < n; i++) S.tick(w); };
 const said = (w, re) => w.chronicle.some((e) => re.test(e.text));
 
+// --- advice and consent ------------------------------------------------------
+// An appointment is a nomination on the Senate floor now (Article II §2), so a
+// test that wants somebody actually seated has to let the chamber vote on them.
+// The roll is cast by hand and the question called, rather than ticking ninety
+// times: it keeps these assertions about appointment rather than about the
+// floor clock, and a floor closed with nobody having voted fails on quorum.
+const consent = (w) => {
+  for (const d of Object.values(w.documents)) {
+    if (d.type !== 'nomination' || d.status !== 'floor') continue;
+    for (const s of w.seats) {
+      if (s.office !== d.requirement.body || !s.personaId) continue;
+      const p = w.personas[s.personaId];
+      if (p?.synthetic) A.castVote(w, d.id, p.id, S.syntheticBallot(w, p, d));
+    }
+    A.closeFloor(w, d.id, { auto: true });
+  }
+};
+
 // --- the appointment is an engine call now ----------------------------------
 {
   const { w, pres } = mk();
@@ -39,9 +57,11 @@ const said = (w, re) => w.chronicle.some((e) => re.test(e.text));
   ok('a president may appoint', A.appointGate(w, pres.id, seat.id, free.id).ok === true,
     A.appointGate(w, pres.id, seat.id, free.id).reason || '');
   const res = A.appoint(w, pres.id, seat.id, free.id);
-  ok('and it takes', res.ok === true && seat.personaId === free.id);
+  ok('the name goes up', res.ok === true && res.value.sentUp === true && !seat.personaId);
+  consent(w);
+  ok('and it takes once the Senate consents', seat.personaId === free.id);
   ok('the appointee holds the office', R.officesOf(w, free.id).some((o) => o.id === 'state'));
-  ok('and the republic is told', said(w, /is appointed Secretary of State by/));
+  ok('and the republic is told', said(w, /is confirmed as Secretary of State/));
 
   // Every refusal the handler used to print is still a refusal.
   ok('a filled post is not reassigned',
@@ -67,7 +87,9 @@ const said = (w, re) => w.chronicle.some((e) => re.test(e.text));
   ok('and the seat stays empty until they answer', !seat.personaId);
   ok('the offer is on the record', (w.nominations || []).some((n) => n.seatId === seat.id));
   ACT.apply(w, { type: 'ACCEPT_POST', playerId: 'p1', seatId: seat.id });
-  ok('accepting seats them', seat.personaId === me);
+  ok('accepting sends their name up, it does not seat them', !seat.personaId);
+  consent(w);
+  ok('the Senate seats them', seat.personaId === me);
 }
 
 // --- and an offer nobody answers is withdrawn -------------------------------
@@ -106,7 +128,7 @@ const said = (w, re) => w.chronicle.some((e) => re.test(e.text));
     `${most} of ${DEPTS.length} at its fullest, ${filled(w)} now`);
   ok('and is still staffed at the end of it', filled(w) >= DEPTS.length - 1,
     `${filled(w)} of ${DEPTS.length}`);
-  ok('and the Chronicle names them', said(w, /is appointed Secretary of/));
+  ok('and the Chronicle names them', said(w, /is confirmed as Secretary of/));
   const holders = w.seats.filter((s) => DEPTS.includes(s.office) && s.personaId).map((s) => s.personaId);
   ok('nobody holds two of them', new Set(holders).size === holders.length);
   ok('and the President is not their own Secretary',
@@ -153,6 +175,7 @@ const seatSec = (w, pres, dept) => {
   const seat = w.seats.find((s) => s.office === dept);
   const free = Object.values(w.personas).find((x) => x.alive && x.synthetic && !R.officesOf(w, x.id).length);
   A.appoint(w, pres.id, seat.id, free.id);
+  consent(w);
   return seat.personaId;
 };
 {
@@ -196,6 +219,7 @@ const seatSec = (w, pres, dept) => {
   const me = w.players.p1.personaId;
   A.appoint(w, pres.id, seat.id, me);
   ACT.apply(w, { type: 'ACCEPT_POST', playerId: 'p1', seatId: seat.id });
+  consent(w);
   ok('a player holds the department', seat.personaId === me);
   const before = w.chronicle.length;
   run(w, 10 * w.clock.ticksPerYear);

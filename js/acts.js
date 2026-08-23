@@ -26,6 +26,10 @@ export const DOC_TYPES = {
   // nothing — it is how a legislature says a thing in its own name, and how it
   // demands to be shown something it has a right to see.
   resolution: { label: 'Resolution', blurb: 'The chamber speaking for itself. Binds nobody; compels disclosure.' },
+  // Advice and consent. Never drafted by hand — acts.appoint files it when the
+  // President names somebody — which is why it is not offered in the composer's
+  // list of instruments (ui.js filters it out beside rulings and orders).
+  nomination: { label: 'Nomination', blurb: 'A name sent to the Senate for confirmation.' },
 };
 
 /**
@@ -42,7 +46,7 @@ export const DOC_TYPES = {
  */
 const ALL_CLAUSE_KINDS = ['PROSE', 'SET_TAX', 'APPROPRIATE', 'BAILOUT', 'BUILD', 'ZONE', 'REDISTRICT', 'DEMAND_ACCOUNTS',
   'AMEND', 'CREATE_OFFICE', 'GRANT_POWER', 'RIGHT', 'TERM_LIMIT', 'PLURALITY', 'DECLARE_WAR', 'TREATY_DEFENSE',
-  'TREATY_NONAGGRESSION', 'TREATY_PEACE', 'MILITARY', 'RAISE_DIVISIONS', 'RAISE_AIRWINGS', 'PARDON', 'ARREST', 'REMOVE'];
+  'TREATY_NONAGGRESSION', 'TREATY_PEACE', 'MILITARY', 'RAISE_DIVISIONS', 'RAISE_AIRWINGS', 'PARDON', 'ARREST', 'REMOVE', 'CONFIRM'];
 
 /**
  * What an ordinary bill may not do, however the chamber votes.
@@ -64,7 +68,7 @@ const ALL_CLAUSE_KINDS = ['PROSE', 'SET_TAX', 'APPROPRIATE', 'BAILOUT', 'BUILD',
  * They are still clauses — an order carries ARREST and PARDON, and an amendment
  * carries REDISTRICT. What they are not is legislation.
  */
-const NOT_BY_STATUTE = ['ARREST', 'PARDON', 'REDISTRICT'];
+const NOT_BY_STATUTE = ['ARREST', 'PARDON', 'REDISTRICT', 'CONFIRM'];
 
 export const DOC_CLAUSES = {
   bill: ALL_CLAUSE_KINDS.filter((k) => !['AMEND', 'REMOVE', ...NOT_BY_STATUTE].includes(k)),
@@ -77,6 +81,7 @@ export const DOC_CLAUSES = {
   order: ['PROSE', 'APPROPRIATE', 'BAILOUT', 'BUILD', 'ZONE', 'MILITARY', 'RAISE_DIVISIONS', 'RAISE_AIRWINGS', 'PARDON', 'ARREST', 'DECLARE_WAR'],
   treaty: ['PROSE', 'TREATY_DEFENSE', 'TREATY_NONAGGRESSION', 'TREATY_PEACE', 'APPROPRIATE'],
   impeachment: ['PROSE', 'REMOVE'],
+  nomination: ['PROSE', 'CONFIRM'],
   declaration: ['PROSE', 'DECLARE_WAR'],
   resolution: ['PROSE', 'DEMAND_ACCOUNTS'],
   ruling: ['PROSE'],
@@ -938,6 +943,35 @@ export const CLAUSES = {
   // `p.exiled` survives as a persona state and every gate still honours it,
   // because a *coup* can still drive somebody out (see intrigue.js) — what has
   // gone is the lawful instrument for doing it.
+  // Advice and consent, as a clause, so a confirmation is a document on the
+  // floor like everything else: the same roll, the same quorum, the same
+  // tie-break — which for the Senate is the Vice President's, and that is
+  // exactly the vote the real one has cast most often.
+  CONFIRM: {
+    label: 'Confirm an appointment', power: null,
+    fields: [
+      { k: 'seatId', t: 'text', label: 'Seat' },
+      { k: 'persona', t: 'persona', label: 'Nominee' },
+    ],
+    text: (w, c) => {
+      const seat = w.seats.find((s) => s.id === c.seatId);
+      const o = seat && R.office(w, seat.office);
+      return `${w.personas[c.persona]?.name || 'The nominee'} is confirmed as ${o?.name || 'the office named'}.`;
+    },
+    apply: (w, c) => {
+      const seat = w.seats.find((s) => s.id === c.seatId);
+      const o = seat && R.office(w, seat.office);
+      const p = w.personas[c.persona];
+      if (!seat || !o || !p || !p.alive) return fail('The nominee is no longer available.');
+      // The chair may have been filled while the chamber argued — by another
+      // nomination that moved faster, or by a caretaker. A confirmation is not
+      // a licence to evict whoever is sitting there.
+      if (seat.personaId) return fail(`${o.name} was filled while the nomination was on the floor.`);
+      seatInOffice(w, seat, o, p.id);
+      log(w, 'office', `${p.name} is confirmed as ${o.name}.`, { actors: [p.id], weight: 3 });
+      return ok(seat);
+    },
+  },
   REMOVE: {
     label: 'Remove from office', power: null,
     fields: [{ k: 'persona', t: 'persona', label: 'Officeholder' }],
@@ -1110,6 +1144,14 @@ export function closeFloor(world, docId, { auto = false } = {}) {
     : '';
   if (!t.passes) {
     doc.status = 'failed';
+    // Rejection by name reads differently from a bill falling, and the chair is
+    // open again the moment it happens — which is the fact the President needs.
+    if (doc.type === 'nomination') {
+      const who = world.personas[doc.clauses?.[0]?.persona]?.name || 'The nominee';
+      log(world, 'office', `${who} is rejected by the ${chamber}, ${t.yea}–${t.nay}. The chair stays empty.`,
+        { docId: doc.id, weight: 3 });
+      return ok(doc);
+    }
     // A government defeated on its own bill wears it; the standing falls a little.
     if (admin && author) nudgeApproval(author, ADMIN_BILL_FAIL);
     log(world, 'vote', `“${doc.title}” fails in the ${chamber}: ${t.yea}–${t.nay}${t.quorumMet ? '' : ' (no quorum)'}${brokenBy}. Needed ${R.fracText(t.req.fraction)}.${provenance}`, { docId: doc.id, weight: 2 });
@@ -1170,6 +1212,20 @@ export function closeFloor(world, docId, { auto = false } = {}) {
         { docId: doc.id, weight: 2 });
       return ok(doc);
     }
+  }
+
+  // A confirmation is not a law and never goes to the President for signature:
+  // it is the President's own nomination coming back approved. Seat the person
+  // and be done — `promulgate` would put it on the statute book, where a name
+  // does not belong.
+  if (doc.type === 'nomination') {
+    doc.status = 'confirmed';
+    doc.promulgated = world.clock.tick;
+    for (const cl of doc.clauses) {
+      const r = (CLAUSES[cl.kind]?.apply || (() => {}))(world, cl, doc);
+      if (r && r.ok === false) log(world, 'office', `The confirmation has no effect: ${r.reason}`, { docId: doc.id, weight: 2 });
+    }
+    return ok(doc);
   }
 
   const veto = world.constitution.legislature.vetoOffice;
@@ -2050,12 +2106,58 @@ export function appoint(world, byPersonaId, seatId, personaId) {
       { actors: [byPersonaId, personaId], weight: 1 });
     return ok({ nominated: true, nominee, office: o });
   }
-  seatInOffice(world, seat, o, personaId);
-  // The choosing happens behind the Oval Office door; the appointment itself is
-  // public the moment it is made.
-  log(world, 'office', `${nominee.name} is appointed ${o.name} by ${world.personas[byPersonaId]?.name}.`,
-    { actors: [byPersonaId, personaId], weight: 3 });
-  return ok({ nominated: false, nominee, office: o });
+  return sendUp(world, byPersonaId, seat, o, nominee);
+}
+
+/**
+ * The nominee has said yes; now the Senate has to.
+ *
+ * **This is the check the fork was missing.** The President named a Secretary
+ * of State and a Secretary of State existed; named a justice of the Supreme
+ * Court and a justice sat, for life, having answered to nobody but the person
+ * who chose them. Article II §2 gives the appointment power to the President
+ * "by and with the Advice and Consent of the Senate", and of everything the
+ * generic republic left out, that was the largest — it is most of what makes
+ * the Senate matter between elections.
+ *
+ * It is a document on the floor rather than a bespoke vote, because everything
+ * that votes in this engine goes through `voteRequirement` and gets the roll,
+ * the quorum, the tally and the tie-break for free. The tie-break is the part
+ * worth noticing: it is the Vice President's, in the Senate, which is exactly
+ * the vote the real one has cast more often than any other.
+ *
+ * A constitution that names no confirming chamber — every Season saved before
+ * this, and any table that struck the Senate — seats the appointee directly, as
+ * it always did.
+ */
+export function appointConfirmed(world, byPersonaId, seat, o, nominee) {
+  return sendUp(world, byPersonaId, seat, o, nominee);
+}
+
+function sendUp(world, byPersonaId, seat, o, nominee) {
+  const chamber = R.confirmingChamber(world);
+  if (!chamber) {
+    seatInOffice(world, seat, o, nominee.id);
+    // The choosing happens behind the Oval Office door; the appointment itself
+    // is public the moment it is made.
+    log(world, 'office', `${nominee.name} is appointed ${o.name} by ${world.personas[byPersonaId]?.name}.`,
+      { actors: [byPersonaId, nominee.id], weight: 3 });
+    return ok({ nominated: false, confirmed: true, nominee, office: o });
+  }
+
+  const doc = createDoc(world, {
+    type: 'nomination',
+    title: `Nomination of ${nominee.name} as ${o.name}`,
+    preamble: `${world.personas[byPersonaId]?.name || 'The President'} sends up the name of ${nominee.name}`
+      + ` for the office of ${o.name}, and asks the advice and consent of the `
+      + `${R.office(world, chamber)?.name || chamber}.`,
+    authorId: byPersonaId,
+    clauses: [{ kind: 'CONFIRM', seatId: seat.id, persona: nominee.id }],
+  });
+  if (doc.ok === false) return doc;
+  const res = introduce(world, doc.id, byPersonaId, 90);
+  if (!res.ok) return res;
+  return ok({ nominated: false, confirmed: false, sentUp: true, doc, nominee, office: o });
 }
 
 /**

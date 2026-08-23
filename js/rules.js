@@ -285,7 +285,11 @@ export const TEMPLATES = [
       // whoever files them — the simplification that keeps the stage a counter
       // rather than a direction, and the one the revenue clause would force
       // anyway.
-      legislature: { chamber: 'assembly', upperChamber: 'senate', proposalRights: ['assembly', 'senate', 'president'], passFraction: 0.5, quorum: 0.5, vetoOffice: 'president', overrideFraction: 0.667 },
+      // `confirms` is the chamber that gives advice and consent to an
+      // appointment — the Senate, and only the Senate. Null on a constitution
+      // that never wrote it, which is every saved Season founded before this,
+      // and those go on seating appointees the moment they are named.
+      legislature: { chamber: 'assembly', upperChamber: 'senate', confirms: 'senate', proposalRights: ['assembly', 'senate', 'president'], passFraction: 0.5, quorum: 0.5, vetoOffice: 'president', overrideFraction: 0.667 },
       spending: [
         { above: 0, requires: null },
         { above: 1e9, requires: { body: 'assembly', fraction: 0.5 } },
@@ -907,8 +911,19 @@ function voteRequirementRaw(world, doc) {
       fraction: trial ? (c.impeachment.convictFraction || 0.75) : c.impeachment.fraction,
       label: trial ? 'Conviction at the impeachment trial' : 'Articles of impeachment' };
   }
-  // Advice and consent, and only the upper chamber's: a treaty is ratified in
-  // one room, not two. Unicameral constitutions ratify where they legislate.
+  // Advice and consent on a person, at a simple majority, in the one room the
+  // constitution names for it. It never stages: the House has no part in an
+  // appointment. The Vice President's tie-break lands here on its own, through
+  // `presidedChamber`, which is exactly where the real one has been used most.
+  if (doc.type === 'nomination') {
+    const body = confirmingChamber(world);
+    return body
+      ? { body, fraction: 0.5, quorum: 0.5, also: [], label: 'Advice and consent' }
+      : null;
+  }
+  // Advice and consent on a treaty, and only the upper chamber's: a treaty is
+  // ratified in one room, not two. Unicameral constitutions ratify where they
+  // legislate.
   if (doc.type === 'treaty')
     return { body: c.legislature.upperChamber || c.legislature.chamber, fraction: 0.5, quorum: 0.5, also: [], label: 'Ratification' };
   if (doc.type === 'order') return null; // executive orders do not go to a vote
@@ -934,9 +949,31 @@ function voteRequirementRaw(world, doc) {
 }
 
 /** Who may put this document on the floor. */
+/**
+ * The chamber that confirms an appointment, or null if none does.
+ *
+ * Written on the constitution rather than assumed to be the upper chamber,
+ * because a table may strike the Senate at the convention and a rule that
+ * pointed at a room which no longer exists would seat nobody, for ever. A
+ * unicameral republic that keeps `confirms` confirms in the room it has.
+ */
+export function confirmingChamber(world) {
+  const L = world.constitution?.legislature || {};
+  const id = L.confirms;
+  return id && bodySeated(world, id) ? id : null;
+}
+
 export function mayPropose(world, personaId, type) {
   const c = world.constitution;
   const mine = officesOf(world, personaId).map((o) => o.id);
+  // A nomination is not drafted on the floor. It reaches it from acts.appoint,
+  // filed in the name of whoever holds the power of appointment, and there is
+  // no route by which anybody else can put a name to the chamber.
+  if (type === 'nomination') {
+    return hasPower(world, personaId, 'appoint')
+      ? { ok: true }
+      : { ok: false, reason: 'Only an office holding the power of appointment may send up a nomination.' };
+  }
   if (type === 'impeachment') {
     const ok = c.impeachment.proposalRights.some((r) => mine.includes(r));
     return ok ? { ok: true } : { ok: false, reason: `Only the ${c.impeachment.proposalRights.map((r) => office(world, r)?.name || r).join(' or ')} may bring articles of impeachment.` };
@@ -1178,6 +1215,12 @@ export function repairConstitution(c) {
   // state gets at least one member of the lower house.
   const states = perState.length ? perState[0].seats : (districted[0]?.seats || 0);
   if (states) for (const o of districted) if (o.apportioned && o.seats < states) o.seats = states;
+  // The confirming chamber has to be a chamber this constitution actually has.
+  // A table that struck the Senate at the convention would otherwise leave every
+  // appointment waiting for a vote in a room with no chairs in it.
+  if (L.confirms && !c.offices.some((o) => o.id === L.confirms && o.seats > 0)) {
+    L.confirms = L.upperChamber || L.chamber || null;
+  }
   // A staggered chamber cannot have more classes than it has chairs — a fourth
   // class of nothing is a class that never polls — and a single class is the
   // same thing as no stagger at all, so it is written as none.

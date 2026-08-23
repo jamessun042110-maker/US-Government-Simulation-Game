@@ -960,9 +960,17 @@ export const HANDLERS = {
       world.nominations = world.nominations.filter((n) => n !== nom);
       return notice(world, a.playerId, `${o.name} was filled while you were deciding. The offer has lapsed.`);
     }
-    seatInOffice(world, seat, o, pid);
     world.nominations = world.nominations.filter((n) => n !== nom);
-    log(world, 'office', `${world.personas[pid]?.name} accepts appointment as ${o.name} from ${world.personas[nom.by]?.name}.`, { actors: [pid, nom.by].filter(Boolean), weight: 3 });
+    log(world, 'office', `${world.personas[pid]?.name} accepts the nomination as ${o.name} from ${world.personas[nom.by]?.name}.`, { actors: [pid, nom.by].filter(Boolean), weight: 3 });
+    // Saying yes is the first of two answers. The second is the Senate's, and
+    // A.sendUp is what asks for it — the same route an NPC nominee takes, so a
+    // player is neither confirmed faster nor slower for being a player. On a
+    // constitution that names no confirming chamber it seats them outright, as
+    // this line always did.
+    const sent = A.appointConfirmed(world, nom.by || pid, seat, o, world.personas[pid]);
+    if (sent.ok && sent.value?.sentUp) {
+      notice(world, a.playerId, `Your name has gone to the ${R.office(world, R.confirmingChamber(world))?.name} for confirmation.`, 'ok');
+    }
   },
   DECLINE_POST(world, a) {
     const pid = meP(world, a);
