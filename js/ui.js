@@ -962,12 +962,61 @@ function waterfrontDistricts(world) {
   return out;
 }
 
+/**
+ * Why one state's mood is what it is, on the row it belongs to.
+ *
+ * `sim.tickOpinion` has always written `d.moodParts` — the same named reasons
+ * the national breakdown is summed out of, but for one state — and until now
+ * nothing read it. A national average is the one number a politician cannot
+ * campaign on, and twenty states means twenty different answers to "why": New
+ * York is unhappy about housing and California about nothing in particular, and
+ * you could not tell them apart from this page.
+ *
+ * A `?` rather than a row of its own, because it is an answer to a question you
+ * only sometimes have, and twenty expanded breakdowns is the States table
+ * twenty times over.
+ */
+function districtWhy(d) {
+  const parts = Object.entries(d.moodParts || {})
+    // Below a tenth of a point a row is noise wearing a label. The engine
+    // computes every term every tick, so a state with no war and no emergency
+    // still carries them at exactly zero.
+    .filter(([, v]) => Math.abs(v) >= 0.05)
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+  const maxAbs = Math.max(1, ...parts.map(([, v]) => Math.abs(v)));
+  return el('div', { class: 'help inline', tabindex: 0, title: `Why ${d.name} feels the way it does` },
+    el('span', { class: 'help-q' }, '?'),
+    el('div', { class: 'help-body' },
+      el('div', { class: 'spread', style: { marginBottom: '8px' } },
+        el('b', { class: 'small' }, d.name),
+        el('span', { class: 'tiny dimmer mono' }, d.moodTarget != null
+          // Where it is and where it is going. The mood walks toward the target
+          // a little each tick, so the gap between the two is the news.
+          ? `${Math.round(d.mood)} → ${Math.round(d.moodTarget)}`
+          : `${Math.round(d.mood)}`)),
+      ...parts.map(([label, v]) => el('div', {
+        class: 'meter', style: { margin: '4px 0' }, title: DRIVER_WHY[label] || '',
+      },
+        el('span', { class: 'lab' }, label),
+        el('div', { class: 'bar', style: { background: 'transparent' } },
+          el('i', { style: {
+            width: (Math.abs(v) / maxAbs) * 100 + '%',
+            background: v >= 0 ? 'var(--green)' : 'var(--red)',
+          } })),
+        el('span', { class: 'val ' + (v >= 0 ? 'green' : 'red') }, (v >= 0 ? '+' : '') + v.toFixed(1)))),
+      parts.length ? null : el('div', { class: 'tiny dimmer' }, 'Nothing is pulling this state either way.'),
+      el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
+        'Points for and against, on top of the 58 a contented state sits at.')));
+}
+
 function districtCard() {
   const world = w();
   const wf = waterfrontDistricts(world);
   return el('div', { class: 'card' }, el('h3', {}, 'States'),
     el('table', { class: 't' },
-      el('thead', {}, el('tr', {}, ...['State', 'Pop', 'Mood', 'Unemp', 'Homeless', 'Land', 'In Congress'].map((h) => el('th', {}, h)))),
+      // The last column has no heading: it is one `?` per row, and "Why" over a
+      // column of question marks is the label written twice.
+      el('thead', {}, el('tr', {}, ...['State', 'Pop', 'Mood', 'Unemp', 'Homeless', 'Land', 'In Congress', ''].map((h) => el('th', {}, h)))),
       el('tbody', {}, ...world.districts.map((d) => {
         // A state sends a delegation, not a representative. This picked the
         // first seat it found for the state, which under a one-seat-per-state
@@ -990,7 +1039,8 @@ function districtCard() {
             rep ? rep.name
               : delegation.length
                 ? `${delegation.length} member${delegation.length === 1 ? '' : 's'}`
-                : '—'));
+                : '—'),
+          el('td', { class: 'whycell' }, districtWhy(d)));
       }))));
 }
 

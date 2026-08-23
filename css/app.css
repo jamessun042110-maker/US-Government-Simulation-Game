@@ -721,6 +721,14 @@ table.t tr:hover td { background: var(--panel2); }
   pointer-events: none;
 }
 .help:hover .help-body, .help:focus .help-body, .help:focus-within .help-body { display: block; }
+/* The same affordance inline, in a table cell rather than pinned to the corner
+   of a card — one per state on the Nation tab's States table. It anchors the
+   popover itself, and opens to the *left*: it is the last column of a table
+   that already reaches the edge of its own column, so 300px to the right is
+   300px off the page. */
+.help.inline { position: relative; top: auto; right: auto; display: inline-flex; vertical-align: middle; }
+.help.inline .help-body { left: auto; right: 0; top: 22px; }
+.whycell { width: 1%; text-align: right; white-space: nowrap; }
 
 /* An office at the convention is its own card, not a row in a list: a header
    that says what it is and how much power it holds, its numbers on one line,
