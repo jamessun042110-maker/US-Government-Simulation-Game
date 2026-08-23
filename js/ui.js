@@ -727,7 +727,7 @@ VIEWS.nation = (root) => {
   if (world.uprising && !world.uprising.resolved) root.append(uprisingCard());
 
   root.append(el('div', { class: 'grid g4', style: { marginBottom: '14px' } },
-    bigStat('National approval', app.toFixed(1) + '%', app >= 50 ? 'green' : 'red', e.history.map((h) => h.approval), approvalBreakdown(), { center: 50, halfMin: 10 }),
+    bigStat('National approval', app.toFixed(1) + '%', app >= 50 ? 'green' : 'red', e.history.map((h) => h.approval), approvalBreakdown({ standing: false }), { center: 50, halfMin: 10 }),
     bigStat('Treasury', money(e.treasury), e.treasury >= 0 ? '' : 'red', e.history.map((h) => h.treasury), null, { center: 0 }),
     bigStat('Unemployment', pct(e.unemployment), e.unemployment > 0.09 ? 'red' : '', e.history.map((h) => h.unemployment), null, { invert: true, fmt: (v) => pct(v) }),
     bigStat('Homeless', num(sum(world.districts, (d) => d.homeless)), '', e.history.map((h) => h.homeless), null, { invert: true, fmt: (v) => num(Math.round(v)) }),
@@ -872,7 +872,17 @@ const DRIVER_WHY = {
   Treasury: 'Years of spending in reserve. Full marks at two; drawing it down costs you, a deficit more.',
 };
 
-function approvalBreakdown() {
+/**
+ * Why the approval is what it is.
+ *
+ * Drawn twice: once in full, as the card in the Nation tab's right column, and
+ * once folded into the `?` beside the National approval figure at the top of
+ * the page. `standing` is what differs — the twenty-row district list belongs
+ * in the card and not in the popover. It was in both, and at twenty states that
+ * is a column of bars taller than the window hanging off a hover, restating
+ * what the card two inches to the right already says.
+ */
+function approvalBreakdown({ standing = true } = {}) {
   const world = w();
   const { drivers, target, now, trend } = approvalDrivers(world);
   const arrow = trend > 0.4 ? '↑ rising' : trend < -0.4 ? '↓ falling' : '→ steady';
@@ -893,7 +903,7 @@ function approvalBreakdown() {
     drivers.length ? null : el('div', { class: 'tiny dimmer' }, 'Nothing is moving opinion right now.'),
     el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
       'Points of approval, weighted by population.'),
-    districtStanding());
+    standing ? districtStanding() : null);
 }
 
 /**
