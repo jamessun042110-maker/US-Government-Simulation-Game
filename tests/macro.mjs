@@ -175,10 +175,20 @@ const settle = (w) => run(w, 600);
 {
   const { w } = mk();
   // Spend far past revenue, for long enough to drain the vault and start borrowing.
+  //
+  // Four years, not three. Three left the republic sitting exactly on the line
+  // this block goes on to assert it is past: measured over twenty runs the
+  // thinnest margin by which the interest bill still outran revenue was $0B, so
+  // about one republic in thirty came out of the spiral already in surplus and
+  // "stopping the spending does not stop the spiral" was simply not true of it.
+  // A fourth year puts the thinnest margin at $404B. It is not tuned any higher
+  // than that on purpose: at revenueYr * 4, or at five years, the stock outgrows
+  // what the tax rise below can service and the *next* claim starts failing
+  // instead.
   w.programs = [{ id: 'x', name: 'A vast programme', cost: w.economy.revenueYr * 3 }];
   W.recomputeEconomy(w);
   let minTreasury = Infinity;
-  for (let i = 0; i < 240 * 3; i++) { S.tick(w); minTreasury = Math.min(minTreasury, w.economy.treasury); }
+  for (let i = 0; i < 240 * 4; i++) { S.tick(w); minTreasury = Math.min(minTreasury, w.economy.treasury); }
   const e = w.economy;
   // The balance runs below zero on a sustained deficit now — it is no longer
   // floored at empty — and each year's hole is financed onto the debt line.
@@ -193,21 +203,68 @@ const settle = (w) => run(w, 600);
   // outruns revenue, and the debt keeps compounding on its own. That is a debt
   // spiral and it is the correct answer — a government cannot grow out of one
   // by stopping the thing that started it.
-  const owed = e.debt;
+  // Measured on *net* liabilities from here down — the debt stock less the
+  // balance in hand — and not on the debt line by itself, because the two lines
+  // trade with each other and the trade is not a fact about the government's
+  // solvency.
+  //
+  // A republic coming out of a spiral is deep in overdraft, and a treasury
+  // running below zero is borrowing that has already happened: it is simply not
+  // on the debt line yet. The next fiscal year's close moves it there
+  // (macro.financeDeficit), which lifts the debt stock by as much as $1.7T in
+  // one step without the government having spent another penny. Read the debt
+  // line alone and you compare a figure taken before that reclassification with
+  // one taken after it — so a republic that ran a $2T surplus could still show
+  // its debt rising, which is exactly what this block did about once in
+  // twenty-five runs.
+  //
+  // Net liabilities are invariant to the reclassification: financeDeficit and
+  // settleBorrowing each move the same sum between the two lines and neither
+  // changes the total. What moves the total is the flow, and the flow is the
+  // surplus. So this is the quantity the sentence "a surplus pays it down" is
+  // actually about, and asserting on it makes the claim a guarantee rather than
+  // a bet on where the year boundary fell. Measured over thirty runs the fall
+  // was $2.5T at its smallest; the debt line alone failed 1 in 30.
+  const net = () => e.debt - e.treasury;
+  const owed = net();
   w.programs = [];
   W.recomputeEconomy(w);
   for (let i = 0; i < 240; i++) S.tick(w);
-  ok('stopping the spending does not stop the spiral', e.debt > owed,
-    `${(owed / 1e6).toFixed(0)}M -> ${(e.debt / 1e6).toFixed(0)}M`);
+  ok('stopping the spending does not stop the spiral', net() > owed,
+    `${(owed / 1e6).toFixed(0)}M -> ${(net() / 1e6).toFixed(0)}M`);
 
   // Taxing your way out does. Debt is paid down out of an actual surplus, and
   // it is paid down rather than erased: the stock is still there next year.
-  const spiralled = e.debt;
-  w.economy.taxes.income = 0.4;
-  w.economy.taxes.sales = 0.2;
+  //
+  // The surplus is asserted rather than assumed. The premise of the sentence is
+  // that raising taxes puts revenue above spending, and if a recession or a
+  // crisis had taken that away there would be no surplus to test the claim
+  // about — the block would be measuring a government still in deficit and
+  // calling the result a failure to repay.
+  const spiralled = net();
+  ok('and the books are still in deficit before the rise', e.revenueYr < e.spendYr,
+    `${(e.revenueYr / 1e6).toFixed(0)}M against ${(e.spendYr / 1e6).toFixed(0)}M`);
+  // Confiscatory rates, deliberately. The claim is about what a surplus does,
+  // so the surplus has to survive everything the model can throw at the two
+  // years being measured — and what it throws is recessions: sim.tickEconomy
+  // discounts the year's revenue by `slump * 0.28`, so a deep enough slump
+  // takes 28% of it away. A surplus thinner than that is not a surplus for the
+  // whole window, and the block would be measuring a government that spent half
+  // the time back in deficit.
+  //
+  // So the bar is spending below 72% of revenue, which no slump can close. At
+  // 0.4/0.2 — what this used to set — the bar was missed 6 runs in 25 and net
+  // liabilities actually rose in 2 of them. At 0.6/0.3 it is cleared 40 times
+  // out of 40 with $1.1T to spare.
+  w.economy.taxes.income = 0.6;
+  w.economy.taxes.sales = 0.3;
   W.recomputeEconomy(w);
+  ok('the rise puts them into surplus', e.revenueYr > e.spendYr,
+    `${(e.revenueYr / 1e6).toFixed(0)}M against ${(e.spendYr / 1e6).toFixed(0)}M`);
+  ok('by more than the deepest slump could take away', e.spendYr < 0.72 * e.revenueYr,
+    `spending is ${((e.spendYr / e.revenueYr) * 100).toFixed(1)}% of revenue`);
   for (let i = 0; i < 240 * 2; i++) S.tick(w);
-  ok('a real surplus pays it down', e.debt < spiralled, `${(spiralled / 1e6).toFixed(0)}M -> ${(e.debt / 1e6).toFixed(0)}M`);
+  ok('a real surplus pays it down', net() < spiralled, `${(spiralled / 1e6).toFixed(0)}M -> ${(net() / 1e6).toFixed(0)}M`);
   ok('but does not erase it in a year', e.debt > 0, `${(e.debt / 1e6).toFixed(0)}M`);
 }
 
