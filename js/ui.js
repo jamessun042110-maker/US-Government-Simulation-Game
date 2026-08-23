@@ -1542,10 +1542,15 @@ VIEWS.convention = (root) => {
         c.rights.some((rt) => rt.open || rt.id === 'unenumerated')),
   );
 
-  const seatCol = el('div', { class: 'stack' },
-      // What the table is about to ratify, said in four lines rather than left
-      // to be inferred from eighty toggles on the page behind this button. A
-      // summary that is read off the live document, so it cannot drift from it.
+  // What the table is about to ratify, said in four lines rather than left to be
+  // inferred from eighty toggles on the page behind the button. A summary read
+  // off the live document, so it cannot drift from it.
+  //
+  // It takes the wide column and the chairs take the narrow one, which is the
+  // shape the convention has always had — a document on the left, the table's
+  // own business on the right. In one full-width stack the seat rows were a
+  // metre of rule with a word at each end.
+  const docSummary = el('div', { class: 'stack' },
       el('div', { class: 'card' },
         el('div', { class: 'spread' }, el('h3', {}, 'The government, as written'),
           el('button', { class: 'btn sm ghost', onclick: () => openDoc(true) }, 'Amend it →')),
@@ -1562,8 +1567,9 @@ VIEWS.convention = (root) => {
         el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
           `Ordinary legislation passes at ${Math.round((c.legislature.passFraction || 0) * 100)}%`
           + `, a veto is overridden at ${Math.round((c.legislature.overrideFraction || 0) * 100)}%`
-          + `, and this document is amended at ${Math.round((c.amendment?.fraction || 0) * 100)}%.`)),
+          + `, and this document is amended at ${Math.round((c.amendment?.fraction || 0) * 100)}%.`)));
 
+  const seatCol = el('div', { class: 'stack' },
       el('div', { class: 'card gold' + (Object.values(world.players).some((p) => !world.seats.some((s) => s.personaId === p.personaId)) ? ' cta-pulse' : '') },
         el('div', { class: 'spread' }, el('h3', {}, 'Take a seat'),
           ((n) => n ? el('span', { class: 'cta-bubble' }, `${n} still to be seated`) : null)(Object.values(world.players).filter((p) => !world.seats.some((s) => s.personaId === p.personaId)).length)),
@@ -1690,7 +1696,7 @@ VIEWS.convention = (root) => {
     // table that has read to the bottom of it should not have to scroll back up
     // to get to the chairs.
     ? el('div', { class: 'stack' }, docBack(), docCol, docBack())
-    : seatCol);
+    : el('div', { class: 'split' }, docSummary, seatCol));
 
   function push() { go('SET_CONSTITUTION', { constitution: c }); }
 
