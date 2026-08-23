@@ -1609,7 +1609,7 @@ VIEWS.convention = (root) => {
               `You are ${young.age}. The constitution sets ${young.need} for this office — eligible in ${young.years} year${young.years === 1 ? '' : 's'}.`) : null);
         }); })())),
       // The side of the aisle you woke up on. It used to be dealt: the founding
-      // screen wrote every player in as a Liberal (see app.convene) and you
+      // screen wrote every player in as a Democrat (see app.convene) and you
       // found out from a chip beside your name on the Offices tab, three screens
       // later. A party is the single fact about a politician the country sorts
       // itself by at the polls, so it belongs on the same page as the chair —

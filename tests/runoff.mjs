@@ -26,7 +26,7 @@ const challenger = (w, approval) => {
   // between them, so three of them cannot hand any one a majority (the other
   // party's bloc has nobody to vote for and stays home), which is exactly the
   // split a runoff exists to resolve. Two of them still leave one with a majority.
-  p.party = 'liberal';
+  p.party = 'democrat';
   w.personas[p.id] = p; // makePersona may not register it; ensure the count can find it
   return p.id;
 };

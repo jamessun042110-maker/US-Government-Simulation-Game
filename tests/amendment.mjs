@@ -7,13 +7,13 @@ const S = await import(base + 'sim.js');
 const ok = (l, c, x = '') => console.log((c ? 'PASS ' : 'FAIL ') + l + (x ? ' | ' + x : ''));
 
 const w = W.newWorld({ nation: 'The Silver Republic' });
-const author = W.makePersona(w, { synthetic: true, party: 'liberal' });
+const author = W.makePersona(w, { synthetic: true, party: 'democrat' });
 author.approval = 50; author.age = 45; author.born = w.clock.tick;
 
 // One fixed chamber, read twice — the only difference is the document's type.
 const members = [];
 for (let i = 0; i < 400; i++) {
-  const m = W.makePersona(w, { synthetic: true, party: i % 2 ? 'liberal' : 'conservative' });
+  const m = W.makePersona(w, { synthetic: true, party: i % 2 ? 'democrat' : 'republican' });
   m.approval = 50; members.push(m);
 }
 

@@ -509,7 +509,7 @@ function renderSetup() {
       // are. makePersona rolls one off the world's seeded RNG, so which side
       // you woke up on was a coin flip you never saw tossed. This is only the
       // button that starts selected: the next screen asks, beside the chair.
-      party: 'liberal',
+      party: 'democrat',
     });
     net.publish(world);
     net.broadcastReset();

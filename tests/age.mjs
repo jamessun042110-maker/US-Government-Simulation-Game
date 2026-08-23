@@ -17,7 +17,7 @@ const ok = (l, c, x = '') => console.log((c ? 'PASS ' : 'FAIL ') + l + (x ? ' | 
 const mk = () => W.newWorld({ nation: 'The Silver Republic' });
 // A persona of exactly this age, born now (so currentAge === age), at a fixed
 // approval unless we are measuring approval itself.
-const aged = (w, age, { party = 'liberal', approval = 50 } = {}) => {
+const aged = (w, age, { party = 'democrat', approval = 50 } = {}) => {
   const p = W.makePersona(w, { synthetic: true, party });
   p.age = age; p.born = w.clock.tick; p.approval = approval;
   return p;
@@ -137,8 +137,8 @@ ok('the base age is eighteen', U.POLITICAL_BASE_AGE === 18, String(U.POLITICAL_B
   const w = mk();
   const doc = (authorId) => ({ id: 'doc_conn', type: 'bill', authorId, preamble: '',
     clauses: [{ kind: 'APPROPRIATE', amount: 1000 }] });
-  const young = aged(w, 18, { party: 'liberal', approval: 50 });
-  const old = aged(w, 64, { party: 'liberal', approval: 50 });
+  const young = aged(w, 18, { party: 'democrat', approval: 50 });
+  const old = aged(w, 64, { party: 'democrat', approval: 50 });
   // One fixed chamber, read twice — only the author's age differs.
   //
   // Twelve hundred, not four. The claim below is a strict inequality on a
@@ -151,7 +151,7 @@ ok('the base age is eighteen', U.POLITICAL_BASE_AGE === 18, String(U.POLITICAL_B
   // needs under it.
   const members = [];
   for (let i = 0; i < 1200; i++) {
-    const m = W.makePersona(w, { synthetic: true, party: 'liberal' });
+    const m = W.makePersona(w, { synthetic: true, party: 'democrat' });
     m.approval = 50; members.push(m);
   }
   const carry = (author) => members.filter((m) => S.syntheticBallot(w, m, doc(author.id)) === 'yea').length;

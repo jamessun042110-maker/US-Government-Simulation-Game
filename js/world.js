@@ -3,7 +3,7 @@
 import { rng, range, pick, clamp, uid, sum, mulberry32, hashSeed, PALETTE, youthOf, YOUTH_APPROVAL } from './util.js';
 import { templateById, termEndTick, apportion } from './rules.js';
 import { initMacro } from './macro.js';
-import { STATE_NAMES, isCoastal, LAKES, STATES, codeOf, peopleOf, liberalOf, joblessOf, roughOf, homeValueOf, incomeOf } from './atlas.js';
+import { STATE_NAMES, isCoastal, LAKES, STATES, codeOf, peopleOf, democratOf, joblessOf, roughOf, homeValueOf, incomeOf } from './atlas.js';
 import { cityGeometry, inPoly, bounds } from './geo.js';
 
 export const ZONES = {
@@ -77,15 +77,20 @@ const LAST = ['Sun', 'Whitfield', 'Okonkwo', 'Reyes', 'Calloway', 'Nakamura', 'B
   'Fairbanks', 'Castellanos', 'Thorne', 'Abernathy', 'Mendoza', 'Sinclair', 'Osei', 'Kowalski',
   'Hargrove', 'Ferraro', 'Bautista', 'Lockhart', 'Nguyen', 'Prentice', 'Salazar', 'Underwood',
   'Chandler', 'Ibarra', 'Weatherby', 'Amadi', 'Kirkpatrick', 'Solano', 'Rothstein', 'Maddox'];
-// Two parties, and a country that mostly sorts itself between them. Liberal is
-// yellow and spends, taxes and loosens; Conservative is purple and holds the
-// line on all three. `lean` is the party's consistent stance on the issues a
-// bill can touch (see sim.syntheticBallot), signed the same way a bill's clauses
-// are: positive spend/tax = for spending and taxing, positive order = for order.
-// Each party's ideology, as a lean across the kinds of legislation the chamber
-// actually sees: spending, public order, taxation, and civil rights. The signs
-// are the politics — a Liberal spends, taxes to pay for it, is wary of the order
-// apparatus and warm to rights; a Conservative is the mirror. syntheticBallot
+// The two parties, and a country that mostly sorts itself between them.
+//
+// They are the Democratic and Republican parties now, not the Liberal and
+// Conservative ones the generic republic shipped with. The ids went with the
+// names — `democrat` / `republican` — because an id that disagrees with every
+// label on screen is a second vocabulary to keep in your head, and `atlas`'s
+// per-state vote share went with them (`democratOf`), which is what that number
+// has always literally been: the Democratic share of the 2020 two-party vote.
+//
+// `lean` is the party's consistent stance on the issues a bill can touch (see
+// sim.syntheticBallot), signed the same way a bill's clauses are: positive
+// spend/tax = for spending and taxing, positive order = for order. The signs are
+// the politics — a Democrat spends, taxes to pay for it, is wary of the order
+// apparatus and warm to rights; a Republican is the mirror. syntheticBallot
 // reads these on every relevant clause, so a member votes their party's line as
 // a matter of course, and the opposition whips against the government's bills on
 // top of it. Keep the two rows opposed and roughly balanced.
@@ -96,8 +101,8 @@ const LAST = ['Sun', 'Whitfield', 'Okonkwo', 'Reyes', 'Calloway', 'Nakamura', 'B
 // on them, which is what `ink` is: it used to be a literal '#111' beside every
 // use of `color`, and that pairing only held while the palette was pale.
 export const PARTIES = [
-  { id: 'liberal', name: 'Liberal', color: '#2f6fdb', ink: '#ffffff', lean: { spend: 0.6, order: -0.35, tax: 0.5, rights: 0.5 } },
-  { id: 'conservative', name: 'Conservative', color: '#b22234', ink: '#ffffff', lean: { spend: -0.5, order: 0.45, tax: -0.5, rights: -0.4 } },
+  { id: 'democrat', name: 'Democratic', color: '#2f6fdb', ink: '#ffffff', lean: { spend: 0.6, order: -0.35, tax: 0.5, rights: 0.5 } },
+  { id: 'republican', name: 'Republican', color: '#b22234', ink: '#ffffff', lean: { spend: -0.5, order: 0.45, tax: -0.5, rights: -0.4 } },
 ];
 
 /**
@@ -123,10 +128,10 @@ const UNDECIDED_AT_FOUNDING = 0.26;
  * The same thing, but for a state that is a real place — seeded off how that
  * place actually votes rather than off a coin.
  *
- * `atlas.liberalOf` is the Liberal share of the two-party vote; the committed
+ * `atlas.democratOf` is the Democratic share of the two-party vote; the committed
  * two-thirds-odd of the electorate is split in that proportion and the rest is
- * left undecided. So the Deep South opens conservative, New England opens
- * liberal, and Virginia opens on a knife edge — which is what those places are.
+ * left undecided. So the Deep South opens Republican, New England opens
+ * Democratic, and Virginia opens on a knife edge — which is what those places are.
  *
  * The jitter is small and deliberate. Without it every Season deals the same
  * twenty splits to the tenth of a point and the map becomes a table to memorise;
@@ -137,10 +142,10 @@ const UNDECIDED_AT_FOUNDING = 0.26;
 export function seedPartisanFor(world, stateName) {
   const st = STATES.find((x) => x.name === stateName);
   if (!st) return null;
-  const lib = clamp(liberalOf(st) + range(world, -0.025, 0.025), 0.05, 0.95);
+  const lib = clamp(democratOf(st) + range(world, -0.025, 0.025), 0.05, 0.95);
   const committed = 1 - UNDECIDED_AT_FOUNDING;
-  const partisan = { liberal: committed * lib, conservative: committed * (1 - lib) };
-  const leanId = partisan.liberal >= partisan.conservative ? 'liberal' : 'conservative';
+  const partisan = { democrat: committed * lib, republican: committed * (1 - lib) };
+  const leanId = partisan.democrat >= partisan.republican ? 'democrat' : 'republican';
   return { partisan, undecided: UNDECIDED_AT_FOUNDING, lean: leanId };
 }
 

@@ -382,7 +382,7 @@ export const CONTINENT_RING = [
 
 export const STATES = [
   {
-    id: 'new-england', name: 'New England', code: 'NE', people: 15.1, liberal: 0.6, jobless: 0.039, rough: 27, homeValue: 520, income: 89000,
+    id: 'new-england', name: 'New England', code: 'NE', people: 15.1, democrat: 0.6, jobless: 0.039, rough: 27, homeValue: 520, income: 89000,
     merged: ['Maine', 'New Hampshire', 'Vermont', 'Massachusetts', 'Rhode Island', 'Connecticut'],
     poly: [
       EASTPORT, P(43.7, -70.2), P(41.7, -70), P(41, -71.9), P(41, -73.5),
@@ -390,14 +390,14 @@ export const STATES = [
     ],
   },
   {
-    id: 'new-york', name: 'New York', code: 'NY', people: 20.2, liberal: 0.61, jobless: 0.044, rough: 52, homeValue: 460, income: 82000, merged: ['New York'],
+    id: 'new-york', name: 'New York', code: 'NY', people: 20.2, democrat: 0.61, jobless: 0.044, rough: 52, homeValue: 460, income: 82000, merged: ['New York'],
     poly: [
       P(45, -73.3), P(42.7, -73.3), P(41, -73.5), P(40.6, -74), P(41.4, -74.7),
       P(42, -75.4), P(42, -79.8), P(43.1, -79.1), P(44.1, -76.4),
     ],
   },
   {
-    id: 'mid-atlantic', name: 'Mid-Atlantic', code: 'MA', people: 30.2, liberal: 0.57, jobless: 0.039, rough: 13, homeValue: 350, income: 85000,
+    id: 'mid-atlantic', name: 'Mid-Atlantic', code: 'MA', people: 30.2, democrat: 0.57, jobless: 0.039, rough: 13, homeValue: 350, income: 85000,
     merged: ['New Jersey', 'Pennsylvania', 'Delaware', 'Maryland', 'D.C.'],
     poly: [
       P(42, -79.8), P(42, -75.4), P(41.4, -74.7), P(40.6, -74), P(38.8, -75),
@@ -405,14 +405,14 @@ export const STATES = [
     ],
   },
   {
-    id: 'virginia', name: 'Virginia', code: 'VA', people: 10.4, liberal: 0.505, jobless: 0.031, rough: 8, homeValue: 350, income: 82000, merged: ['Virginia', 'West Virginia'],
+    id: 'virginia', name: 'Virginia', code: 'VA', people: 10.4, democrat: 0.505, jobless: 0.031, rough: 8, homeValue: 350, income: 82000, merged: ['Virginia', 'West Virginia'],
     poly: [
       P(39.7, -80.5), P(39.7, -79.5), P(38, -78.4), P(38, -75.6), P(36.9, -76),
       P(36.5, -75.9), P(36.5, -81.7), P(37.5, -82.3), P(38.4, -82.5), P(40.6, -80.5),
     ],
   },
   {
-    id: 'carolinas', name: 'The Carolinas', code: 'CR', people: 15.5, liberal: 0.47, jobless: 0.039, rough: 10, homeValue: 310, income: 68000,
+    id: 'carolinas', name: 'The Carolinas', code: 'CR', people: 15.5, democrat: 0.47, jobless: 0.039, rough: 10, homeValue: 310, income: 68000,
     merged: ['North Carolina', 'South Carolina'],
     poly: [
       P(36.5, -81.7), P(36.5, -75.9), P(35.2, -75.5), P(33.9, -78), P(32.8, -79.9),
@@ -420,7 +420,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'florida', name: 'Florida', code: 'FL', people: 21.5, liberal: 0.48, jobless: 0.033, rough: 14, homeValue: 390, income: 71000, merged: ['Florida'],
+    id: 'florida', name: 'Florida', code: 'FL', people: 21.5, democrat: 0.48, jobless: 0.033, rough: 14, homeValue: 390, income: 71000, merged: ['Florida'],
     poly: [
       P(31, -87.6), P(31, -85), P(30.7, -83), P(30.7, -81.5), P(30.3, -81.4),
       P(28.4, -80.6), P(25.8, -80.2), KEY_WEST, P(27.8, -82.6), P(29.7, -85),
@@ -428,7 +428,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'deep-south', name: 'Deep South', code: 'DS', people: 18.7, liberal: 0.45, jobless: 0.034, rough: 9, homeValue: 240, income: 66000,
+    id: 'deep-south', name: 'Deep South', code: 'DS', people: 18.7, democrat: 0.45, jobless: 0.034, rough: 9, homeValue: 240, income: 66000,
     merged: ['Georgia', 'Alabama', 'Mississippi'],
     poly: [
       P(35, -84), P(34.8, -83.1), P(32.1, -81.1), P(30.7, -81.5), P(30.7, -83),
@@ -437,7 +437,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'upper-south', name: 'Upper South', code: 'UP', people: 11.4, liberal: 0.37, jobless: 0.04, rough: 12, homeValue: 240, income: 63000,
+    id: 'upper-south', name: 'Upper South', code: 'UP', people: 11.4, democrat: 0.37, jobless: 0.04, rough: 12, homeValue: 240, income: 63000,
     merged: ['Kentucky', 'Tennessee'],
     poly: [
       P(38.4, -82.5), P(37.5, -82.3), P(36.5, -81.7), P(35, -84), P(35, -88.2),
@@ -446,7 +446,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'ohio-valley', name: 'Ohio Valley', code: 'OV', people: 18.6, liberal: 0.44, jobless: 0.042, rough: 11, homeValue: 220, income: 68000, merged: ['Ohio', 'Indiana'],
+    id: 'ohio-valley', name: 'Ohio Valley', code: 'OV', people: 18.6, democrat: 0.44, jobless: 0.042, rough: 11, homeValue: 220, income: 68000, merged: ['Ohio', 'Indiana'],
     poly: [
       P(41.7, -84.8), P(41.7, -83.5), P(41.5, -80.5), P(40.6, -80.5), P(38.4, -82.5),
       P(39, -84.8), P(38.8, -84.8), P(37.8, -84.8), P(38, -88), P(41.7, -87.5),
@@ -454,21 +454,21 @@ export const STATES = [
     ],
   },
   {
-    id: 'michigan', name: 'Michigan', code: 'MI', people: 10.1, liberal: 0.51, jobless: 0.045, rough: 9, homeValue: 230, income: 69000, merged: ['Michigan'],
+    id: 'michigan', name: 'Michigan', code: 'MI', people: 10.1, democrat: 0.51, jobless: 0.045, rough: 9, homeValue: 230, income: 69000, merged: ['Michigan'],
     poly: [
       P(46.5, -90), P(46.5, -84.3), P(43, -82.4), P(42.1, -83.1), P(41.7, -83.5),
       P(41.7, -84.8), P(41.7, -86.8), P(45.1, -86.3), P(45.8, -87), P(46.5, -90),
     ],
   },
   {
-    id: 'illinois', name: 'Illinois', code: 'IL', people: 12.8, liberal: 0.58, jobless: 0.05, rough: 15, homeValue: 260, income: 78000, merged: ['Illinois'],
+    id: 'illinois', name: 'Illinois', code: 'IL', people: 12.8, democrat: 0.58, jobless: 0.05, rough: 15, homeValue: 260, income: 78000, merged: ['Illinois'],
     poly: [
       P(42.5, -90.6), P(42.5, -87.8), P(41.7, -87.5), P(38, -88), P(37, -89.1),
       P(36.98, -89.5), P(38.8, -90.2), P(40.4, -91.4), P(42.5, -90.6),
     ],
   },
   {
-    id: 'upper-midwest', name: 'Upper Midwest', code: 'UM', people: 11.6, liberal: 0.515, jobless: 0.031, rough: 13, homeValue: 300, income: 78000,
+    id: 'upper-midwest', name: 'Upper Midwest', code: 'UM', people: 11.6, democrat: 0.515, jobless: 0.031, rough: 13, homeValue: 300, income: 78000,
     merged: ['Wisconsin', 'Minnesota'],
     poly: [
       LAKE_OF_WOODS, P(48, -89.5), P(46.8, -92.1), P(46.5, -90), P(45.8, -87),
@@ -477,7 +477,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'heartland', name: 'Heartland', code: 'HL', people: 9.3, liberal: 0.43, jobless: 0.034, rough: 10, homeValue: 220, income: 70000, merged: ['Iowa', 'Missouri'],
+    id: 'heartland', name: 'Heartland', code: 'HL', people: 9.3, democrat: 0.43, jobless: 0.034, rough: 10, homeValue: 220, income: 70000, merged: ['Iowa', 'Missouri'],
     poly: [
       P(43.5, -96.6), P(43.5, -91.2), P(42.5, -90.6), P(40.4, -91.4), P(38.8, -90.2),
       P(36.98, -89.5), P(36, -89.7), P(36, -94.6), P(40, -94.6), P(40, -95.3),
@@ -485,7 +485,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'great-plains', name: 'Great Plains', code: 'GP', people: 6.6, liberal: 0.39, jobless: 0.028, rough: 12, homeValue: 230, income: 71000,
+    id: 'great-plains', name: 'Great Plains', code: 'GP', people: 6.6, democrat: 0.39, jobless: 0.028, rough: 12, homeValue: 230, income: 71000,
     merged: ['North Dakota', 'South Dakota', 'Nebraska', 'Kansas'],
     poly: [
       P(49, -104), P(49, -96.8), P(45.9, -96.5), P(43.5, -96.6), P(42.5, -96.4),
@@ -494,7 +494,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'south-central', name: 'South Central', code: 'SC', people: 11.6, liberal: 0.37, jobless: 0.038, rough: 9, homeValue: 200, income: 60000,
+    id: 'south-central', name: 'South Central', code: 'SC', people: 11.6, democrat: 0.37, jobless: 0.038, rough: 9, homeValue: 200, income: 60000,
     merged: ['Arkansas', 'Louisiana', 'Oklahoma'],
     poly: [
       P(37, -103), P(37, -94.6), P(36, -94.6), P(36, -89.7), P(35, -90),
@@ -503,7 +503,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'texas', name: 'Texas', code: 'TX', people: 29.1, liberal: 0.47, jobless: 0.041, rough: 9, homeValue: 300, income: 75000, merged: ['Texas'],
+    id: 'texas', name: 'Texas', code: 'TX', people: 29.1, democrat: 0.47, jobless: 0.041, rough: 9, homeValue: 300, income: 75000, merged: ['Texas'],
     poly: [
       P(36.5, -103), P(36.5, -100), P(34.5, -100), P(33.9, -94.4), P(29.7, -93.8),
       P(29.3, -94.8), P(27.8, -97.4), BROWNSVILLE, P(27.5, -99.5), P(29.2, -102.9),
@@ -511,7 +511,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'mountain-west', name: 'Mountain West', code: 'MW', people: 3.5, liberal: 0.35, jobless: 0.033, rough: 14, homeValue: 400, income: 71000,
+    id: 'mountain-west', name: 'Mountain West', code: 'MW', people: 3.5, democrat: 0.35, jobless: 0.033, rough: 14, homeValue: 400, income: 71000,
     merged: ['Montana', 'Idaho', 'Wyoming'],
     poly: [
       P(49, -117), P(49, -104), P(41, -104), P(41, -111), P(42, -111),
@@ -519,7 +519,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'southwest', name: 'Southwest', code: 'SW', people: 21.4, liberal: 0.504, jobless: 0.041, rough: 21, homeValue: 440, income: 80000,
+    id: 'southwest', name: 'Southwest', code: 'SW', people: 21.4, democrat: 0.504, jobless: 0.041, rough: 21, homeValue: 440, income: 80000,
     merged: ['Colorado', 'Utah', 'Nevada', 'Arizona', 'New Mexico'],
     poly: [
       P(42, -120), P(42, -111), P(41, -111), P(41, -102), P(37, -102),
@@ -527,7 +527,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'california', name: 'California', code: 'CA', people: 39.5, liberal: 0.65, jobless: 0.053, rough: 46, homeValue: 780, income: 91000, merged: ['California'],
+    id: 'california', name: 'California', code: 'CA', people: 39.5, democrat: 0.65, jobless: 0.053, rough: 46, homeValue: 780, income: 91000, merged: ['California'],
     poly: [
       P(42, -120), P(39, -120), P(35, -114.6), YUMA, P(32.5, -117.1),
       P(33.7, -118.2), P(34.4, -120.5), P(35.4, -120.9), P(37.8, -122.5),
@@ -535,7 +535,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'pacific-northwest', name: 'Pacific Northwest', code: 'PN', people: 14.1, liberal: 0.59, jobless: 0.043, rough: 40, homeValue: 530, income: 88000,
+    id: 'pacific-northwest', name: 'Pacific Northwest', code: 'PN', people: 14.1, democrat: 0.59, jobless: 0.043, rough: 40, homeValue: 530, income: 88000,
     merged: ['Washington', 'Oregon', 'Alaska', 'Hawaii'],
     poly: [
       P(49, -123), P(49, -117), P(42, -117), P(42, -120), P(42, -124.2),
@@ -721,7 +721,7 @@ export const codeOf = (state) => state?.code || '';
 export const peopleOf = (state) => +state?.people || 0;
 
 /**
- * How the place actually votes: the Liberal share of the two-party presidential
+ * How the place actually votes: the Democratic share of the two-party presidential
  * vote in 2020, summed over the real states the region was merged from and
  * weighted by their populations.
  *
@@ -731,7 +731,7 @@ export const peopleOf = (state) => +state?.people || 0;
  * game has exactly two parties and no third to lose the remainder to.
  *
  * It exists because district lean was `pick(world, PARTIES)` — a coin flip per
- * state, every Season, with no geography in it at all. Texas came up Liberal as
+ * state, every Season, with no geography in it at all. Texas came up Democratic as
  * often as California did, which meant the map taught the player nothing and the
  * bloc a bill had to win was a different bloc every run. Seeding against this
  * instead is what makes "the Deep South" and "New England" mean anything when
@@ -741,14 +741,14 @@ export const peopleOf = (state) => +state?.people || 0;
  * purpose. They are the regions that really are that close, and a Season where
  * they can break either way is the correct simulation of them.
  */
-export const liberalOf = (state) => {
-  const n = +state?.liberal;
+export const democratOf = (state) => {
+  const n = +state?.democrat;
   return Number.isFinite(n) ? n : 0.5;
 };
 
 /**
  * Three more real facts about a real place, on the same footing as `people` and
- * `liberal` and checkable the same way.
+ * `democrat` and checkable the same way.
  *
  * - `jobless` — the unemployment rate. Great Plains 2.8%, California 5.3%.
  * - `rough`   — people sleeping rough or in shelter, per ten thousand. This is

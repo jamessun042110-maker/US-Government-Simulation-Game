@@ -769,7 +769,7 @@ export function syntheticBallot(world, persona, doc) {
       merit += c.revoke ? 1.0 : -1.3;
     } else if (c.kind === 'RIGHT') {
       // A right is a good in itself (merit), and a party-line question besides:
-      // the Liberal bloc leans for it, the Conservative bloc against. Weighted
+      // the Democratic bloc leans for it, the Republican bloc against. Weighted
       // enough that the two blocs visibly part on it rather than both waving it
       // through on the merit bonus alone — rights are contested politics here.
       merit += 1.6; interest += (party.lean.rights ?? -party.lean.order) * 2.6;

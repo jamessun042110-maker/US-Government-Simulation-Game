@@ -12,7 +12,7 @@ ok('there is a foreign power to treat with', !!f, f?.name);
 
 // Warm, non-fascist relations, so nothing but the term is being measured — the
 // base willingness is a flat 1 and the duration multiplier shows through cleanly.
-f.hostility = 5; f.atWar = false; f.allied = false; f.pact = null; f.ideology = 'liberal';
+f.hostility = 5; f.atWar = false; f.allied = false; f.pact = null; f.ideology = 'democrat';
 
 const odds = (years) => DEP.weighAssent(w, {
   clauses: [{ kind: 'TREATY_NONAGGRESSION', party: f.id, years }],

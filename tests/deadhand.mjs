@@ -77,7 +77,7 @@ for (const [state, put] of Object.entries(STATES)) {
     const { w, me } = republic();
     const was = w.personas[me].party;
     put(w.personas[me]);
-    ACT.apply(w, { type: 'CHOOSE_PARTY', playerId: 'p1', party: was === 'liberal' ? 'conservative' : 'liberal' });
+    ACT.apply(w, { type: 'CHOOSE_PARTY', playerId: 'p1', party: was === 'democrat' ? 'republican' : 'democrat' });
     ok(`${state}: does not change party`, w.personas[me].party === was, `${was} → ${w.personas[me].party}`);
   }
   {

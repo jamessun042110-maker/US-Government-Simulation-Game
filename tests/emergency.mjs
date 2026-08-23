@@ -74,7 +74,7 @@ function republic(mood = 50) {
   // A synthetic opposition assembly member must exist to file; newWorld seats them.
   const opp = w.seats.filter((s) => s.office === 'assembly' && s.personaId)
     .map((s) => w.personas[s.personaId]).find((m) => m && m.synthetic);
-  if (opp) opp.party = w.personas[pid].party === 'liberal' ? 'conservative' : 'liberal';
+  if (opp) opp.party = w.personas[pid].party === 'democrat' ? 'republican' : 'democrat';
 
   // Without an emergency, the chamber does not move at 45% approval.
   w.clock.tick = NPC.IMPEACH_CADENCE;

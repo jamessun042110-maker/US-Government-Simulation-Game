@@ -23,11 +23,11 @@ const co = CO.found(w, pid, 'MegaCorp').company;
 co.cash = 800e6; co.valuation = 50e6;   // well out of the basement, deep pockets
 
 // --- a party's war chest, capped -----------------------------------------------
-ok('a party donation is taken and recorded', CO.donateParty(w, co, pid, 'liberal', 50e6).ok && w.partyFunds.liberal === 50e6);
-ok('$50M buys half a per cent at the polls', Math.abs(CO.partyInfluence(w, 'liberal') - 0.005) < 1e-9, String(CO.partyInfluence(w, 'liberal')));
-CO.donateParty(w, co, pid, 'liberal', 100e6);   // tries to push past the cap
-ok('the influence caps at one per cent', Math.abs(CO.partyInfluence(w, 'liberal') - 0.01) < 1e-9);
-ok('and only the room to the cap is taken', w.partyFunds.liberal === 1e8);
+ok('a party donation is taken and recorded', CO.donateParty(w, co, pid, 'democrat', 50e6).ok && w.partyFunds.democrat === 50e6);
+ok('$50M buys half a per cent at the polls', Math.abs(CO.partyInfluence(w, 'democrat') - 0.005) < 1e-9, String(CO.partyInfluence(w, 'democrat')));
+CO.donateParty(w, co, pid, 'democrat', 100e6);   // tries to push past the cap
+ok('the influence caps at one per cent', Math.abs(CO.partyInfluence(w, 'democrat') - 0.01) < 1e-9);
+ok('and only the room to the cap is taken', w.partyFunds.democrat === 1e8);
 
 // --- a campaign fund, capped ---------------------------------------------------
 const cand = W.makePersona(w, { synthetic: true }); w.personas[cand.id] = cand;
@@ -45,7 +45,7 @@ ok('bootstrapping is not capped', Math.abs(CO.campaignInfluence(w, cand.id) - (0
   const founder2 = W.makePersona(w, { synthetic: true }); w.personas[founder2.id] = founder2;
   const co2 = CO.found(w, founder2.id, 'Basement Inc').company;   // garage stage
   co2.cash = 10e6;
-  ok('a basement company cannot donate', !CO.donateParty(w, co2, founder2.id, 'liberal', 1e6).ok);
+  ok('a basement company cannot donate', !CO.donateParty(w, co2, founder2.id, 'democrat', 1e6).ok);
 }
 
 // --- the money tells at the polls ----------------------------------------------
@@ -97,8 +97,8 @@ ok('bootstrapping is not capped', Math.abs(CO.campaignInfluence(w, cand.id) - (0
 {
   const { w: w3, pid: p3 } = mk();
   const c = CO.found(w3, p3, 'Donor Co').company; c.cash = 200e6; c.valuation = 40e6;
-  ACT.apply(w3, { type: 'DONATE_PARTY', playerId: 'p1', party: 'conservative', amount: 20e6 });
-  ok('the donate action moves the money and the influence', (w3.partyFunds?.conservative || 0) === 20e6 && CO.partyInfluence(w3, 'conservative') > 0);
+  ACT.apply(w3, { type: 'DONATE_PARTY', playerId: 'p1', party: 'republican', amount: 20e6 });
+  ok('the donate action moves the money and the influence', (w3.partyFunds?.republican || 0) === 20e6 && CO.partyInfluence(w3, 'republican') > 0);
 }
 
 // --- Money of your own ------------------------------------------------------
@@ -113,14 +113,14 @@ ok('bootstrapping is not capped', Math.abs(CO.campaignInfluence(w, cand.id) - (0
   const me = w.personas[pid];
   me.wallet = 40e6;
   ok('a private citizen with no company can still give',
-    CO.donateParty(w, null, pid, 'liberal', 10e6, { from: 'wallet' }).ok === true);
+    CO.donateParty(w, null, pid, 'democrat', 10e6, { from: 'wallet' }).ok === true);
   ok('and it comes out of their own pocket', me.wallet === 30e6, String(me.wallet));
-  ok('into the same pot the companies give to', (w.partyFunds?.liberal || 0) === 10e6);
+  ok('into the same pot the companies give to', (w.partyFunds?.democrat || 0) === 10e6);
   ok('they cannot give what they do not have',
-    CO.donateParty(w, null, pid, 'liberal', 500e6, { from: 'wallet' }).value.given === 30e6
+    CO.donateParty(w, null, pid, 'democrat', 500e6, { from: 'wallet' }).value.given === 30e6
     && me.wallet === 0);
   ok('and an empty pocket is an empty pocket',
-    CO.donateParty(w, null, pid, 'liberal', 1e6, { from: 'wallet' }).ok === false);
+    CO.donateParty(w, null, pid, 'democrat', 1e6, { from: 'wallet' }).ok === false);
 
   // The same caps, on the same record.
   me.wallet = 60e6;
@@ -132,8 +132,8 @@ ok('bootstrapping is not capped', Math.abs(CO.campaignInfluence(w, cand.id) - (0
   // And through the door the UI actually uses, which is where it has to say
   // whose money it was.
   me.wallet = 9e6;
-  ACT.apply(w, { type: 'DONATE_PARTY', playerId: 'p1', party: 'conservative', amount: 5e6, from: 'wallet' });
-  ok('the action moves personal money', (w.partyFunds?.conservative || 0) === 5e6 && me.wallet === 4e6);
+  ACT.apply(w, { type: 'DONATE_PARTY', playerId: 'p1', party: 'republican', amount: 5e6, from: 'wallet' });
+  ok('the action moves personal money', (w.partyFunds?.republican || 0) === 5e6 && me.wallet === 4e6);
   ok('and the record says it was theirs',
     w.chronicle.some((e) => /of their own money to the/.test(e.text)),
     (w.chronicle.filter((e) => /own money/.test(e.text)).at(-1) || {}).text || 'no line');
