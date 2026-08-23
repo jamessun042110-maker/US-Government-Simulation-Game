@@ -140,24 +140,73 @@ const EDGE = 2;
 // of the frame, where it reads as a mistake. It is an inset, the way every US
 // map does it.
 
-/** British Columbia's coast, from the frontier's west end up out of frame. */
+/**
+ * British Columbia's coast, from the frontier's west end up out of frame.
+ *
+ * Four points before, which drew the most indented coastline in North America
+ * as a smooth diagonal. The line the eye actually wants is the Inside Passage:
+ * a channel behind a wall of islands, so the mainland shore steps in and out
+ * rather than running. Vancouver Island is taken as part of it, the way a coarse
+ * map does — the strait behind it is twenty miles wide and would draw as a hair.
+ */
 const COAST_CANADA_PACIFIC = [
-  P(50.5, -127.5), P(52.5, -129), P(54.5, -130.5), P(56, -131),
-  [P(56, -131)[0], -EDGE],
+  P(49.3, -123.2), P(49.5, -124.8), P(50.1, -125.4),    // Burrard Inlet, the Sunshine Coast
+  P(50.9, -127.4), P(50.7, -128.4),                     // Queen Charlotte Strait, Cape Scott
+  P(51.7, -127.9), P(52.4, -128.5), P(53.3, -129.4),    // Rivers Inlet, Bella Bella
+  P(54.3, -130.4), P(54.8, -130.1),                     // Prince Rupert, Dixon Entrance
+  P(56, -131), P(58, -133),                             // north behind the panhandle
+  [P(58, -133)[0], -EDGE],
 ];
 
-/** The Arctic edge, west to east, with Hudson Bay cut into it. */
+/**
+ * The Arctic edge, west to east, with Hudson Bay cut into it.
+ *
+ * The frame stops at about 63°N, so the top of Canada is the top of the frame
+ * and always will be — what can be drawn is what hangs below it, and three
+ * things do. **Hudson Bay** is the largest, and it was a shallow V; it is the
+ * bay now, with a west shore running down past Churchill and **James Bay** as
+ * the narrow tongue at the bottom of it, which is the shape everybody knows.
+ * **Ungava Bay** is the second bite, east of the peninsula, and it was not
+ * drawn at all — the coast skipped from Hudson Bay straight to Labrador.
+ */
 const COAST_CANADA_ARCTIC = [
   [P(60, -95)[0], -EDGE],
-  P(60, -94), P(56, -91), P(53, -86), P(51.2, -81.5),   // down the bay's west shore to James Bay
-  P(55, -78.5), P(58.5, -77.5), P(62, -74),              // and back up its eastern one
-  [P(62, -72)[0], -EDGE], [P(58, -62)[0], -EDGE],
+  P(61.0, -94.4), P(58.8, -94.2),                        // Arviat, Churchill
+  P(56.8, -89.0), P(55.3, -85.5), P(55.2, -83.0),        // the Ontario shore, to Cape Henrietta Maria
+  P(53.8, -82.2), P(51.5, -80.6), P(51.2, -79.5),        // down James Bay and round the bottom
+  P(53.0, -79.0), P(55.3, -77.2), P(57.0, -76.6),        // back up its eastern side
+  P(58.8, -77.9), P(60.5, -77.9), P(62.0, -78.2),        // the Quebec shore of Hudson Bay
+  [P(62.4, -78)[0], -EDGE], [P(62.4, -70)[0], -EDGE],    // over Hudson Strait, off the top
+  P(61.5, -70.2), P(60.0, -69.6), P(58.7, -68.4),        // down the west shore of Ungava Bay
+  P(58.5, -65.9), P(60.0, -64.8),                        // across it and up to Cape Chidley
 ];
 
-/** Labrador and Newfoundland, down to the Maine corner. */
+/**
+ * Labrador, the Gulf of St Lawrence and the Maritimes, down to the Maine corner.
+ *
+ * It was eight points that took Labrador, Newfoundland and Nova Scotia in one
+ * smooth sweep, which is to say it drew none of them. What is here now is the
+ * mainland: the Labrador coast to the Strait of Belle Isle, the **Gulf of St
+ * Lawrence** as the deep bite it is, the **Gaspé** peninsula between the gulf
+ * and the Baie des Chaleurs, and **Nova Scotia** hooking south-west with the
+ * **Bay of Fundy** behind it.
+ *
+ * No Newfoundland. It is an island and this is one ring; attaching it across the
+ * Strait of Belle Isle would either fuse it to Labrador or fold the ring through
+ * itself, and a Gulf of St Lawrence that is actually a gulf is worth more to the
+ * eye than a Newfoundland welded to the mainland.
+ */
 const COAST_CANADA_ATLANTIC = [
-  P(58, -62), P(54.5, -58), P(51, -55.5), P(48.5, -53.5),
-  P(46.8, -56), P(46, -60), P(45.5, -64), EASTPORT,
+  P(60.0, -64.8),                                        // Cape Chidley
+  P(58.4, -62.8), P(56.4, -61.4), P(54.8, -58.4),        // the Labrador coast
+  P(53.6, -57.0), P(52.3, -55.8), P(51.5, -57.1),        // to the Strait of Belle Isle
+  P(50.3, -59.8), P(49.5, -62.5), P(48.7, -64.5),        // the gulf's north shore, running west
+  P(49.3, -66.3), P(48.9, -68.0),                        // into the St Lawrence estuary
+  P(48.4, -68.5), P(48.9, -66.0), P(48.9, -64.5),        // and back east along the Gaspé
+  P(48.0, -65.5), P(47.7, -64.9),                        // round its tip into the Baie des Chaleurs
+  P(46.3, -63.8), P(45.9, -64.8),                        // Northumberland Strait
+  P(45.6, -61.4), P(44.7, -63.5), P(43.6, -65.8),        // Nova Scotia: Canso, Halifax, Yarmouth
+  P(45.2, -66.1), EASTPORT,                              // up the Bay of Fundy to Saint John
 ];
 
 /**
