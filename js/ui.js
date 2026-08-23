@@ -12,6 +12,8 @@ import * as ACT from './actions.js';
 import { BUILDINGS, ZONES, PARTIES, FOREIGN } from './world.js';
 import * as GEO from './geo.js';
 import * as ATL from './atlas.js';
+import * as WP from './worldproj.js';
+import { COUNTRIES as WORLD_COUNTRIES, byIso as worldByIso } from './worldmap.js';
 import { ALASKA, ALASKA_WORLD, HAWAII, CENTRAL_AMERICA, CARIBBEAN } from './atlas.js';
 import * as MACRO from './macro.js';
 import * as CO from './company.js';
@@ -2786,8 +2788,8 @@ const boxUnion = (a, b) => {
  * off the edge of the other — which is exactly what "ATLANT" along the right
  * margin was.
  */
-function seaLabels(box, scale = 1, ink = '#dfe9f2', opacity = 0.34) {
-  return ATL.SEAS.map((sea) => {
+function seaLabels(box, scale = 1, ink = '#dfe9f2', opacity = 0.34, seas = ATL.SEAS) {
+  return seas.map((sea) => {
     const size = 5.4 * sea.size * scale;
     const track = 1.4 * sea.size * scale;
     const text = sea.name.toUpperCase();
@@ -3291,7 +3293,10 @@ VIEWS.world = (root) => {
   // the same continent for the land each country holds after every cession the
   // Chronicle has recorded. The coast and the terrain are identical either side
   // of a treaty — only the lines between the countries move.
-  const G = GEO.mapOf(world);
+  // The world frame, not the atlas's. Everything below draws from this object
+  // and positions itself from these same polygons, so moving them once moves the
+  // whole map — see worldproj.toWorld.
+  const G = WP.toWorld(GEO.mapOf(world));
   const LAY = {
     us: { fill: '#efe7d3' },
     canada: { fill: '#dcb970' },
@@ -3334,37 +3339,81 @@ VIEWS.world = (root) => {
     + ['us', 'canada', 'mexico'].map((id) =>
       `<clipPath id="wocc-${id}"><path d="${GEO.pathOf(G.halves[id])}"/></clipPath>`).join('')
     + '</defs>');
-  parts.push(`<rect x="0" y="0" width="${GEO.WORLD_W}" height="${GEO.WORLD_H}" fill="url(#wsea)"/>`);
+  parts.push(`<rect x="0" y="0" width="${WP.WORLD_W}" height="${WP.WORLD_H}" fill="url(#wsea)"/>`);
   // The swell, run out past both edges of the frame so it reaches them rather
   // than starting and stopping a little way inside. It is clipped at the
   // viewport, which is what we want: waves to the edge of the drawing, and the
   // stylesheet's matching band beyond it.
   for (let k = 1; k <= 5; k++) {
-    const yy = (GEO.WORLD_H * k / 6).toFixed(0);
-    parts.push(`<path d="M-60,${yy} q 85,6 170,0 t 170,0 t 170,0" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="2"/>`);
+    const yy = (WP.WORLD_H * k / 6).toFixed(0);
+    parts.push(`<path d="M-60,${yy} q 170,9 340,0 t 340,0 t 340,0" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="2"/>`);
   }
 
   // The land itself: sand, with a fat sand stroke straddling the coastline so the
   // outer half of it reads as beach once the countries are painted inside.
   const sand = (d) => `<path d="${d}" fill="#e2d7bc" stroke="#d8c79a" stroke-width="7" stroke-linejoin="round"/>`;
+  // The rest of the world, first and underneath: two hundred and four countries
+  // out of Natural Earth, drawn once in a single flat land colour with their
+  // borders hairlined over the top. This map used to be North America and three
+  // neighbours floating in an otherwise empty ocean — which is a map of the
+  // neighbourhood, not of the world.
+  //
+  // They are scenery and nothing more. None of them has a standing, a capital or
+  // a hostility, and none of them is something the engine can count: see
+  // worldmap.js. The four powers are drawn after this, from the game's own
+  // geometry, and paint over their share of it.
+  {
+    // One path per country, not one path for all of them. Every ring in a single
+    // path is cheaper to draw and wrong: under `evenodd` a ring that sits inside
+    // another cancels it, so Lesotho became a hole in South Africa and the
+    // Vatican and San Marino became holes in Italy, and under `nonzero` the
+    // answer depends on which way round Natural Earth happened to wind them.
+    // Separate paths have no fill rule to get wrong — an enclave just draws on
+    // top of the country it is inside, which is what it looks like on a map.
+    const fills = [], lines = [];
+    for (const c of WORLD_COUNTRIES) {
+      const d = c.rings.map((r) => GEO.pathOf(WP.ringOfLonLat(r))).join(' ');
+      fills.push(`<path d="${d}" fill="#cfc4a8"/>`);
+      lines.push(d);
+    }
+    parts.push(fills.join(''));
+    parts.push(`<path d="${lines.join(' ')}" fill="none" stroke="#26506a" stroke-opacity="0.28" stroke-width="0.7" stroke-linejoin="round"/>`);
+  }
   // The isthmus first, and under everything: it is scenery, not a player, and it
   // is the only land on this map nobody can take. Drawn a shade greyer than the
   // countries and with no capital, no name and no standing — the eye should read
   // "the continent carries on" and then stop looking at it. See
   // atlas.CENTRAL_AMERICA for why it is not part of the continent proper.
-  parts.push(sand(GEO.pathOf(CENTRAL_AMERICA)));
-  parts.push(`<path d="${GEO.pathOf(CENTRAL_AMERICA)}" fill="#cfc7b0"/>`);
-  parts.push(`<path d="${GEO.pathOf(CENTRAL_AMERICA)}" fill="none" stroke="#26506a" stroke-opacity="0.42" stroke-width="1.4" stroke-linejoin="round"/>`);
+  parts.push(sand(GEO.pathOf(WP.ring(CENTRAL_AMERICA))));
+  parts.push(`<path d="${GEO.pathOf(WP.ring(CENTRAL_AMERICA))}" fill="#cfc7b0"/>`);
+  parts.push(`<path d="${GEO.pathOf(WP.ring(CENTRAL_AMERICA))}" fill="none" stroke="#26506a" stroke-opacity="0.42" stroke-width="1.4" stroke-linejoin="round"/>`);
   parts.push(sand(GEO.pathOf(G.ring)));
   parts.push(sand(GEO.pathOf(G.sab)));
-  // Alaska, in the corner, meeting Canada's western edge — which is where it is.
-  // See atlas.ALASKA_WORLD: it is placed rather than projected, because a true
-  // position for it is a hundred units off the left of this frame. It is drawn
-  // with its own sand and its own fill rather than inside the `wland` clip,
-  // since that clip is the continent's coastline and this is not on it.
-  parts.push(sand(GEO.pathOf(ALASKA_WORLD)));
-  parts.push(`<path d="${GEO.pathOf(ALASKA_WORLD)}" fill="${LAY.us.fill}"/>`);
-  parts.push(`<path d="${GEO.pathOf(ALASKA_WORLD)}" fill="none" stroke="#26506a" stroke-opacity="0.42" stroke-width="1.4" stroke-linejoin="round"/>`);
+  // Alaska and Hawaii, in their true positions.
+  //
+  // atlas.ALASKA_WORLD exists because the old frame could not hold them: it put
+  // 168°W a hundred units off the left edge, so Alaska was *placed* against
+  // Canada's western boundary rather than projected. A map of the whole world
+  // has no such problem, and the honest answer is available — so these are
+  // Natural Earth's own outlying United States rings, at the longitudes they
+  // are actually at, painted in the republic's colour.
+  //
+  // They are taken from the basemap rather than from the atlas because the
+  // atlas has no lat/long for them to give: `ALASKA` is authored in its own AK
+  // projection and the degrees behind it were never kept. The rule for "which
+  // rings" is longitude — the game's own ring is the lower 48, and everything
+  // American west of 130°W is the two states it does not include.
+  {
+    const us = worldByIso('US');
+    const outlying = (us?.rings || []).filter((r) =>
+      r.reduce((n, q) => n + q[0], 0) / r.length < -130);
+    for (const r of outlying) {
+      const d = GEO.pathOf(WP.ringOfLonLat(r));
+      parts.push(sand(d));
+      parts.push(`<path d="${d}" fill="${LAY.us.fill}"/>`);
+      parts.push(`<path d="${d}" fill="none" stroke="#26506a" stroke-opacity="0.42" stroke-width="1.4" stroke-linejoin="round"/>`);
+    }
+  }
 
   parts.push('<g clip-path="url(#wland)">');
   for (const id of ['canada', 'mexico', 'us']) {
@@ -3535,14 +3584,15 @@ VIEWS.world = (root) => {
   // The water, named. Last in the list but drawn under nothing — every label
   // sits in open sea, so order costs nothing and a name that did collide would
   // be a placement bug worth seeing rather than hiding.
-  parts.push(seaLabels({ x: 0, y: 0, w: GEO.WORLD_W, h: GEO.WORLD_H }, 1.15));
+  parts.push(seaLabels({ x: WP.VIEW.x, y: WP.VIEW.y, w: WP.VIEW.w, h: WP.VIEW.h }, 1.15,
+    '#dfe9f2', 0.34, WP.WORLD_SEAS));
 
   // The same compass the city map carries, in the ocean off the south-west.
-  parts.push(compassRose(16, GEO.WORLD_H - 16, 10));
+  parts.push(compassRose(WP.VIEW.x + 18, WP.VIEW.y + WP.VIEW.h - 18, 11));
 
   // `ocean` swaps the letterbox background to match this map's deeper water.
   const map = el('div', { class: 'citymap ocean' });
-  map.innerHTML = `<svg viewBox="0 0 340 232" width="100%" style="display:block;max-height:520px" xmlns="http://www.w3.org/2000/svg">${parts.join('')}</svg>`;
+  map.innerHTML = `<svg viewBox="${WP.VIEW.x} ${WP.VIEW.y} ${WP.VIEW.w} ${WP.VIEW.h}" width="100%" style="display:block;max-height:520px" xmlns="http://www.w3.org/2000/svg">${parts.join('')}</svg>`;
 
   const bar = (label, val, max, color) => el('div', { class: 'spread', style: { margin: '3px 0' } },
     el('span', { class: 'tiny dim' }, label),
