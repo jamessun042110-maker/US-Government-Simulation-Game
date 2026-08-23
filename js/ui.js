@@ -2746,6 +2746,47 @@ const boxUnion = (a, b) => {
  * grid still exists in the engine, because that is how a REDISTRICT clause
  * addresses land; it is bookkeeping, and it is no longer the map.
  */
+/**
+ * The sea, named, on whichever map is asking.
+ *
+ * Every map in the game labelled the land and left the water anonymous — which
+ * is half the frame on the World tab and a third of it on Domestic. An ocean
+ * with no name is a blue rectangle; a named one is a direction, and "the
+ * Caribbean Sea" is somewhere the player has a fleet.
+ *
+ * Under everything else, and `pointer-events: none`, so a label can never take
+ * a click meant for a parcel and never covers a coast. Positions come from
+ * atlas.SEAS in degrees; they sit in open water at every frontier the
+ * annexation mechanism can reach, so a northern war cannot slide one under
+ * Canada.
+ *
+ * `box` is the frame the caller is actually drawing, and the labels are clamped
+ * into it. The two maps do not share one: the World tab draws the whole atlas
+ * and Domestic crops to the country, so an Atlantic label placed for one runs
+ * off the edge of the other — which is exactly what "ATLANT" along the right
+ * margin was.
+ */
+function seaLabels(box, scale = 1, ink = '#dfe9f2', opacity = 0.34) {
+  return ATL.SEAS.map((sea) => {
+    const size = 5.4 * sea.size * scale;
+    const track = 1.4 * sea.size * scale;
+    const text = sea.name.toUpperCase();
+    // Half the drawn width, near enough: 0.62em a capital in this face, plus the
+    // tracking between them. It only has to be right enough to keep the label
+    // inside the frame — and it has to be *estimated*, because there is no way
+    // to measure text before it is in the document and this string is built
+    // before there is a document.
+    const half = (text.length * size * 0.62 + (text.length - 1) * track) / 2;
+    const pad = 3;
+    const x = clamp(sea.at[0], box.x + half + pad, box.x + box.w - half - pad);
+    const y = clamp(sea.at[1], box.y + size + pad, box.y + box.h - pad);
+    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle"`
+      + ` font-size="${size.toFixed(1)}" font-weight="600" letter-spacing="${track.toFixed(1)}"`
+      + ` fill="${ink}" fill-opacity="${opacity}" pointer-events="none"`
+      + ` font-family="var(--sans), system-ui, sans-serif">${esc(text)}</text>`;
+  }).join('');
+}
+
 function cityMap(world) {
   const CG = GEO.cityGeometry(world);
   const G = CG.g;
@@ -2804,6 +2845,13 @@ function cityMap(world) {
     const yy = (vy + vh * k / 5).toFixed(0);
     parts.push(`<path d="M${vx},${yy} q ${(vw / 4).toFixed(0)},5 ${(vw / 2).toFixed(0)},0 t ${(vw / 2).toFixed(0)},0" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1.6"/>`);
   }
+
+  // The water, named, before any land goes over it. See seaLabels.
+  // Smaller here than on the World tab. This map crops to the country, so the
+  // Atlantic is a strip a few dozen units wide and a label set at the world
+  // map's size is clamped inland onto the Carolinas — where the land is drawn
+  // over it and it reads as "IC OCEAN".
+  parts.push(seaLabels({ x: vx, y: vy, w: vw, h: vh }, 0.6, '#dfe9f2', 0.32));
 
   // The whole landmass in sand, so the beach shows outside every border.
   parts.push(`<path d="${GEO.pathOf(G.ring)}" fill="#e2d7bc" stroke="#d8c79a" stroke-width="6" stroke-linejoin="round"/>`);
@@ -3438,6 +3486,10 @@ VIEWS.world = (root) => {
   };
   label('us', world.nation, true);
   for (const f of foreign) if (LAY[f.id]) label(f.id, f.name, false);
+  // The water, named. Last in the list but drawn under nothing — every label
+  // sits in open sea, so order costs nothing and a name that did collide would
+  // be a placement bug worth seeing rather than hiding.
+  parts.push(seaLabels({ x: 0, y: 0, w: GEO.WORLD_W, h: GEO.WORLD_H }, 1.15));
 
   // The same compass the city map carries, in the ocean off the south-west.
   parts.push(compassRose(16, GEO.WORLD_H - 16, 10));

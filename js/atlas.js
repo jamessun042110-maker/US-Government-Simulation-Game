@@ -800,6 +800,31 @@ export const LAKES = [
 ];
 
 /**
+ * The water, named.
+ *
+ * Every map in the game labelled the land and left the sea anonymous, which is
+ * half the frame on the World tab and a third of it on Domestic. An ocean with
+ * no name is a blue rectangle; a named one is a direction, and "the Caribbean
+ * Sea" is a place the player has a fleet in.
+ *
+ * Positions in degrees like everything else, and chosen to sit in open water at
+ * every frontier the annexation mechanism can reach — a label that ends up under
+ * Canada after a northern war is worse than no label. `size` is relative: an
+ * ocean is set larger than a sea, the way an atlas does it.
+ */
+export const SEAS = [
+  // Off Baja, and higher than the ocean's own middle. The Pacific is the narrow
+  // half of this frame — level with California there are twenty units of water
+  // between the frame's edge and the coast — and the Domestic map crops closer
+  // still and puts its Alaska and Hawaii insets in the bottom-left corner. This
+  // is the widest piece of open Pacific that is in both maps and under neither.
+  { name: 'Pacific Ocean', at: P(28, -124), size: 0.85 },
+  { name: 'Atlantic Ocean', at: P(34, -62), size: 1 },
+  { name: 'Gulf of Mexico', at: P(25.2, -90.5), size: 0.72 },
+  { name: 'Caribbean Sea', at: P(14.5, -73), size: 0.72 },
+];
+
+/**
  * The postal code of every state that went into the merge.
  *
  * A merged region needs to say what it is made of — "Deep South" is not
