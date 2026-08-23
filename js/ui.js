@@ -2163,7 +2163,12 @@ function defaultClause(kind) {
   const c = { kind };
   const vacant = world.city.parcels.find((p) => !p.building && !p.project);
   for (const f of A.CLAUSES[kind].fields) {
-    if (f.def != null) c[f.k] = f.def;
+    // `defFrom` reads the world for its default — the rate a tax is actually
+    // charged at, rather than a literal that was true once. It is evaluated in
+    // field order, so it can read a field declared above it (the tax whose rate
+    // it wants); keep it below whatever it depends on.
+    if (f.defFrom) c[f.k] = f.defFrom(world, c);
+    else if (f.def != null) c[f.k] = f.def;
     else if (f.t === 'select') c[f.k] = f.options[0][0];
     else if (f.t === 'district') c[f.k] = world.districts[0].id;
     else if (f.t === 'office') c[f.k] = world.constitution.offices[0].id;
@@ -2187,7 +2192,16 @@ function clauseEditor(c) {
   const world = w();
   const spec = A.CLAUSES[c.kind];
   return el('div', { class: 'grid g2', style: { marginTop: '6px' } }, ...spec.fields.map((f) => {
-    const set = (v) => { c[f.k] = v; syncCost(c); CTX.rerender(true); };
+    const set = (v) => {
+      c[f.k] = v;
+      // A field whose default is read off the world is re-read when something
+      // else in the clause moves under it: picking Sales tax has to put the
+      // sales rate in the box, not leave the income rate sitting there looking
+      // like the current one.
+      for (const g of spec.fields) if (g.defFrom && g.k !== f.k) c[g.k] = g.defFrom(world, c);
+      syncCost(c);
+      CTX.rerender(true);
+    };
     if (f.t === 'textarea') return el('label', { class: 'field' }, el('span', {}, f.label), el('textarea', { rows: 2, oninput: (e) => (c[f.k] = e.target.value) }, c[f.k] || ''));
     if (f.t === 'text') return el('label', { class: 'field' }, el('span', {}, f.label), el('input', { value: c[f.k] || '', oninput: (e) => (c[f.k] = e.target.value) }));
     if (f.t === 'number') return el('label', { class: 'field' }, el('span', {}, f.label),

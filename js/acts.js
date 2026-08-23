@@ -451,7 +451,16 @@ export const CLAUSES = {
     label: 'Set a rate of taxation', power: 'tax',
     fields: [
       { k: 'tax', t: 'select', label: 'Tax', options: [['income', 'Income tax'], ['sales', 'Sales tax'], ['property', 'Property tax'], ['tariff', 'Tariff']] },
-      { k: 'rate', t: 'number', label: 'Rate (%)', step: 0.5, min: 0, max: 70, def: 6 },
+      // Seeded from the rate actually in force rather than from a literal, and
+      // re-seeded when the tax above it changes — see ui.clauseEditor. It was
+      // `def: 6`, which happened to equal the income rate at the founding and
+      // was wrong for the other three from the first tick: you would open the
+      // clause to raise a 4% sales tax and the box already said 6, so drafting
+      // "no change" meant going to the Treasury tab to look the number up.
+      {
+        k: 'rate', t: 'number', label: 'Rate (%)', step: 0.5, min: 0, max: 70,
+        defFrom: (w, c) => +(((w.economy?.taxes?.[c.tax] ?? 0) * 100).toFixed(2)),
+      },
     ],
     text: (w, c) => `The rate of the ${c.tax} tax is set at ${(+c.rate).toFixed(1)} percent.`,
     apply: (w, c) => {
