@@ -1403,10 +1403,37 @@ export function revokeLaw(world, doc) {
   }
 }
 
+/**
+ * Strike a law as unconstitutional.
+ *
+ * **One justice of a bench cannot do this.** Judicial review in the United
+ * States is a court deciding a case: a plaintiff with standing, argument, and a
+ * majority of the bench. One judge revoking a statute on their own initiative,
+ * with nothing before them, is not a narrow version of that — it is a different
+ * thing wearing its name.
+ *
+ * The screen has hidden the button since the bench grew to three (ui.js), and
+ * that was the whole of the check: actions arrive from other tabs and are
+ * applied straight to the world, so a rule that lives only in a disabled button
+ * is not a rule. This is the engine half. `COURT_TAKE_UP` is the door it points
+ * at — it puts the law before the full bench, which is the route that ends in a
+ * judgment somebody can read.
+ *
+ * A one-seat court keeps the direct route, because for a bench of one "the
+ * majority of the bench" and "this judge" are the same sentence — and a
+ * constitution that seats a single justice has said what it thinks about that.
+ */
 export function strikeDown(world, docId, personaId, reason) {
   const doc = world.documents[docId];
   if (!doc || doc.status !== 'law') return fail('Only a law in force can be struck.');
-  if (!R.hasPower(world, personaId, 'strike_law')) return fail('Your office does not hold the power to strike laws.');
+  const bench = R.grantOf(world, personaId, 'strike_law');
+  if (!bench) return fail('Your office does not hold the power to strike laws.');
+  const seated = world.seats.filter((s) => s.office === bench.id
+    && s.personaId && world.personas[s.personaId]?.alive).length;
+  if (seated > 1) {
+    return fail(`A law is struck by the ${bench.name}, not by one of its members.`
+      + ' Put it before the full bench and argue it.');
+  }
   revokeLaw(world, doc);
   log(world, 'court', `“${doc.title}” is struck down as unconstitutional by ${world.personas[personaId]?.name}. ${reason || ''}`.trim(),
     { actors: [personaId], docId: doc.id, weight: 3 });
@@ -1948,7 +1975,7 @@ export function startProject(world, parcelIndex, buildingKey) {
 export function seatInOffice(world, seat, o, personaId) {
   seat.personaId = personaId;
   seat.since = world.clock.tick;
-  if (o.atWill) seat.termEnds = null;
+  if (o.atWill || o.forLife) seat.termEnds = null;
   else if (o.termFollows) {
     const ref = world.seats.find((s) => s.office === o.termFollows && s.personaId);
     seat.termEnds = ref ? ref.termEnds : R.termEndTick(world, o, world.clock.tick);

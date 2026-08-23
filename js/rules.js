@@ -269,7 +269,14 @@ export const TEMPLATES = [
           powers: ['arrest'] },
         { id: 'exchequer', name: 'Secretary of the Treasury', seats: 1, selection: 'appointment', appointedBy: 'president', atWill: true,
           powers: [] },
-        { id: 'justice', name: 'Supreme Court', seats: 3, selection: 'appointment', appointedBy: 'president', termYears: 12,
+        // `forLife` rather than a term. The Constitution gives judges their
+        // offices "during good Behaviour" — no clock, and that is the whole
+        // point of the branch: a bench that has to be reappointed is a bench
+        // with something to lose by ruling against the person who appoints it.
+        // A twelve-year term was a real proposal for the real Court and has
+        // never been the law. Three seats rather than nine stays a scale
+        // simplification; the tenure was not one.
+        { id: 'justice', name: 'Supreme Court', seats: 3, selection: 'appointment', appointedBy: 'president', forLife: true,
           powers: ['strike_law'] },
       ],
       // `chamber` is where a measure starts and `upperChamber` is where it goes
@@ -1316,7 +1323,10 @@ export function swearingDay(world, officeId) {
  * *is* an inauguration day. See tests/midterm.mjs.
  */
 export function termEndTick(world, o, startTick) {
-  if (!o || o.atWill) return null;
+  // No end. `atWill` serves at the appointer's pleasure and `forLife` during
+  // good behaviour — neither has a term, and a null here is what keeps
+  // sim.tickTerms from ever calling an election or a caretaker for the seat.
+  if (!o || o.atWill || o.forLife) return null;
   const natural = startTick + termTicks(world, o);
   const day = swearingDay(world, o.id);
   const after = nextDay(world, natural, day);
@@ -1542,7 +1552,8 @@ export function describeOffice(world, o) {
   const term = o.termFollows
     ? `term follows the ${office(world, o.termFollows)?.name || o.termFollows}`
     : o.atWill ? 'serves at will'
-      : o.termYears ? `${o.termYears}-year term` : 'no fixed term';
+      : o.forLife ? 'for life, during good behaviour'
+        : o.termYears ? `${o.termYears}-year term` : 'no fixed term';
   return `${n}, ${sel}, ${term}`;
 }
 

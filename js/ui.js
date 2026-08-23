@@ -1434,7 +1434,18 @@ VIEWS.convention = (root) => {
             o.termFollows
               ? el('label', { class: 'field', style: { marginBottom: 0 } }, el('span', {}, 'Term'),
                 el('div', { class: 'small dim', style: { padding: '7px 0' } }, 'follows the ' + (R.office(world, o.termFollows)?.name || o.termFollows)))
-              : labeledNum('Term (yrs)', o.termYears, (v) => { o.termYears = clamp(+v, 1, 40); push(); }),
+              // A bench that sits during good behaviour has no number to type,
+              // and a box reading 0 or 4 beside it would be a lie the field
+              // itself tells. Convertible, though: unticking it hands back a
+              // term, because the whole page is a document a table may argue.
+              : o.forLife
+                ? el('label', { class: 'field', style: { marginBottom: 0, cursor: 'pointer' } }, el('span', {}, 'Term'),
+                  el('div', { class: 'small dim', style: { padding: '7px 0' } }, 'for life',
+                    el('button', {
+                      class: 'btn sm ghost', style: { marginLeft: '8px' },
+                      onclick: () => { delete o.forLife; o.termYears = o.termYears || 12; push(); CTX.rerender(true); },
+                    }, 'give it a term')))
+                : labeledNum('Term (yrs)', o.termYears, (v) => { o.termYears = clamp(+v, 1, 40); push(); }),
             el('label', { class: 'field', style: { marginBottom: 0 } }, el('span', {}, 'Chosen by'),
               select(['election', 'appointment'], o.selection, (v) => { o.selection = v; push(); }))),
           o.electorate === 'district' && o.seats > 0
@@ -3894,7 +3905,8 @@ VIEWS.oval = (root) => {
               : null,
             (o.atWill && h) ? el('button', { class: 'btn sm ghost', style: { color: 'var(--red)' }, onclick: () => go('DISMISS', { seatId: s.id }) }, 'dismiss') : null,
             (o.atWill && h) ? el('span', { class: 'tiny dimmer' }, 'dismiss before naming a successor') : null,
-            (!o.atWill && h) ? el('span', { class: 'tiny dimmer' }, 'serves a fixed term — not dismissible') : null) : null);
+            (!o.atWill && h) ? el('span', { class: 'tiny dimmer' },
+              o.forLife ? 'sits for life, during good behaviour — not dismissible' : 'serves a fixed term — not dismissible') : null) : null);
       });
     }),
     appointable.length ? null : el('div', { class: 'tiny dimmer' }, 'This constitution fills no office by appointment.'),
