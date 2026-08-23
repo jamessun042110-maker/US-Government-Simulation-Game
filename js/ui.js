@@ -11,6 +11,7 @@ import * as C from './chronicle.js';
 import * as ACT from './actions.js';
 import { BUILDINGS, ZONES, PARTIES, FOREIGN } from './world.js';
 import * as GEO from './geo.js';
+import * as ATL from './atlas.js';
 import { ALASKA, HAWAII, CENTRAL_AMERICA } from './atlas.js';
 import * as MACRO from './macro.js';
 import * as CO from './company.js';
@@ -2956,6 +2957,25 @@ function cityMap(world) {
   }
   parts.push('</g></g>');
 
+  // The Great Lakes, drawn where they are.
+  //
+  // The frontier runs *through* them, so the band between the northern states'
+  // shorelines and the border belongs to the United States polygon and to no
+  // state — because it is water. It drew as an unexplained blue wedge between
+  // Michigan, Ohio Valley, New York and Canada: not sea, not land, not anybody's
+  // parcel, and no reason on the page for any of it. Drawing the lakes into it
+  // is the whole answer, and it is the answer for the Canadian side of the
+  // border too, which had the same wedge for the same reason.
+  //
+  // Over the parcels rather than under, because a lake is a fact about the
+  // ground and not a shade of it, and outside the `cmine` clip so the half that
+  // is Ontario's is drawn as well.
+  parts.push('<g clip-path="url(#cland)" pointer-events="none">');
+  for (const lk of ATL.LAKES) {
+    parts.push(`<path d="${GEO.pathOf(lk.poly)}" fill="#2f7f9a" fill-opacity="0.92" stroke="#e2d7bc" stroke-opacity="0.5" stroke-width="0.5"/>`);
+  }
+  parts.push('</g>');
+
   // The national border, inked heavily where it is a border and not a shore —
   // and behind it, where a treaty moved it, the frontier the republic was founded
   // with, dashed and pale. That is how an atlas says a border used to run
@@ -3057,9 +3077,12 @@ function cityMap(world) {
       `<path d="${akPath}" fill="${fill}" fill-opacity="0.85" stroke="#efe7d3" stroke-width="0.4"/>`));
 
     const hx = vx + 34, hy = vy + vh - 31, hs = 0.85;
+    // Outlines, not circles. See atlas.HAWAII — the shapes are the only thing
+    // anybody recognises about these islands, and six discs of assorted radius
+    // read as six discs of assorted radius.
     const hiInner = HAWAII.map((i) =>
-      `<circle cx="${(hx + 2 + i.cx * hs).toFixed(1)}" cy="${(hy + 3 + i.cy * hs).toFixed(1)}"`
-      + ` r="${(i.r * hs).toFixed(1)}" fill="${fill}" fill-opacity="0.85" stroke="#efe7d3" stroke-width="0.3"/>`).join('');
+      `<path d="${GEO.pathOf(i.poly.map(([x, y]) => [hx + 2 + x * hs, hy + 3 + y * hs]))}"`
+      + ` fill="${fill}" fill-opacity="0.85" stroke="#efe7d3" stroke-width="0.3"/>`).join('');
     parts.push(box(hx, hy, 21, 25, 'HAWAII', hiInner));
   }
 

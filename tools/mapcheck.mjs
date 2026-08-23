@@ -5,7 +5,7 @@
 // territory. Areas and adjacencies cannot see that; an eye can. Writes an SVG
 // to stdout — `node tools/mapcheck.mjs > /tmp/map.svg`.
 import { STATES, CONTINENT_RING, ringsAt } from '../js/atlas.js';
-import { geography, centroid } from '../js/geo.js';
+import { geography, interiorPoint } from '../js/geo.js';
 
 const north = +(process.argv[2] || 0), south = +(process.argv[3] || 0);
 const r = ringsAt(north, south);
@@ -15,7 +15,7 @@ const d = (p) => p.map((q, i) => (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].
 const cols = ['#4a6fa5', '#5b8c5a', '#a5794a', '#8c5a7a', '#4a8c8c', '#a58c4a', '#6a5aa5', '#a55a5a'];
 
 const states = STATES.map((s, i) => {
-  const c = centroid(s.poly);
+  const c = interiorPoint(s.poly);
   return `<path d="${d(s.poly)}" fill="${cols[i % cols.length]}" fill-opacity=".6" stroke="#fff" stroke-width=".5"/>`
     + `<text x="${c[0]}" y="${c[1]}" font-size="3.4" fill="#fff" text-anchor="middle" font-family="sans-serif">${s.code}</text>`;
 }).join('\n');

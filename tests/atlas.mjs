@@ -7,7 +7,7 @@ import {
   P, unP, US_RING, STATES, BORDER_CA, BORDER_MX, FOUR_CORNERS,
   ringsAt, CONTINENT_RING, CANADA_RING, MEXICO_RING, codeOf, postalOf,
 } from '../js/atlas.js';
-import { area, centroid, bounds, inPoly, WORLD_W, WORLD_H } from '../js/geo.js';
+import { area, centroid, bounds, inPoly, interiorPoint, WORLD_W, WORLD_H } from '../js/geo.js';
 
 let pass = 0, fail = 0;
 const ok = (c, m, extra = '') => { c ? (pass++, console.log(`PASS ${m}${extra ? ` | ${extra}` : ''}`)) : (fail++, console.log(`FAIL ${m}${extra ? ` | ${extra}` : ''}`)); };
@@ -236,7 +236,14 @@ ok(LAND.length > 2000, 'the continent samples enough ground to measure', `${LAND
     `${Math.round(b.w)}x${Math.round(b.h)} of ${WORLD_W}x${WORLD_H}`);
   // Every state has to be on the continent, or the engine's land grid will not
   // find the ground the state is standing on.
-  const off = STATES.filter((s) => !inPoly(centroid(s.poly), CONTINENT_RING));
+  // `interiorPoint`, not `centroid`: the area centroid of a concave state can
+  // be outside it — Florida's is in the Gulf, in the crook between the
+  // panhandle and the peninsula — and this asks whether the state stands on
+  // the continent, not where its centre of mass is.
+  const off = STATES.filter((s) => !inPoly(interiorPoint(s.poly), CONTINENT_RING));
+  const adrift = STATES.filter((s) => !inPoly(interiorPoint(s.poly), s.poly));
+  ok(adrift.length === 0, 'and every state contains the point that stands for it',
+    adrift.map((s) => s.id).join(', ') || 'all twenty');
   ok(off.length === 0, 'every state stands on the continent', off.map((s) => s.id).join(', ') || 'all twenty');
 }
 

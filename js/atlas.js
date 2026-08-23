@@ -90,8 +90,10 @@ export const COAST_PACIFIC = [
 export const COAST_ATLANTIC = [
   P(27.8, -97.4), P(29.3, -94.8), P(29.7, -93.8),      // the Texas coast
   P(29.2, -89.4), P(30.2, -88), P(30.4, -87.2),        // the delta, Mobile, Pensacola
-  P(29.7, -85), P(27.8, -82.6), KEY_WEST,              // the Florida panhandle and gulf coast
-  P(25.8, -80.2), P(28.4, -80.6), P(30.3, -81.4),      // Miami, Canaveral, Jacksonville
+  P(29.7, -85), P(28.9, -82.7), P(27.8, -82.6),        // the Florida panhandle and gulf coast
+  P(26.5, -82.1), P(25.8, -81.5), P(25.1, -81.1),      // Fort Myers, the Ten Thousand Islands
+  KEY_WEST, P(25.2, -80.4), P(25.8, -80.2),            // round the Keys and up to Miami
+  P(27.0, -80.1), P(28.4, -80.6), P(29.5, -81.1), P(30.3, -81.4),   // Canaveral, Jacksonville
   P(32.1, -81.1), P(32.8, -79.9), P(35.2, -75.5),      // Savannah, Charleston, Hatteras
   P(36.9, -76), P(38.8, -75), P(40.6, -74),            // the Chesapeake, Delaware Bay, New York
   P(41.7, -70), P(43.7, -70.2), EASTPORT,              // Cape Cod, Portland, the Maine corner
@@ -421,9 +423,17 @@ export const STATES = [
   },
   {
     id: 'florida', name: 'Florida', code: 'FL', people: 21.5, democrat: 0.48, jobless: 0.033, rough: 14, homeValue: 390, income: 71000, merged: ['Florida'],
+    // The southern end is round, because Florida's is. It ran Miami → Key West →
+    // Tampa in three straight lines, which cut the bottom off the peninsula and
+    // gave it a flat, angular base — the state's most recognisable feature,
+    // squared. This is the same run of coast as COAST_ATLANTIC above, written
+    // character-identical so the coastline and the state cannot disagree about
+    // where Florida is.
     poly: [
       P(31, -87.6), P(31, -85), P(30.7, -83), P(30.7, -81.5), P(30.3, -81.4),
-      P(28.4, -80.6), P(25.8, -80.2), KEY_WEST, P(27.8, -82.6), P(29.7, -85),
+      P(29.5, -81.1), P(28.4, -80.6), P(27.0, -80.1), P(25.8, -80.2),
+      P(25.2, -80.4), KEY_WEST, P(25.1, -81.1), P(25.8, -81.5), P(26.5, -82.1),
+      P(27.8, -82.6), P(28.9, -82.7), P(29.7, -85),
       P(30.4, -87.2), P(30.2, -88), P(31, -87.6),
     ],
   },
@@ -640,18 +650,103 @@ export const ALASKA = [
   AK(66.8, -161.5), AK(67.7, -164), AK(68.3, -166), AK(69, -163), AK(70.2, -160.5),
 ];
 
-/** The Hawaiian chain: eight islands on a north-west to south-east diagonal. */
+/**
+ * The Hawaiian chain: six islands on a north-west to south-east diagonal.
+ *
+ * Polygons, not circles. They were six discs of assorted radius, which is the
+ * one thing an island is never — Kauaʻi is round-ish and everything after it
+ * is not, and the big island is two volcanoes joined at the waist. A row of
+ * circles reads as a row of circles; even a rough outline reads as Hawaii,
+ * because the shapes are the only thing anybody recognises about them.
+ *
+ * In the inset's own coordinates, like ALASKA — the inset is a drawing at its
+ * own scale and there is no projection to hold these against. What can be
+ * checked is the arrangement: north-west to south-east, ascending in size, with
+ * Maui and Molokaʻi close enough to read as a group and Hawaiʻi apart from it.
+ */
 export const HAWAII = [
-  { cx: 2, cy: 2, r: 1.1 }, { cx: 5, cy: 3.4, r: 1.5 }, { cx: 8.2, cy: 5, r: 1.2 },
-  { cx: 11, cy: 6.4, r: 1.9 }, { cx: 14, cy: 8.4, r: 1.0 }, { cx: 17.5, cy: 10.6, r: 2.7 },
+  // Kauaʻi — the roundest of them, and the oldest.
+  { poly: [[1.1, 1.4], [2.2, 1.5], [2.9, 2.3], [2.6, 3.2], [1.6, 3.4], [0.8, 2.7], [0.7, 1.9]] },
+  // Oʻahu — a lozenge on the diagonal, with the two ranges down its long sides.
+  { poly: [[4.0, 2.8], [5.3, 2.6], [6.3, 3.4], [6.5, 4.3], [5.6, 4.9], [4.4, 4.6], [3.8, 3.7]] },
+  // Molokaʻi — long and thin, and almost due east of Oʻahu.
+  { poly: [[7.4, 4.6], [9.4, 4.4], [10.0, 4.9], [9.6, 5.5], [8.1, 5.6], [7.2, 5.2]] },
+  // Lānaʻi, small and round, tucked under Molokaʻi.
+  { poly: [[8.6, 6.3], [9.5, 6.2], [9.9, 6.8], [9.4, 7.4], [8.6, 7.3], [8.2, 6.8]] },
+  // Maui — the two-lobed one: the West Maui mountains, an isthmus, Haleakalā.
+  { poly: [[10.6, 5.6], [11.6, 5.5], [12.2, 6.0], [13.4, 6.1], [14.2, 6.9],
+    [13.9, 8.0], [12.7, 8.3], [11.7, 7.6], [11.0, 7.2], [10.3, 6.4]] },
+  // Hawaiʻi — the big island, and the only one that reads as big.
+  { poly: [[14.6, 9.0], [16.2, 8.4], [17.9, 8.8], [19.2, 10.0], [19.4, 11.6],
+    [18.3, 12.8], [16.5, 13.1], [15.0, 12.2], [14.2, 10.6]] },
 ];
 
+/**
+ * The Great Lakes, drawn rather than sampled.
+ *
+ * They were five ellipses out of `lakeRing`, and an ellipse is the one shape
+ * none of them is: Superior is a long wedge with a hook at its west end,
+ * Michigan is a narrow trough with a bay at the top, Huron has Georgian Bay
+ * hanging off its east side, Erie is a shallow sliver on a north-east
+ * diagonal, and Ontario is the only one an oval flatters. Five ovals in a row
+ * read as five ovals in a row; these read as the Great Lakes, which is the
+ * whole point of a map anybody can hold against an atlas.
+ *
+ * Written in degrees like everything else here, so `P(46.5, -84.4)` is the
+ * Soo and a reader can check it. Clockwise from the west end of each.
+ *
+ * They matter for more than the picture. The frontier (BORDER_CA) runs *through*
+ * these lakes, so between the northern states' shorelines and the border there
+ * is a band of the US polygon that no state claims — because it is water, and
+ * it drew as an unexplained blue wedge until the lakes were drawn in it.
+ */
 export const LAKES = [
-  { name: 'Lake Superior', poly: lakeRing(47.7, -87.5, 1.1, 4.3) },
-  { name: 'Lake Michigan', poly: lakeRing(44.0, -87.0, 2.6, 1.1) },
-  { name: 'Lake Huron', poly: lakeRing(44.8, -82.4, 1.8, 1.5, 18, 0.6) },
-  { name: 'Lake Erie', poly: lakeRing(42.2, -81.2, 0.6, 2.4) },
-  { name: 'Lake Ontario', poly: lakeRing(43.7, -77.9, 0.5, 1.6) },
+  {
+    name: 'Lake Superior',
+    poly: [
+      P(46.7, -92.1), P(47.4, -91.3), P(47.9, -89.9), P(48.1, -89.2),   // Duluth, the north shore
+      P(48.6, -88.4), P(48.8, -87.1), P(48.4, -85.9), P(47.9, -84.8),
+      P(46.5, -84.4), P(46.6, -85.5), P(46.7, -87.4), P(46.9, -88.5),   // the Soo, the south shore
+      P(46.7, -90.4), P(46.7, -92.1),
+    ],
+  },
+  {
+    name: 'Lake Michigan',
+    poly: [
+      P(41.7, -87.5), P(42.9, -87.8), P(44.0, -87.6), P(44.6, -87.4),   // Chicago north to Green Bay
+      P(45.1, -87.6), P(45.4, -86.7), P(45.8, -85.5), P(45.8, -84.8),
+      P(45.1, -85.0), P(44.3, -86.2), P(43.1, -86.5), P(41.9, -86.6),   // the Michigan shore, south
+      P(41.7, -87.5),
+    ],
+  },
+  {
+    name: 'Lake Huron',
+    poly: [
+      P(45.8, -84.8), P(46.0, -83.5), P(46.1, -82.2), P(45.8, -81.3),   // the North Channel
+      P(45.3, -80.9), P(44.7, -79.8), P(44.5, -80.5), P(44.8, -81.3),   // Georgian Bay
+      P(44.0, -81.7), P(43.3, -82.0), P(43.0, -82.4), P(43.7, -82.5),   // the Ontario shore to Sarnia
+      P(44.3, -83.3), P(44.9, -83.3), P(45.6, -84.2), P(45.8, -84.8),
+    ],
+  },
+  {
+    name: 'Lake Erie',
+    poly: [
+      P(42.1, -83.2), P(42.4, -82.9), P(42.9, -81.2), P(42.9, -80.2),   // Detroit, the Canadian shore
+      P(42.9, -79.0), P(42.5, -79.1), P(41.7, -80.5), P(41.5, -81.7),   // Buffalo, the Ohio shore
+      P(41.4, -82.7), P(41.7, -83.5), P(42.1, -83.2),
+    ],
+  },
+  {
+    name: 'Lake Ontario',
+    poly: [
+      P(43.3, -79.2), P(43.6, -79.4), P(44.0, -78.0), P(44.2, -76.9),   // Niagara, Toronto, the Thousand Islands
+      P(44.2, -76.2), P(43.5, -76.5), P(43.3, -77.6), P(43.2, -78.7),   // the New York shore
+      P(43.3, -79.2),
+    ],
+  },
+  // The one lake in the west, and the one an oval really does describe: it is a
+  // shallow evaporating pan with no coastline to speak of and a shore that moves
+  // several miles between wet years and dry ones.
   { name: 'Great Salt Lake', poly: lakeRing(41.2, -112.5, 0.6, 0.5) },
 ];
 

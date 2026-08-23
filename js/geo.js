@@ -137,6 +137,45 @@ export function centroid(poly) {
   return [cx / (3 * a), cy / (3 * a)];
 }
 
+/**
+ * A point that is actually *in* the polygon.
+ *
+ * `centroid` is the area centroid, which is the right answer for a convex shape
+ * and can be well outside a concave one — Florida's lands in the Gulf, in the
+ * crook between the panhandle and the peninsula, and it was only ever inside
+ * because the peninsula used to be drawn fat enough to catch it. Anything that
+ * wants "somewhere in this state" — a label, a district's site, a test that a
+ * state stands on the continent — wants this instead.
+ *
+ * The centroid where the centroid works, and otherwise the middle of the widest
+ * horizontal span of interior. That is the cheap standing-in for a pole of
+ * inaccessibility, and at this scale it is indistinguishable from one: it puts
+ * the point in the fattest part of the shape, which is where a label wants to
+ * be anyway.
+ */
+export function interiorPoint(poly) {
+  const c = centroid(poly);
+  if (inPoly(c, poly)) return c;
+  const b = bounds(poly);
+  const ROWS = 24, COLS = 96;
+  let best = null, bestRun = 0;
+  for (let r = 1; r < ROWS; r++) {
+    const y = b.y0 + (b.h * r) / ROWS;
+    let run = 0, start = null;
+    for (let k = 0; k <= COLS; k++) {
+      const x = b.x0 + (b.w * k) / COLS;
+      if (k < COLS && inPoly([x, y], poly)) {
+        if (start == null) start = x;
+        run++;
+      } else {
+        if (run > bestRun) { bestRun = run; best = [(start + (b.x0 + (b.w * (k - 1)) / COLS)) / 2, y]; }
+        run = 0; start = null;
+      }
+    }
+  }
+  return best || c;
+}
+
 export function bounds(pts) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const [x, y] of pts) {
@@ -1049,7 +1088,9 @@ export function cityGeometry(world) {
   const parts = ds.map((d, i) => {
     const st = authored[i];
     if (!st) return solved[i];
-    const c = centroid(st.poly);
+    // The site has to be *in* the state — it is the seed the parcel solver
+    // grows cells from — and an area centroid is not: Florida's is in the Gulf.
+    const c = interiorPoint(st.poly);
     return { poly: st.poly, site: { x: c[0], y: c[1], w: 0 }, share: 0, spot: null };
   });
 
