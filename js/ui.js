@@ -5859,9 +5859,22 @@ function electionCard(e, big = false) {
   const eligible = p && !p.synthetic && p.alive && !p.exiled && !p.imprisoned && may.ok;
   const nominating = (e.age ?? 0) < 4; // the field is still forming
 
+  // Which chairs are on this ballot. A staggered chamber puts a class up at a
+  // time, so "Election — Senate" over seven of twenty seats would tell a player
+  // their whole upper house was in play when it is not, and would leave the
+  // state whose senator is four years from a vote wondering why it had no race.
+  const up = R.seatsUpIn(world, e);
+  const held = world.seats.filter((s) => s.office === e.office).length;
+  const partial = e.cohort != null && up.length < held;
+  const mySeatUp = p?.district ? up.some((s) => s.district === p.district) : true;
+
   return el('div', { class: 'card gold' },
-    el('div', { class: 'spread' }, el('b', {}, 'Election — ' + o.name),
+    el('div', { class: 'spread' }, el('b', {}, 'Election — ' + o.name
+      + (partial ? ` · class ${e.cohort + 1}` : '')),
       el('span', { class: 'tag mono' }, left + 's to the count')),
+    partial ? el('div', { class: 'tiny dimmer', style: { margin: '4px 0 0' } },
+      `${up.length} of ${held} seats. The ${o.name} turns over in ${R.cohortsOf(o)} classes, `
+      + `so it is never dissolved and never wholly replaced.`) : null,
     el('div', { class: 'tiny dimmer', style: { margin: '4px 0 10px' } },
       `Citizen weight ${world.constitution.elections.citizenWeight}× · player weight ${world.constitution.elections.playerWeight}×`),
 
@@ -5877,7 +5890,10 @@ function electionCard(e, big = false) {
     ((home) => o.electorate === 'district'
       ? el('div', { class: 'tiny dimmer', style: { margin: '-6px 0 10px' } },
         home
-          ? `Seats are contested district by district. You are from ${home.name}, so you stand for its seat.`
+          ? mySeatUp
+            ? `Seats are contested district by district. You are from ${home.name}, so you stand for its seat.`
+            // Your state's chair is in another class and is not up this time.
+            : `Seats are contested district by district. ${home.name}'s seat is not in this class, so there is no race here to stand in.`
           : 'Seats are contested district by district, and you are from none.')
       : null)(p?.district ? world.districts.find((d) => d.id === p.district) : null),
 

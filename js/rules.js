@@ -231,7 +231,13 @@ export const TEMPLATES = [
         //
         // Six years against the House's two, so a senator sits three House
         // elections away from the mood of the moment.
-        { id: 'senate', name: 'Senate', seats: 20, selection: 'election', termYears: 6, electorate: 'district', minAge: 30,
+        // `cohorts: 3` is the Senate's three classes. The seats are dealt into
+        // three groups at the founding and one group goes to the country every
+        // two years, so the chamber turns over continuously and is never
+        // dissolved — the whole point of the institution, and the reason a
+        // Senate outlasts the wave that elected a House. Everything else in the
+        // engine leaves `cohorts` unset and polls as one body.
+        { id: 'senate', name: 'Senate', seats: 20, selection: 'election', termYears: 6, cohorts: 3, electorate: 'district', minAge: 30,
           powers: ['propose_bill', 'vote', 'impeach', 'tax', 'declare_war'] },
         { id: 'president', name: 'President', seats: 1, selection: 'election', termYears: 4, electorate: 'nation', successor: 'vp', termLimit: 2, minAge: 35,
           powers: ['spend', 'appoint', 'promulgate', 'veto', 'pardon', 'command_military', 'sign_treaty', 'emergency', 'propose_bill', 'arrest', 'zone'] },
@@ -1140,6 +1146,15 @@ export function repairConstitution(c) {
   // state gets at least one member of the lower house.
   const states = perState.length ? perState[0].seats : (districted[0]?.seats || 0);
   if (states) for (const o of districted) if (o.apportioned && o.seats < states) o.seats = states;
+  // A staggered chamber cannot have more classes than it has chairs — a fourth
+  // class of nothing is a class that never polls — and a single class is the
+  // same thing as no stagger at all, so it is written as none.
+  for (const o of c.offices) {
+    if (o.cohorts == null) continue;
+    const n = Math.floor(+o.cohorts) || 1;
+    o.cohorts = n <= 1 ? null : Math.min(n, Math.max(1, o.seats || 1));
+    if (o.cohorts == null) delete o.cohorts;
+  }
 
   if (c.impeachment) {
     if (!has(c.impeachment.tries)) c.impeachment.tries = L.chamber;
@@ -1212,6 +1227,33 @@ export const bodySeated = (world, officeId) =>
 export function termTicks(world, o) {
   return Math.round((o.termYears || 4) * world.clock.ticksPerYear);
 }
+
+/**
+ * How many classes an office's seats are dealt into — the Senate's three.
+ *
+ * One means the whole body goes to the country together, which is what every
+ * office but the Senate does and what the Senate itself did until now: twenty
+ * seats all expiring on the same day, so every sixth year the entire upper
+ * chamber was up and in between it was untouchable. A staggered chamber turns
+ * over continuously, which is the whole argument for having one.
+ */
+export const cohortsOf = (o) => Math.max(1, Math.floor(+(o?.cohorts || 1)) || 1);
+
+/**
+ * Which seats one election is actually for.
+ *
+ * An election used to be the office and nothing else, so anything that asked
+ * "whose chairs are on this ballot" answered "all of them". With classes it is
+ * the office *and* the class, and `e.cohort == null` still means the whole body
+ * — which is what every election in an unstaggered republic carries.
+ */
+export const seatsUpIn = (world, e) => world.seats.filter((s) =>
+  s.office === e.office && (e.cohort == null || (s.cohort ?? null) === e.cohort));
+
+/** Is there already a ballot open for these chairs? */
+export const electionOpenFor = (world, officeId, cohort = null) =>
+  (world.elections || []).some((e) => e.office === officeId && e.status === 'open'
+    && (e.cohort ?? null) === cohort);
 
 // --- When a term begins and ends -------------------------------------------
 // Not "four years after whatever afternoon you happened to be sworn in". A

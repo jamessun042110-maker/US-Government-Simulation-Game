@@ -1545,7 +1545,25 @@ function beginSeason(world) {
   for (const seat of world.seats) {
     const o = R.office(world, seat.office);
     if (!o || !seat.personaId) continue;
-    if (seat.termEnds == null) {
+    // A staggered chamber is staggered by its *first* terms and never again.
+    // The classes are dealt at the founding with a third, two thirds and the
+    // whole of a term left to run, so from the first count onward every winner
+    // serves the full six and the classes stay two years apart for the life of
+    // the Season. This is how the real Senate was started, in 1789, and for the
+    // same reason: without it all twenty chairs expire on the same morning for
+    // ever, the whole chamber is dissolved every sixth year, and the body that
+    // exists to outlast a wave is elected by one.
+    //
+    // Unconditional, unlike the clock below it: `fillVacantSeats` has already
+    // run and has already given every seated citizen a full term, so a guard on
+    // `termEnds == null` would find nothing left to stagger. The founding is the
+    // one moment the classes can be set, and this is it.
+    const cohorts = R.cohortsOf(o);
+    if (cohorts > 1) {
+      seat.since = seat.since ?? 1;
+      seat.termEnds = 1 + Math.max(1,
+        Math.round((R.termTicks(world, o) * ((seat.cohort ?? 0) + 1)) / cohorts));
+    } else if (seat.termEnds == null) {
       seat.since = 1;
       seat.termEnds = 1 + R.termTicks(world, o);
     }

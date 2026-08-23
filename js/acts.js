@@ -2172,12 +2172,16 @@ export function succeed(world, officeId) {
 // Every election runs the same 60 ticks — a minute of real time — whoever
 // called it. Three different windows (25, 40, 60) meant the countdown you
 // learned to read meant something different next time.
-export function scheduleElection(world, officeId, inTicks = 60) {
+export function scheduleElection(world, officeId, inTicks = 60, cohort = null) {
   const o = R.office(world, officeId);
   if (!o) return fail('No such office.');
-  if (world.elections.some((e) => e.office === officeId && e.status === 'open')) return fail('An election for that office is already running.');
+  // Keyed on the class, not the office. A staggered chamber has three ballots
+  // in rotation and the second must not be refused because the first is still
+  // in living memory; an unstaggered one carries `null` and behaves exactly as
+  // it did — one open election per office, and no second.
+  if (R.electionOpenFor(world, officeId, cohort)) return fail('An election for that office is already running.');
   const e = {
-    id: uid('el'), office: officeId, status: 'open',
+    id: uid('el'), office: officeId, status: 'open', cohort,
     opens: world.clock.tick,
     // An election runs on its own counter, not on the canon clock. Canon time
     // stops for a ballot — the whole nation is at the polls — so a deadline
@@ -2189,7 +2193,14 @@ export function scheduleElection(world, officeId, inTicks = 60) {
     candidates: [], ballots: {}, sealed: {},
   };
   world.elections.push(e);
-  log(world, 'election', `An election is called for the ${o.name}. Nominations open.`, { weight: 2 });
+  // Which chairs are on it, when it is not all of them. "An election is called
+  // for the Senate" over a ballot carrying seven of twenty seats is a sentence
+  // that tells a player the wrong thing about their own chamber.
+  const up = R.seatsUpIn(world, e).length;
+  const total = world.seats.filter((s) => s.office === officeId).length;
+  log(world, 'election', `An election is called for the ${o.name}`
+    + (cohort != null && up < total ? ` — class ${cohort + 1}, ${up} of ${total} seats` : '')
+    + '. Nominations open.', { weight: 2 });
   return ok(e);
 }
 

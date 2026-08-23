@@ -77,18 +77,27 @@ ok('and nobody was held in an office they declined to stand for',
 
   for (const e of open) {
     const o = R.office(w, e.office);
-    const seats = w.seats.filter((s) => s.office === e.office);
-    ok(`${o.name}: the ballot is not empty`, (e.candidates || []).length > 0,
+    // The chairs this ballot is actually for, which is not the office's whole
+    // establishment once a chamber turns over in classes: the Senate puts a
+    // third of itself up at a time, and the guarantee is about the third that
+    // is up. Asking for twenty candidates on a seven-seat ballot is asking the
+    // engine to enter thirteen senators who are years from an election.
+    const seats = R.seatsUpIn(w, e);
+    const label = `${o.name}${e.cohort != null ? ` class ${e.cohort + 1}` : ''}`;
+    ok(`${label}: the ballot is not empty`, (e.candidates || []).length > 0,
       `${(e.candidates || []).length} standing for ${seats.length} seat(s)`);
-    ok(`${o.name}: at least one candidate per seat`,
+    ok(`${label}: at least one candidate per seat`,
       (e.candidates || []).length >= seats.length,
       `${(e.candidates || []).length} for ${seats.length}`);
     // A seat with a district of its own must have somebody standing in it,
     // rather than the race merely having enough bodies overall.
     const bare = seats.filter((x) => x.district)
       .filter((x) => !(e.candidates || []).some((c) => (c.district ?? null) === x.district));
-    ok(`${o.name}: somebody stands in every district`, !bare.length,
+    ok(`${label}: somebody stands in every district`, !bare.length,
       bare.map((x) => w.districts.find((d) => d.id === x.district)?.name).join(', ') || 'all covered');
+    // And nobody who is not up is on the ballot.
+    const notUp = (e.candidates || []).filter((c) => c.seatId && !seats.some((x) => x.id === c.seatId));
+    ok(`${label}: nobody stands for a chair that is not up`, !notUp.length, `${notUp.length} strays`);
   }
 }
 

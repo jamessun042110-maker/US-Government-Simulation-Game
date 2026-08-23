@@ -1,7 +1,7 @@
 // Genesis. Builds the map, the citizenry, the ledger and the offices.
 
 import { rng, range, pick, clamp, uid, sum, mulberry32, hashSeed, PALETTE, youthOf, YOUTH_APPROVAL } from './util.js';
-import { templateById, termEndTick, apportion } from './rules.js';
+import { templateById, termEndTick, apportion, cohortsOf } from './rules.js';
 import { initMacro } from './macro.js';
 import { STATE_NAMES, isCoastal, LAKES, STATES, codeOf, peopleOf, democratOf, joblessOf, roughOf, homeValueOf, incomeOf } from './atlas.js';
 import { cityGeometry, inPoly, bounds } from './geo.js';
@@ -1012,6 +1012,18 @@ export function assignDistrictSeats(world) {
     if (o.electorate !== 'district') continue;
     const mine = world.seats.filter((s) => s.office === o.id).sort((a, b) => a.index - b.index);
     if (!mine.length) continue;
+
+    // Which class each chair sits in, for a chamber that turns over in parts.
+    // Dealt round-robin across the seats in index order, so a state's chairs
+    // land in different classes wherever a state holds more than one — which is
+    // what keeps a whole state from going to the polls at once. `null` for an
+    // office that polls as one body, which is every office but the Senate.
+    //
+    // Here rather than at the founding because this is the one place seats are
+    // laid out, it is idempotent, and it runs again at ratification: a class
+    // stamped anywhere else would be lost the moment the map was re-cut.
+    const cohorts = cohortsOf(o);
+    mine.forEach((seat, i) => { seat.cohort = cohorts > 1 ? i % cohorts : null; });
 
     if (!o.apportioned) {
       // One per state, in the atlas's order, and no congressional district — a

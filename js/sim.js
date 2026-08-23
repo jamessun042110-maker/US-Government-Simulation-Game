@@ -1278,11 +1278,17 @@ function tickTerms(world) {
       // waits until the swearing-in day, and the incumbent holds every power of
       // the office until then.
       const elective = o.selection === 'election' && !o.ticket;
+      // The class this chair sits in, and null for a body that polls whole.
+      // Every question below is asked of the class rather than the office: with
+      // three Senate classes two years apart, "is an election for the Senate
+      // already running" is answered yes by a ballot for somebody else's chairs,
+      // and this class would never be called at all.
+      const cohort = seat.cohort ?? null;
       if (elective && seat.termEnds != null
         && world.clock.tick >= R.electionCallTick(world, seat.termEnds)
-        && !world.elections.some((e) => e.office === o.id && e.status === 'open')
+        && !R.electionOpenFor(world, o.id, cohort)
         && !(world.pendingTerms || []).some((pt) => pt.seatId === seat.id)) {
-        const res = scheduleElection(world, o.id, 60);
+        const res = scheduleElection(world, o.id, 60, cohort);
         if (res.ok) {
           res.value.takesOfficeAt = seat.termEnds;
           log(world, 'election', `The country goes to the polls for the ${o.name}. `
@@ -1292,9 +1298,9 @@ function tickTerms(world) {
       if (seat.termEnds != null && world.clock.tick >= seat.termEnds) {
         if (elective) {
           // Nobody was elected in time — a vacancy the machinery has to fill.
-          if (!world.elections.some((e) => e.office === o.id && e.status === 'open')
+          if (!R.electionOpenFor(world, o.id, cohort)
             && !(world.pendingTerms || []).some((pt) => pt.seatId === seat.id)) {
-            scheduleElection(world, o.id, 60);
+            scheduleElection(world, o.id, 60, cohort);
             log(world, 'election', `The term of the ${o.name} expires with no successor. Nominations open.`, { weight: 2 });
           }
           seat.termEnds = world.clock.tick + 60; // caretaker until the count
@@ -1331,8 +1337,8 @@ function tickTerms(world) {
           seat.termEnds = R.termEndTick(world, o, world.clock.tick);
           log(world, 'office', `${p.name} is seated as ${o.name} in default of an appointment.`, { actors: [p.id] });
         }
-      } else if (waited > 16 && !world.elections.some((e) => e.office === o.id && e.status === 'open')) {
-        scheduleElection(world, o.id, 60);
+      } else if (waited > 16 && !R.electionOpenFor(world, o.id, seat.cohort ?? null)) {
+        scheduleElection(world, o.id, 60, seat.cohort ?? null);
       }
     }
   }
@@ -1399,12 +1405,15 @@ function tickElections(world) {
     // A runoff has a fixed field — the top two from the first round — so it never
     // opens nominations. Everything else does at age 4.
     if (e.age === 4 && !e.runoff) {
-      for (const s of world.seats.filter((s) => s.office === e.office)) {
+      // The chairs this ballot is actually for. A staggered chamber puts a
+      // third of itself up at a time, and entering the other two thirds would
+      // unseat senators who are four years from an election.
+      const seats = R.seatsUpIn(world, e);
+      for (const s of seats) {
         if (!s.personaId) continue;
         if (world.personas[s.personaId]?.everPlayer) continue; // theirs to declare
         nominate(world, e, s.personaId, s.district, null, s.id);
       }
-      const seats = world.seats.filter((s) => s.office === e.office);
       const office = R.office(world, e.office);
       const challenger = (s) => {
         const d = s.district ? world.districts.find((x) => x.id === s.district) : pick(world, world.districts);
@@ -1633,7 +1642,11 @@ const RUNOFF_RUNS = 60;
 // field is fixed, so no fresh nominations join it (see tickElections).
 function scheduleRunoff(world, prev, o, topTwo) {
   const e = {
-    id: uid('el'), office: o.id, status: 'open', runoff: true,
+    // The runoff is for the same chairs as the round that produced it. Only the
+    // presidency ever holds one today, and a national office carries no class,
+    // but a runoff that dropped the class would put the whole chamber back to
+    // the country on the second round.
+    id: uid('el'), office: o.id, status: 'open', runoff: true, cohort: prev.cohort ?? null,
     opens: world.clock.tick, age: 0, runs: RUNOFF_RUNS, closes: world.clock.tick + RUNOFF_RUNS,
     candidates: topTwo.map((c) => ({
       personaId: c.personaId, district: c.district ?? null,
@@ -1723,7 +1736,7 @@ export function closeElection(world, e) {
   const o = R.office(world, e.office);
   const cw = world.constitution.elections.citizenWeight;
   const pw = world.constitution.elections.playerWeight;
-  const seats = world.seats.filter((s) => s.office === e.office);
+  const seats = R.seatsUpIn(world, e);
 
   for (const seat of seats) {
     // A seat's own field. `seatId` is set on nomination for an apportioned
