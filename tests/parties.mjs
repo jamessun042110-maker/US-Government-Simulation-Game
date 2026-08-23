@@ -119,3 +119,53 @@ ok('an unpopular one bleeds it', drift(20) < 0, drift(20).toFixed(4));
   ACT.apply(w, { type: 'CHOOSE_PARTY', playerId: 'p1', party: 'nonsense' });
   ok('a nonexistent party is refused', w.personas[pid].party === null);
 }
+
+// --- a state reads the president through its own politics -----------------------
+// The map has carried a partisan split per state since the census landed, seeded
+// from the real two-party vote, and no part of opinion read it: the Deep South
+// rated a Democratic president exactly as New England did. It is a term in
+// districtMoodTarget now, and it is signed, so it has to cut both ways and to
+// come out near nothing nationally.
+//
+// One world, the president's party swapped underneath it — not two worlds. The
+// split is seeded with a jitter (world.seedPartisanFor), so two republics
+// disagree about California by a point or so and nothing here could be compared
+// across them.
+{
+  const { w } = mk();
+  const seat = w.seats.find((s) => s.office === 'president');
+  const pres = persona(w, 'democrat');
+  seat.personaId = pres.id;
+  const stand = (party) => {
+    pres.party = party;
+    return Object.fromEntries(w.districts.map((d) => [d.name, S.districtMoodTarget(w, d).parts.Partisanship]));
+  };
+  const dem = stand('democrat');
+  const rep = stand('republican');
+  const ind = stand(null);
+  const bluest = w.districts.slice().sort((a, b) => dem[b.name] - dem[a.name])[0].name;
+  const reddest = w.districts.slice().sort((a, b) => dem[a.name] - dem[b.name])[0].name;
+
+  ok('the bluest state warms to a Democratic president and cools to a Republican',
+    dem[bluest] > 0 && rep[bluest] < 0, `${bluest}: ${dem[bluest].toFixed(2)} / ${rep[bluest].toFixed(2)}`);
+  ok('the reddest state does the mirror of it',
+    rep[reddest] > 0 && dem[reddest] < 0, `${reddest}: ${rep[reddest].toFixed(2)} / ${dem[reddest].toFixed(2)}`);
+  ok('and the two presidents are exact mirror images in every state',
+    w.districts.every((d) => Math.abs(dem[d.name] + rep[d.name]) < 1e-9));
+  ok('the spread across the country is worth more than a point and less than the map',
+    dem[bluest] - dem[reddest] > 5 && dem[bluest] - dem[reddest] < 25,
+    (dem[bluest] - dem[reddest]).toFixed(2));
+
+  // Near zero-sum on purpose: the term must not quietly move the calibrated 58
+  // that districtMoodTarget builds every other row on top of.
+  const pop = w.districts.reduce((t, d) => t + d.pop, 0);
+  const net = (x) => w.districts.reduce((t, d) => t + x[d.name] * d.pop, 0) / pop;
+  ok('and it very nearly cancels out across the country',
+    Math.abs(net(dem)) < 1.5 && Math.abs(net(rep)) < 1.5,
+    `${net(dem).toFixed(2)} / ${net(rep).toFixed(2)}`);
+
+  // An independent is read on the merits — the hard road the rest of the model
+  // already says independence is.
+  ok('an independent president draws no partisan feeling either way',
+    Object.values(ind).every((v) => v === 0));
+}

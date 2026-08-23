@@ -406,6 +406,29 @@ function neighbours(world, p) {
 // unemployed, some homeless, moderate taxes) and doing nothing, sits near 50
 // rather than sinking into the 30s. Genuinely bad conditions still bite; the
 // citizenry just no longer treats a normal opening position as a catastrophe.
+/**
+ * How far a state's own politics move its reading of the government.
+ *
+ * ±8.75 points at the extremes, so the spread between the reddest state and the
+ * bluest is about seventeen — conservative against the real thing, where a
+ * president's approval routinely runs thirty-five points apart between Vermont
+ * and Wyoming. Ours are merged regions rather than states, which flattens the
+ * ends, and this is a term in a mood that already has eight others in it.
+ */
+const PARTISAN_WEIGHT = 25;
+
+function partisanFeeling(world, d) {
+  const head = R.headOffice(world);
+  const seat = world.seats.find((s) => s.office === head?.id && s.personaId);
+  const pres = seat && world.personas[seat.personaId];
+  // An independent president is read on the merits, which is the hard road the
+  // rest of the model already says independence is.
+  if (!pres?.party || !d.partisan) return 0;
+  const mine = d.partisan[pres.party] || 0;
+  const theirs = sum(PARTIES.filter((p) => p.id !== pres.party), (p) => d.partisan[p.id] || 0);
+  return (mine - theirs) * PARTISAN_WEIGHT;
+}
+
 export function districtMoodTarget(world, d) {
   const e = world.economy;
   const homelessRate = d.pop ? d.homeless / d.pop : 0;
@@ -451,6 +474,20 @@ export function districtMoodTarget(world, d) {
     // amenities, and it decays, so a health service is a thing you keep paying
     // for rather than a box you tick once.
     Health: (((d.health ?? 55) - 55) / 45) * 6 * d.salience.amenity,
+    // Which side the state is on.
+    //
+    // The map has carried a partisan split per state since the census landed —
+    // seeded from the real two-party vote — and no part of opinion read it. The
+    // Deep South rated a Democratic president exactly as New England did, which
+    // is the single least true thing the model said about the United States.
+    //
+    // Signed and roughly zero-sum: a state gives the president's own party what
+    // its committed share is worth and takes away the other side's, so the
+    // country as a whole comes out near neutral and the calibrated 58 above
+    // still means what it meant. The undecided are not counted on either side —
+    // that is what makes them undecided, and it is why a state can be lopsided
+    // and still not swing the full weight.
+    Partisanship: partisanFeeling(world, d),
   };
   const target = clamp(58 + sum(Object.values(parts)), 2, 96);
   return { target, parts };
