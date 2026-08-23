@@ -460,7 +460,20 @@ export function districtMoodTarget(world, d) {
   // ~4% unemployment and a small homeless share are normal and cost nothing.
   const parts = {
     Unemployment: -Math.max(0, d.unemployment - 0.04) * 150 * d.salience.jobs * jobsEase,
-    Housing: -Math.max(0, homelessRate - 0.03) * 150 * d.salience.housing * housingEase,
+    // Against 0.4%, not 3%. The country runs at about 0.2% sleeping rough — the
+    // real figure, seeded from atlas.roughOf — so a threshold of three per cent
+    // meant this term was zero in every state in every Season, and Housing had
+    // never once appeared in the approval breakdown. Twice the normal rate is
+    // what people notice.
+    //
+    // Capped, unlike the row above it, because the band it measures is narrow
+    // and the tail is long: a fire that takes a state's housing can put five per
+    // cent of it on the street, and a slope steep enough to make half a point
+    // matter is a slope that turns five per cent into ninety points and a
+    // collapsed republic. Twelve is what the worst housing crisis in the country
+    // is worth against a settled 58 — serious, survivable, and not the only
+    // thing on the page.
+    Housing: -Math.min(12, Math.max(0, homelessRate - 0.004) * 400) * d.salience.housing * housingEase,
     Taxes: -Math.max(0, taxBite - 0.08) * 120 * d.salience.taxes,
     Order: (d.order - 50) * 0.1 * d.salience.order,
     Amenities: Math.min(10, amenity * 2) * d.salience.amenity,

@@ -475,9 +475,22 @@ function build(world, p) {
   // Factory carries 900 of them and Low-Income Housing carries 60. Twenty years
   // on, a fully rebuilt city with structural unemployment two points worse than
   // when it burned.
+  //
+  // The rates these are measured against are the real country's now. `- 2` was
+  // written when three per cent of the republic slept outside and anything
+  // above it was a crisis; the United States runs at about **0.2%**, so a
+  // government looking for a reason to build found the homelessness term
+  // permanently negative and never built anything again. The same rescale that
+  // moved the population from twenty-four thousand to three hundred and
+  // thirty-one million moved every rate underneath it, and this threshold was
+  // not moved with it.
+  //
+  // 0.2% is normal and 0.4% is twice normal, which is what a fire that takes a
+  // state's housing actually produces. Unemployment keeps a 5% floor, which is
+  // near enough the natural rate to still mean what it meant.
   const homeless = world.districts.reduce((s, d) => s + d.homeless, 0);
   const pop = world.districts.reduce((s, d) => s + d.pop, 0) || 1;
-  const roofNeed = ((homeless / pop) * 100 - 2) / 3;
+  const roofNeed = ((homeless / pop) * 100 - 0.2) / 0.2;
   const workNeed = (world.economy.structural * 100 - 5) / 3;
   if (roofNeed < 0.4 && workNeed < 0.4) return;
   const key = roofNeed > workNeed ? 'housing_low'
