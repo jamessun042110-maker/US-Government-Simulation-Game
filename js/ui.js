@@ -5413,8 +5413,11 @@ VIEWS.offices = (root) => {
   // only way to matter is to hold one of the chairs below is a republic with a
   // very short list of things to be — and losing an election should not be the
   // end of a player's Season.
-  root.append(privateSectorCard(world, p));
-  root.append(ownMoneyCard(world, p));
+  // Through `kids`, because both of these return null when they have nothing to
+  // say — and `Element.append` stringifies whatever is not a Node, so a card
+  // that declined to draw itself printed the word "null" on the page. `el`
+  // filters its children; `append` does not, and that difference is the trap.
+  root.append(...kids(privateSectorCard(world, p), ownMoneyCard(world, p)));
 
   // Party affiliation. A politician chooses a side, or none — and running without
   // one means running without a bloc, which is a hard road at the polls.
