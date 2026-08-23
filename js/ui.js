@@ -153,13 +153,20 @@ const NAV = [
   // Not an office at all — a house. The Vice President's, and nobody else's
   // unless asked. There is nothing to do in it, which is the point of it.
   ['mansion', '⌂', "Vice President's Mansion", (world, p) => R.mayEnterMansion(world, p?.id)],
-  // The two departments. Narrower than the Oval Office: the secretary who runs
-  // the building and the President who appointed them, and nobody else — an
+  // The departments. Narrower than the Oval Office: the secretary who runs the
+  // building and the President who appointed them, and nobody else — an
   // invitation to the war room is a decision about the war, and the Oval Office
   // is where those get made.
+  //
+  // The Justice tab's id is the office's, `ag`, and not `justice` — that one is
+  // taken by the Supreme Court, whose office id is `justice` and whose tab is
+  // `chambers`. Two rooms of the law under one id would be one room.
   ['state', '⚑', 'Department of State', (world, p) => R.mayEnterDept(world, p?.id, 'state')],
   ['defense', '⬢', 'Department of Defense', (world, p) => R.mayEnterDept(world, p?.id, 'defense')],
   ['exchequer', '⛃', 'Department of the Treasury', (world, p) => R.mayEnterDept(world, p?.id, 'exchequer')],
+  // A double dagger, not a section mark: § is the Chronicle's, and two tabs
+  // wearing the same glyph is two tabs you have to read to tell apart.
+  ['ag', '‡', 'Department of Justice', (world, p) => R.mayEnterDept(world, p?.id, 'ag')],
   // Not an office of the republic at all — a building you own. It appears for
   // the founder and for anyone on the payroll, and it is *named* for whatever
   // storey the company can currently afford: see company.STAGES. A player who
@@ -560,7 +567,7 @@ function actionItems(world) {
 // be in because of what you hold — which is the whole definition of this list —
 // but what you hold is a building rather than a chair, so it comes after the
 // offices of the republic and before everything the whole country can read.
-const OFFICE_ROOMS = ['oval', 'state', 'defense', 'exchequer', 'mansion', 'chambers', 'cloakroom', 'cloakroom_upper', 'company'];
+const OFFICE_ROOMS = ['oval', 'state', 'defense', 'exchequer', 'ag', 'mansion', 'chambers', 'cloakroom', 'cloakroom_upper', 'company'];
 
 /**
  * The sidebar, with your own room first.
@@ -4201,6 +4208,74 @@ VIEWS.state = (root) => {
       chatCard('state'),
       el('div', { class: 'card' }, el('h3', {}, 'The department'),
         ...deptRoster(world, 'state')))));
+};
+
+/**
+ * The Department of Justice: who is being held, and on what.
+ *
+ * The room is new and mostly empty on purpose. The powers it will grow into —
+ * charging, investigating, dropping a case — are not written yet; what it has
+ * today is the one thing the office already owns, which is the standing record
+ * of everyone the republic is detaining and the charge each of them is held on.
+ *
+ * That record existed and had nowhere to be read. `p.imprisoned` and
+ * `p.charges` were written by the ARREST clause and looked at by the court when
+ * somebody sued over it, so the country could be holding eleven people and the
+ * only way to find out was to scroll the Chronicle back far enough. A
+ * department whose first screen is the list of people in its custody is a
+ * department that has said the true thing about itself before it does anything
+ * else.
+ */
+VIEWS.ag = (root) => {
+  const world = w();
+  const p = me();
+  root.append(el('h1', { class: 'page' }, 'The Department of Justice'),
+    el('p', { class: 'sub' }, 'Where the law is enforced, and answered for.'));
+  if (!R.mayEnterDept(world, p?.id, 'ag')) {
+    root.append(el('div', { class: 'card dim' }, 'Not open to you.'));
+    return;
+  }
+
+  root.append(officeWindow(world, 'ag'));
+
+  const held = Object.values(world.personas)
+    .filter((x) => x.imprisoned && x.alive)
+    .sort(byRoster);
+
+  root.append(el('div', { class: 'split' },
+    el('div', { class: 'stack' },
+      el('div', { class: 'card' },
+        el('div', { class: 'spread' }, el('h3', {}, 'In custody'),
+          el('span', { class: 'tag' + (held.length ? ' red' : '') },
+            held.length ? `${held.length} held` : 'nobody')),
+        held.length
+          ? el('div', {},
+            el('p', { class: 'tiny dim', style: { marginTop: '-2px' } },
+              'Everyone the republic is detaining, and the charge each is held on. '
+              + 'A detention can be sued over — the court reads due process, and it has freed people before.'),
+            ...held.map((x) => el('div', { class: 'spread', style: { padding: '5px 0', borderBottom: '1px solid var(--rule-strong)' } },
+              el('div', {},
+                el('span', { class: 'small' }, x.name, partyChip(x)),
+                el('div', { class: 'tiny dimmer' },
+                  (x.charges || []).length ? (x.charges || []).join(' · ') : 'no charge on the record')),
+              el('span', { class: 'tag red' }, 'held'))))
+          : el('p', { class: 'small dim serif', style: { margin: '4px 0 0' } },
+            'Nobody is being held. It is the shortest list in the building and the best one to keep.')),
+
+      // What the office is, said plainly, because it is a new room and a player
+      // walking into it should not have to guess what it will become.
+      el('div', { class: 'card' }, el('h3', {}, 'The office'),
+        el('p', { class: 'small dim serif', style: { margin: '0 0 8px' } },
+          'The Attorney General holds the power of arrest. It sits here rather than in the Oval Office '
+          + 'because in the United States the executive does not detain anybody — law officers do, and they answer to this chair.'),
+        el('div', { class: 'tiny dimmer' },
+          'An order is signed in the Oval Office or carried as a clause; either way it is this department that executes it, '
+          + 'and this department that answers to the court when it is challenged.')),
+    ),
+    el('div', { class: 'stack' },
+      chatCard('ag'),
+      el('div', { class: 'card' }, el('h3', {}, 'The department'),
+        ...deptRoster(world, 'ag')))));
 };
 
 /**

@@ -30,7 +30,12 @@ const vacancies = () => w.seats.filter((s) => {
 ok('the President holds the power to appoint', R.hasPower(w, pid, 'appoint'));
 ok('the whole cabinet is at-will', w.constitution.offices.filter((o) => o.atWill).length >= 1);
 const before = vacancies();
-ok('a new President is sworn in over an empty cabinet', before.length === 3,
+// Counted off the constitution rather than written as a literal: the cabinet
+// grew by one when the Department of Justice was created, and a hardcoded 3 is
+// a test that fails the next time a President gets a new department rather than
+// a test that says a new President inherits an empty one.
+const atWillSeats = w.seats.filter((s) => R.office(w, s.office)?.atWill).length;
+ok('a new President is sworn in over an empty cabinet', before.length === atWillSeats && atWillSeats >= 4,
   before.map((s) => R.office(w, s.office).name).join(', '));
 
 // Appointing to one seat clears exactly that vacancy — the badge count falls.

@@ -1430,6 +1430,149 @@ function stateRoom(world) {
   return C;
 }
 
+// --- The Department of Justice ---------------------------------------------
+
+const JUST = { w: 240, h: 72 };
+
+/**
+ * The Attorney General's room: a law library with a working desk in it.
+ *
+ * The four rooms of the executive are four different arguments about what a
+ * department is. State is a conservatory — diplomacy is something you grow.
+ * Defense is a windowless basement lit by its own screens. The Treasury is
+ * stone and glass and a price feed. This one is books: floor-to-ceiling
+ * reports, a brass lamp, and a case file open on the blotter, because the
+ * instrument of this office is the written record and the thing it does with
+ * it is read.
+ *
+ * It takes the season through one deep window on the left, the way the
+ * Treasury does through its own — a lawyer's room is a room in a building, not
+ * a bunker, and the light in it should tell you what month it is.
+ */
+function justiceRoom(world) {
+  const P = palette(world);
+  const C = Canvas(JUST.w, JUST.h);
+  const dim = P.dim;
+  const wall = mix('#5c4a37', '#241c14', dim);        // dark panelled oak
+  const shelf = mix('#4a3a2a', '#1d1610', dim);
+  const floor = mix('#3a2c20', '#191108', dim);
+  const brass = mix('#d8a63c', '#4a3a12', dim * 0.8);
+  const paper = mix('#e8e0cc', '#3a3630', dim);
+
+  // Wall and floor. The panelling runs the full width behind everything else,
+  // so anything drawn over it reads as standing in front of a wall rather than
+  // floating on a colour.
+  C.vgrad(0, 0, JUST.w, 48, [lite(wall, 0.06), wall, dark(wall, 0.1)]);
+  for (let x = 0; x < JUST.w; x += 24) C.rect(x, 0, 1, 48, dark(wall, 0.22));
+  C.rect(0, 46, JUST.w, 2, dark(wall, 0.35));
+  C.vgrad(0, 48, JUST.w, JUST.h - 48, [dark(floor, 0.1), floor, lite(floor, 0.06)]);
+  for (let x = 0; x < JUST.w; x += 34) C.rect(x, 48, 1, JUST.h - 48, dark(floor, 0.14));
+
+  // -- The window, left ------------------------------------------------------
+  // Deep-set, arched, and the only daylight in the room.
+  const WX = 10, WY = 6, WW = 40, WH = 30;
+  C.rect(WX - 3, WY - 3, WW + 6, WH + 6, dark(wall, 0.4));
+  C.vgrad(WX, WY, WW, WH, [P.sky[0], P.sky[1], P.sky[2]]);
+  // A colonnade across the street: this building faces others like it.
+  for (let i = 0; i < 5; i++) {
+    C.rect(WX + 3 + i * 8, WY + WH - 14, 4, 14, mix('#3a4258', '#12161f', dim * 0.7));
+  }
+  C.rect(WX, WY + WH - 15, WW, 2, mix('#4a536a', '#161b26', dim * 0.7));   // their cornice
+  C.rect(WX + WW / 2 - 1, WY, 2, WH, dark(wall, 0.3));                     // the mullion
+  C.rect(WX, WY + WH / 2, WW, 1, dark(wall, 0.3));                         // and the transom
+  C.rect(WX - 1, WY + WH, WW + 2, 2, lite(wall, 0.1));                     // the sill
+
+  // -- The shelves, right ----------------------------------------------------
+  // Bound volumes, all the same height because they are one continuing series
+  // and that is what a run of reports looks like. The variety is in the width
+  // and the colour of the spine, not in the height, which is the mistake that
+  // makes a drawn bookshelf read as a bar chart.
+  const SPINES = ['#7a3a30', '#3d5140', '#4a3f6a', '#6a5326', '#33475e'];
+  for (let r = 0; r < 3; r++) {
+    const sy = 6 + r * 14;
+    C.rect(58, sy - 1, JUST.w - 68, 1, lite(shelf, 0.12));
+    C.rect(58, sy + 11, JUST.w - 68, 2, shelf);                // the shelf board
+    C.rect(58, sy + 13, JUST.w - 68, 1, dark(shelf, 0.3));
+    let x = 60;
+    let i = r * 7;
+    while (x < JUST.w - 12) {
+      const bw = 2 + (i % 3);
+      const col = mix(SPINES[i % SPINES.length], '#150f0a', dim);
+      C.rect(x, sy, bw, 11, col);
+      C.rect(x, sy, bw, 1, lite(col, 0.2));                    // the head of the spine
+      C.rect(x + bw - 1, sy, 1, 11, dark(col, 0.3));
+      if (bw > 2) C.rect(x + 1, sy + 3, bw - 2, 1, brass);     // the title band
+      x += bw + 1;
+      i++;
+    }
+  }
+
+  // -- The desk --------------------------------------------------------------
+  // Set below the shelves and forward of the wall, with the file open on it.
+  const DX = 66, DY = 52, DW = 120, DH = 12;
+  C.rect(DX, DY, DW, DH, mix('#4e3a26', '#1c1108', dim));
+  C.rect(DX, DY, DW, 2, mix('#6a5136', '#241708', dim));       // the leather top, lit
+  C.rect(DX, DY + DH - 1, DW, 1, dark(floor, 0.3));
+  C.rect(DX + 4, DY + DH, 3, JUST.h - DY - DH, dark(floor, 0.25));    // legs
+  C.rect(DX + DW - 7, DY + DH, 3, JUST.h - DY - DH, dark(floor, 0.25));
+  // The open file: two leaves and a ruled line or two on each.
+  C.rect(DX + 30, DY - 3, 26, 6, paper);
+  C.rect(DX + 57, DY - 3, 26, 6, dark(paper, 0.08));
+  C.rect(DX + 56, DY - 3, 1, 6, dark(paper, 0.3));             // the fold
+  for (let ly = DY - 1; ly < DY + 2; ly += 2) {
+    C.rect(DX + 33, ly, 20, 1, dark(paper, 0.35));
+    C.rect(DX + 60, ly, 20, 1, dark(paper, 0.35));
+  }
+  // The scales, on the corner of the desk. The one piece of iconography in the
+  // room, and it earns its place by being the thing the office is for.
+  //
+  // Drawn tilted, one pan lower than the other, because a balance drawn level
+  // is two dots either side of a bar and reads as a letter T. The tilt is what
+  // makes it a pair of pans, and it is the more honest picture besides.
+  const SX = DX + 98, SY = DY - 12;
+  C.rect(SX - 1, SY + 11, 9, 1, brass);                        // the foot
+  C.rect(SX, SY + 12, 7, 1, dark(brass, 0.35));                // its shadow on the leather
+  C.rect(SX + 3, SY + 2, 1, 9, brass);                         // the column
+  C.rect(SX + 2, SY + 1, 3, 1, lite(brass, 0.2));              // the cap
+  // The beam, one pixel out of level.
+  C.rect(SX - 3, SY + 3, 4, 1, brass);
+  C.rect(SX + 1, SY + 2, 5, 1, brass);
+  C.rect(SX + 6, SY + 1, 4, 1, brass);
+  // Two pans, each three wide with a hanger over it, at the heights the beam
+  // leaves them.
+  const pan = (px, py) => {
+    C.rect(px + 1, py, 1, 2, dark(brass, 0.25));               // the hanger
+    C.rect(px, py + 2, 3, 1, brass);                           // the rim
+    C.rect(px, py + 3, 3, 1, dark(brass, 0.3));                // and the bowl
+  };
+  pan(SX - 4, SY + 4);
+  pan(SX + 8, SY + 2);
+
+  // -- The lamp --------------------------------------------------------------
+  // A desk lamp is the only light the room makes for itself, and the pool it
+  // throws on the blotter is what says somebody works here at night — which is
+  // the whole character of the department.
+  //
+  // A tight glow and nothing else. `wash` dithers a tint into whatever it lands
+  // on: on a floor or a rug that reads as light, and on a flat desktop against
+  // a flat wall it reads as a speckled rectangle sitting on top of the picture.
+  // The same note is on the Oval Office's lamps, for the same reason.
+  const LX = DX + 12, LY = DY - 13;
+  C.rect(LX, LY + 10, 7, 1, dark(brass, 0.3));                 // the base
+  C.rect(LX + 3, LY + 4, 1, 6, brass);                         // the stem
+  C.rect(LX - 2, LY, 11, 4, mix('#2e6a4a', '#0e2418', dim));   // the green shade
+  C.rect(LX - 2, LY, 11, 1, lite(mix('#2e6a4a', '#0e2418', dim), 0.2));
+  C.rect(LX - 2, LY + 4, 11, 1, lite(brass, 0.15));            // its brass rim
+  // The bulb, and the light immediately under it. Nothing further out.
+  C.rect(LX + 1, LY + 5, 5, 1, mix(P.warm, '#ffffff', 0.3));
+  C.glow(LX + 3, LY + 6, 6, P.warm, 0.35);
+  // The lit half of the blotter: a plain lighter band on the leather, not a
+  // dither. Light on a desk is a shape, and here the shape is the desk.
+  C.rect(DX + 2, DY, 44, 2, mix(mix('#6a5136', '#241708', dim), P.warm, 0.28));
+
+  return C;
+}
+
 // --- The Department of Defense ---------------------------------------------
 
 const DEF = { w: 240, h: 72 };
@@ -2247,6 +2390,12 @@ const ROOMS = {
   // No vents at all. It is a basement: there is no sky in it to snow out of,
   // and that is exactly the contrast the pair of rooms is built on.
   defense: { draw: defenseRoom, size: DEF, vents: [] },
+  // One deep window on the left, and the weather in it — a lawyer's room is a
+  // room in a building, not a bunker.
+  ag: {
+    draw: justiceRoom, size: JUST,
+    vents: [{ x: 10, y: 6, w: 40, h: 30, dense: 2.0 }],
+  },
   // Nor here. The chamber is a windowless room in the middle of a building —
   // which is the point of it, and why the light in it never changes.
   chamber: { draw: chamber, size: CHAM, vents: [] },

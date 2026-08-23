@@ -71,6 +71,7 @@ export const SEAT_CAP = {
   president: 1, premier: 1,
   vp: 2,
   justice: 13, magistrate: 13,
+  ag: 1,
   assembly: 60, council: 20, senate: 20,
 };
 export const seatCap = (officeId) => SEAT_CAP[officeId] ?? MAX_SEATS;
@@ -256,6 +257,14 @@ export const TEMPLATES = [
           powers: ['sign_treaty'] },
         { id: 'defense', name: 'Secretary of Defense', seats: 1, selection: 'appointment', appointedBy: 'president', atWill: true,
           powers: ['command_military'] },
+        // The Attorney General runs the Department of Justice and holds the
+        // power of arrest, which is where it belongs: in the United States the
+        // executive does not detain anybody, law officers do, and they answer
+        // to this chair. Everything else about the post is the same contract
+        // the other secretaries sit under — named and dismissed at will, no
+        // fixed term, unfilled at the founding.
+        { id: 'ag', name: 'Attorney General', seats: 1, selection: 'appointment', appointedBy: 'president', atWill: true,
+          powers: ['arrest'] },
         { id: 'exchequer', name: 'Secretary of the Treasury', seats: 1, selection: 'appointment', appointedBy: 'president', atWill: true,
           powers: [] },
         { id: 'justice', name: 'Supreme Court', seats: 3, selection: 'appointment', appointedBy: 'president', termYears: 12,
@@ -279,7 +288,7 @@ export const TEMPLATES = [
       // opens a trial, and the Senate sits as the court and convicts at 2/3 to
       // remove. `convicts` is the trial's chamber; a unicameral constitution
       // leaves it null and the same body does both, as it always did.
-      impeachment: { proposalRights: ['assembly'], fraction: 0.5, convictFraction: 0.667, tries: 'assembly', convicts: 'senate', appliesTo: ['president', 'vp', 'state', 'defense', 'exchequer', 'justice', 'assembly', 'senate'] },
+      impeachment: { proposalRights: ['assembly'], fraction: 0.5, convictFraction: 0.667, tries: 'assembly', convicts: 'senate', appliesTo: ['president', 'vp', 'state', 'defense', 'exchequer', 'ag', 'justice', 'assembly', 'senate'] },
       amendment: { fraction: 0.75, chamber: 'assembly', alsoRequires: [] },
       judiciary: { office: 'justice', canStrike: true },
       emergency: { office: 'president', suspendsLegislature: false, maxYears: 1 },
@@ -339,7 +348,7 @@ export function officesOf(world, personaId) {
  * list of chairs wants the important ones first. A President who also sits on
  * something else is still addressed as President.
  */
-export const PRESTIGE = { president: 100, premier: 95, vp: 92, justice: 85, magistrate: 78, state: 74, defense: 72, exchequer: 70, senate: 68, council: 62, assembly: 60, minister: 48 };
+export const PRESTIGE = { president: 100, premier: 95, vp: 92, justice: 85, magistrate: 78, state: 74, defense: 72, exchequer: 70, ag: 69, senate: 68, council: 62, assembly: 60, minister: 48 };
 
 // The powers that make an office the executive rather than a member of one.
 const EXECUTIVE_POWERS = ['appoint', 'promulgate', 'command_military', 'veto', 'pardon', 'emergency', 'sign_treaty', 'spend'];
@@ -409,7 +418,7 @@ export function heldHeadOffice(world, personaId) {
 export const ADDRESS = {
   president: 'President', vp: 'Vice President', premier: 'Premier',
   justice: 'Justice', magistrate: 'Magistrate',
-  state: 'Secretary of State', defense: 'Secretary of Defense',
+  state: 'Secretary of State', defense: 'Secretary of Defense', ag: 'Attorney General',
   assembly: 'Rep.', senate: 'Sen.', council: 'Councillor', minister: 'Minister',
 };
 
@@ -436,7 +445,7 @@ export function mayEnterOval(world, personaId) {
  * department the President argues with most looked like a guest who had not
  * been asked. One list, read by the rule and by the room.
  */
-export const OVAL_KEY_OFFICES = ['president', 'vp', 'state', 'defense', 'exchequer'];
+export const OVAL_KEY_OFFICES = ['president', 'vp', 'state', 'defense', 'exchequer', 'ag'];
 
 /** Admitted by the chair they hold, rather than by invitation. */
 export function ovalByOffice(world, personaId) {
@@ -470,7 +479,7 @@ export const ovalInviteTicks = (world) => monthTicks(world, OVAL_INVITE_MONTHS);
 export const inviteAnswerTicks = (world) => monthTicks(world, INVITE_ANSWER_MONTHS);
 
 /** The rooms somebody can be asked into. A department is one of them now. */
-export const INVITABLE_ROOMS = ['oval', 'state', 'defense', 'exchequer'];
+export const INVITABLE_ROOMS = ['oval', 'state', 'defense', 'exchequer', 'ag'];
 
 /**
  * One room's list, normalised.
@@ -633,6 +642,7 @@ export function mayHear(world, personaId, channel) {
   if (channel === 'state') return mayEnterDept(world, personaId, 'state');
   if (channel === 'defense') return mayEnterDept(world, personaId, 'defense');
   if (channel === 'exchequer') return mayEnterDept(world, personaId, 'exchequer');
+  if (channel === 'ag') return mayEnterDept(world, personaId, 'ag');
   return false;
 }
 

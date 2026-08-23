@@ -207,6 +207,10 @@ body[data-view="season"] { --accent: var(--slate); --accent-hi: #52687f; }
    are standing in. */
 body[data-view="cloakroom"] { --accent: var(--brown); --accent-hi: #8d6b36; }
 body[data-view="cloakroom_upper"] { --accent: var(--wine); --accent-hi: #a3251f; }
+/* Justice: the oak and brass of the room itself. Deliberately not the Supreme
+   Court's colour — the two are different institutions and the tab that enforces
+   the law should not look like the tab that reads it. */
+body[data-view="ag"] { --accent: var(--brown); --accent-hi: #8d6b36; }
 
 /* The per-view accents above that are written as literals were picked against
    parchment, and Offices takes the ink itself — which after dark is nearly
