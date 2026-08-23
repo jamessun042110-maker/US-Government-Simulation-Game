@@ -37,4 +37,4 @@ ok('the bill still becomes law', doc.status === 'law', doc.status);
 ok('no ground is broken on the occupied parcel', !w.city.parcels[idx].project, JSON.stringify(w.city.parcels[idx].project || null));
 ok('and not a cent leaves the treasury for it', w.economy.treasury === before, String(before - w.economy.treasury));
 const said = [...w.chronicle].reverse().find((e) => /has no effect/.test(e.text || ''))?.text || '';
-ok('and the record says the clause had no effect', /has no effect/.test(said) && /stands on the parcel/.test(said), said);
+ok('and the record says the clause had no effect', /has no effect/.test(said) && /already stands there/.test(said), said);

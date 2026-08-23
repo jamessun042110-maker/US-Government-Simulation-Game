@@ -331,7 +331,7 @@ function rescue(world, p) {
   if (!co) return;
   if (!acts(world, p, 0.25 + disp.purse * 0.3)) return;
   const need = Math.max(Math.round(co.unpaid || 0), Math.round(-CO.equity(world, co)), 0);
-  const amount = Math.max(1e5, Math.round(need * 1.2));
+  const amount = Math.max(1e8, Math.round(need * 1.2));
   if (amount > world.economy.treasury * 0.25) return;   // not with the country's last money
   A.bailout(world, p.id, co.id, amount);
 }
@@ -359,14 +359,14 @@ function spend(world, p) {
     rule ? rule.above - 1 : Infinity,
     Math.max(0, world.economy.treasury * 0.15),
   );
-  if (!Number.isFinite(ceiling) || ceiling < 1e5) return;
+  if (!Number.isFinite(ceiling) || ceiling < 1e8) return;
   // How much of the room they actually use. A frugal president who has decided
   // to spend still spends the smallest amount that answers the question; a
   // builder who has decided to spend takes most of what the constitution left
   // them. Same allowance, same problem, and a visibly different government.
   const purse = clamp(0.4 + dispositionOf(p).purse * 0.35, 0.15, 0.8);
   const amount = Math.round(ceiling * clamp(purse + rng(world) * 0.5, 0.12, 0.98));
-  if (amount < 1e5) return;
+  if (amount < 1e8) return;
   A.disburse(world, p.id, amount, worst.purpose);
 }
 
@@ -620,8 +620,8 @@ function sueForPeace(world, p) {
       title: `Treaty of peace with ${f.name}`,
       authorId: p.id,
       preamble: war.front < -20
-        ? `The war with ${f.name} is being lost on the ground, and ${world.nation} seeks terms before more of it is.`
-        : `The war with ${f.name} has settled into a stalemate that bleeds the republic to no end, and ${world.nation} seeks terms.`,
+        ? `The war with ${f.name} is being lost, and ${world.nation} seeks terms before more of it is.`
+        : `The war with ${f.name} is a stalemate that bleeds the republic, and ${world.nation} seeks terms.`,
       clauses: [{ kind: 'TREATY_PEACE', party: f.id }],
     });
     if (!doc || doc.ok === false) continue;
@@ -857,8 +857,8 @@ function warBill(world, p) {
     type: 'bill',
     title: enemy ? `An Act to reinforce the line against ${threat.name}` : `An Act for the defence of ${world.nation}`,
     preamble: enemy
-      ? `${threat.name} fields ${theirs} divisions against our ${ours}. The government asks the chamber for the difference.`
-      : `${threat.name} is arming, and this republic is not. The government asks the chamber to raise ${want} division${want === 1 ? '' : 's'} before it has to.`,
+      ? `${threat.name} fields ${theirs} divisions against our ${ours}. The government asks for the difference.`
+      : `${threat.name} is arming and we are not. The government asks for ${want} division${want === 1 ? '' : 's'} before it has to.`,
     authorId: p.id,
     clauses: wings
       ? [{ kind: 'RAISE_DIVISIONS', count: want }, { kind: 'RAISE_AIRWINGS', count: wings }]
@@ -1056,10 +1056,10 @@ export function tickChamberImpeach(world, syntheticBallot) {
   const doc = A.createDoc(world, {
     type: 'impeachment',
     title: `Articles of impeachment against ${seated.persona.name}`,
-    preamble: `The country's approval of the government has stood at ${Math.round(approval)}%, and the chamber is asked to remove the ${R.headOffice(world)?.name || 'executive'} from office.`,
+    preamble: `Approval stands at ${Math.round(approval)}%. The chamber is asked to remove the ${R.headOffice(world)?.name || 'executive'}.`,
     authorId: filer.id,
     clauses: [
-      { kind: 'PROSE', text: `Whereas national approval has fallen to ${Math.round(approval)}%, below the level at which the chamber owes its districts a reckoning.` },
+      { kind: 'PROSE', text: `Whereas approval has fallen to ${Math.round(approval)}%, below the level at which the chamber owes the states a reckoning.` },
       { kind: 'REMOVE', persona: seated.persona.id },
     ],
   });
@@ -1358,6 +1358,6 @@ export function tickFounders(world) {
   const sector = CO.SECTORS[Math.floor(rng(world) * CO.SECTORS.length)];
   const res = CO.found(world, who.id, companyName(world, sector.id), R.officesOf, sector.id);
   if (!res.ok) return;
-  log(world, 'money', `${who.name} founds ${res.company.name} — ${sector.short}, one room and a quarter of a million.`,
+  log(world, 'money', `${who.name} founds ${res.company.name} — ${sector.short}, one room and a quarter-million.`,
     { actors: [who.id], weight: 2 });
 }

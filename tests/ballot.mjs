@@ -89,7 +89,7 @@ for (let room = 0; doc.status === 'floor' && room < 4; room++) {
 }
 ok('a passed bill awaits signature', doc.status === 'awaiting-signature', doc.status);
 ok('and the President is told it is on their desk',
-  (w4.notices || []).some((n) => n.playerId === 'p1' && /on your desk/.test(n.text)),
+  (w4.notices || []).some((n) => n.playerId === 'p1' && /Sign or veto it/.test(n.text)),
   JSON.stringify((w4.notices || []).map((n) => n.text)));
 ok('the notice sends them to the Oval Office',
   (w4.notices || []).some((n) => /Oval Office/.test(n.text)));

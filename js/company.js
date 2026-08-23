@@ -42,7 +42,7 @@ export const STAGES = [
   },
   {
     id: 'office', at: 4e6, tab: 'The Office',
-    title: 'The Office', blurb: 'Four desks and a window onto the middle of somebody else\'s building.',
+    title: 'The Office', blurb: 'Four desks and a window onto somebody else\'s building.',
   },
   {
     id: 'tower', at: 8e7, tab: 'Headquarters',
@@ -52,7 +52,7 @@ export const STAGES = [
   {
     id: 'hq', at: 2e8, tab: 'The Campus',
     title: 'The Campus', moveInto: 'a campus of its own',
-    blurb: 'Not a floor in somebody else\'s tower but a place with your name on the map — glass domes full of trees, and the city arranged around them.',
+    blurb: 'Not a floor in someone else\'s tower — your name on the map, glass domes full of trees, the city around them.',
   },
 ];
 
@@ -113,7 +113,7 @@ const band = (v) => clamp(v, 0.55, 1.5);
 export const SECTORS = [
   {
     id: 'works', name: 'Works', short: 'building and hauling',
-    blurb: 'Concrete, plant and men. You live on what the country is building.',
+    blurb: 'Concrete, plant and men. You live on what the country builds.',
     watch: 'the output gap, and every site the state opens',
     demand: (world) => band(1
       + clamp(world.economy?.gap || 0, -0.12, 0.12) * 3.2
@@ -132,7 +132,7 @@ export const SECTORS = [
   },
   {
     id: 'finance', name: 'Finance', short: 'lending and underwriting',
-    blurb: 'A ledger and a licence. You earn on the spread, so dear money is good money.',
+    blurb: 'A ledger and a licence. You earn on the spread: dear money is good money.',
     watch: 'the rate itself — you are the one party that wants it high',
     demand: (world) => band(1
       + ((world.economy?.marketRate ?? 0.04) - 0.03) * 7
@@ -152,7 +152,7 @@ export const SECTORS = [
   },
   {
     id: 'tech', name: 'Technology', short: 'software and machines that think',
-    blurb: 'A few brilliant people and a great deal of borrowed optimism. Worth a fortune on cheap money, a cautionary tale on dear.',
+    blurb: 'A few brilliant people and a lot of borrowed optimism. A fortune on cheap money, a cautionary tale on dear.',
     watch: 'the interest rate — cheap money is your whole weather',
     // A growth business: it lives on cheap capital and a hot economy, and dear
     // money or a slump empties the room fast.
@@ -186,7 +186,7 @@ export const STANCES = {
   grow: {
     id: 'grow', label: 'Grow',
     margin: -0.07, ceiling: 1.4,
-    blurb: 'Every spare pound into capacity. Thin years now for a bigger business later.',
+    blurb: 'Every spare pound into capacity. Thin years now, a bigger business later.',
   },
   steady: {
     id: 'steady', label: 'Steady',
@@ -196,7 +196,7 @@ export const STANCES = {
   harvest: {
     id: 'harvest', label: 'Harvest',
     margin: 0.08, ceiling: 0.62,
-    blurb: 'Stop building and take the money out. Fat years now, and a smaller business at the end of them.',
+    blurb: 'Stop building and take the money out. Fat years now, a smaller business after them.',
   },
 };
 
@@ -386,11 +386,11 @@ export function found(world, personaId, name, officesOf = null, sector = null) {
   if (!p) return { ok: false, reason: 'No persona.' };
   if (!p.alive || p.exiled || p.imprisoned) return { ok: false, reason: 'Not from where you are standing.' };
   if (officesOf && officesOf(world, personaId).length) {
-    return { ok: false, reason: 'You hold an office of this republic. Leave it first — the two do not mix, and the game has lobbying for the version that does.' };
+    return { ok: false, reason: 'You hold an office of this republic. Leave it first — the two do not mix; lobbying is the version that does.' };
   }
   world.companies = world.companies || [];
   if (world.companies.some((c) => c.founderId === personaId && !c.closed)) {
-    return { ok: false, reason: 'You are already running one. Finish what you started.' };
+    return { ok: false, reason: 'You are already running one. Finish that first.' };
   }
   const clean = String(name || '').trim().slice(0, 40);
   if (!clean) return { ok: false, reason: 'It needs a name.' };
@@ -470,7 +470,7 @@ export function sell(world, personaId, { forced = false } = {}) {
     if (!forced) {
       return {
         ok: false,
-        reason: `Nobody buys a business that owes more than it is worth. ${co.name} is ${moneyExact(-eq)} underwater — `
+        reason: `${co.name} is ${moneyExact(-eq)} underwater, and nobody buys that — `
           + 'trade out of it, put your own money in, or let it go under.',
       };
     }
@@ -529,7 +529,7 @@ export function sellShares(world, personaId, shares) {
   if (!co) return { ok: false, reason: 'You do not own a company.' };
   // `co.shares`, not `co.public`: a company listed on tick 0 has `public === 0`,
   // which is falsy, but its share count is the honest signal that it is listed.
-  if (!co.shares) return { ok: false, reason: 'The company is private — take it public before you can sell shares in it.' };
+  if (!co.shares) return { ok: false, reason: 'The company is private — take it public to sell shares in it.' };
   const held = Math.max(0, Math.round(co.founderShares || 0));
   if (held < 1) return { ok: false, reason: 'You hold no shares left to sell.' };
   const n = Math.max(1, Math.min(held, Math.round(+shares || 0)));
@@ -583,7 +583,7 @@ export function hire(world, co, { personaId = null, makePersona = null, officesO
   if ((co.cash || 0) < wageOf(co)) return { ok: false, reason: 'You cannot make the first month of their salary.' };
   if ((co.employees || []).length >= capacityOf(co)) {
     const b = co.buildings || 1;
-    return { ok: false, reason: `The company's ${b} building${b === 1 ? '' : 's'} are full at ${capacityOf(co)}. Buy another to take on more.` };
+    return { ok: false, reason: `The company's ${b} building${b === 1 ? '' : 's'} are full at ${capacityOf(co)}. Buy another to hire more.` };
   }
   let p = personaId ? world.personas?.[personaId] : null;
   if (personaId) {
@@ -737,8 +737,8 @@ export function tickCompanies(world) {
       news.push({
         co,
         text: up
-          ? `${co.name} moves into ${s.moveInto || s.title.toLowerCase()}. It is worth ${Math.round(co.valuation / 1e6)}M now.`
-          : `${co.name} gives up its floor and moves back to ${s.moveInto || s.title.toLowerCase()}.`,
+          ? `${co.name} moves into ${s.moveInto || s.title.toLowerCase()} — worth ${Math.round(co.valuation / 1e6)}M now.`
+          : `${co.name} gives up its floor for ${s.moveInto || s.title.toLowerCase()}.`,
         weight: up ? 2 : 3,
       });
     }
@@ -950,7 +950,7 @@ export function acquire(world, buyer, target, { agreed = null } = {}) {
   // the assets coming with it are worth and not a penny past it — past that the
   // creditors are better served by the liquidation they are already owed.
   if (price.debt > now.gross + Math.max(0, buyer.cash || 0) * 0.25) {
-    return { ok: false, reason: `${target.name} owes ${moneyExact(price.debt)} against ${moneyExact(now.gross)} of business. Nobody is buying that; it goes to its creditors.` };
+    return { ok: false, reason: `${target.name} owes ${moneyExact(price.debt)} against ${moneyExact(now.gross)} of business. Nobody buys that; it goes to its creditors.` };
   }
 
   const staff = (target.employees || []).length;
@@ -1106,7 +1106,7 @@ export function tickBids(world, co) {
     return close('lapsed', `${bid.buyerName} withdraws its offer for ${co.name}. It has troubles of its own now.`, 1);
   }
   if (!!distressOf(world, co) !== !!bid.trouble) {
-    return close('repriced', `${bid.buyerName} withdraws its offer for ${co.name}. The company it bid for is not the company it is looking at.`);
+    return close('repriced', `${bid.buyerName} withdraws its offer for ${co.name}. The company it bid for is not the one it is looking at.`);
   }
   if ((buyer.cash || 0) < bid.toSeller) {
     return close('lapsed', `${bid.buyerName} withdraws its offer for ${co.name}. It no longer has the money it named.`);
@@ -1123,7 +1123,7 @@ export function tickBids(world, co) {
       bidOpened: bid,
       text: `${bid.buyerName} offers ${moneyExact(bid.toSeller)} for ${co.name}`
         + `${bid.debt ? `, and to take on the ${moneyExact(bid.debt)} it owes` : ''}. `
-        + (bid.trouble ? 'It is an offer for a company with a clock on it.' : 'Nobody had asked whether it was for sale.'),
+        + (bid.trouble ? 'An offer for a company with a clock on it.' : 'Nobody had asked whether it was for sale.'),
       weight: 3,
     });
   }
@@ -1146,7 +1146,7 @@ export function tickDistress(world, co) {
     if (co.distress) {
       news.push({
         co,
-        text: `${co.name} is out of danger. It is worth more than it owes again and the doors stay open.`,
+        text: `${co.name} is out of danger — worth more than it owes again.`,
         weight: 2,
       });
       co.distress = null;
@@ -1167,10 +1167,10 @@ export function tickDistress(world, co) {
       // something about it. See sim.tick.
       distressOpened: true,
       text: cause === 'illiquid'
-        ? `${co.name} cannot meet its payroll — ${moneyExact(co.unpaid || 0)} short, and nobody left to lend it. `
+        ? `${co.name} cannot meet its payroll — ${moneyExact(co.unpaid || 0)} short, and nobody to lend it. `
           + `It has ${count(months, 'month')} to find the money or be wound up.`
         : `${co.name} owes ${moneyExact(co.borrowed || 0)} against a business worth ${moneyExact(Math.max(0, Math.round(enterprise(world, co) + (co.cash || 0))))}. `
-          + `Its lenders have given it ${count(months, 'month')} to be worth more than it owes.`,
+          + `Its lenders give it ${count(months, 'month')} to be worth more than it owes.`,
       weight: 3,
     });
     return news;
@@ -1367,7 +1367,7 @@ export const CO_EVENTS = [
     title: 'An order too big for you',
     when: (world, co) => (co.revenue || 0) > 4e5 && staffOf(co) >= 2,
     text: (world, co) => `A buyer wants ${Math.round((co.revenue || 0) / 1e5) * 60}k of work delivered `
-      + `on a schedule ${co.name} cannot presently keep. They will go elsewhere if you hedge.`,
+      + `on a schedule ${co.name} cannot keep. They go elsewhere if you hedge.`,
     options: [
       {
         label: 'Take it and hire against it',
@@ -1375,7 +1375,7 @@ export const CO_EVENTS = [
         apply: (world, co) => {
           co.revenue = (co.revenue || 0) * 1.35;
           co.cash = (co.cash || 0) - 120000;
-          return 'Taken. The overtime is ruinous and the order book has never looked like this.';
+          return 'Taken. The overtime is ruinous; the order book has never looked like this.';
         },
       },
       {
@@ -1397,22 +1397,22 @@ export const CO_EVENTS = [
     ],
     ignore: (world, co) => {
       co.revenue = (co.revenue || 0) * 0.94;
-      return 'The buyer was not waiting. They placed it with somebody who answered.';
+      return 'The buyer was not waiting. It went to somebody who answered.';
     },
   },
   {
     id: 'walkout',
     title: 'The floor stops work',
     when: (world, co) => staffOf(co) >= 4,
-    text: (world, co) => `${count(staffOf(co), 'person', 'people')} have stopped work. The wage has not moved since `
-      + `the day they were hired and the price of everything has.`,
+    text: (world, co) => `${count(staffOf(co), 'person', 'people')} have stopped work. The wage has not moved `
+      + `since they were hired and the price of everything has.`,
     options: [
       {
         label: 'Meet them — pay rises across the floor',
         takenBy: (d) => 1 - d.nerve + d.purse,
         apply: (world, co) => {
           co.wagePremium = clamp((co.wagePremium || 0) + 0.12, 0, 0.6);
-          return 'Settled in an afternoon. It costs, and nobody has forgotten who paid.';
+          return 'Settled in an afternoon. It costs, and nobody forgets who paid.';
         },
       },
       {
@@ -1438,14 +1438,14 @@ export const CO_EVENTS = [
     ignore: (world, co) => {
       co.revenue = (co.revenue || 0) * 0.8;
       co.employees = (co.employees || []).slice(0, -2);
-      return 'Nobody from the company came down. Two of them are working somewhere else now.';
+      return 'Nobody from the company came down. Two of them work elsewhere now.';
     },
   },
   {
     id: 'rival',
     title: 'Somebody is undercutting you',
     when: (world, co) => (co.revenue || 0) > 1e6,
-    text: (world) => 'A newer outfit is quoting under you on everything, and they are being '
+    text: (world) => 'A newer outfit is quoting under you on everything, and being '
       + `believed. ${(world.economy?.unemployment ?? 0) > 0.08 ? 'There is no shortage of people willing to work cheap.' : 'They are paying over the odds for staff to do it.'}`,
     options: [
       {
@@ -1465,7 +1465,7 @@ export const CO_EVENTS = [
         apply: (world, co) => {
           co.revenue = (co.revenue || 0) * 0.9;
           co.margin = clamp((co.margin ?? MARGIN) + 0.02, 0.05, 0.6);
-          return 'Some of it went. What stayed is worth more per unit than it was.';
+          return 'Some of it went. What stayed is worth more per unit.';
         },
       },
       {
@@ -1475,7 +1475,7 @@ export const CO_EVENTS = [
         apply: (world, co) => {
           co.wagePremium = clamp((co.wagePremium || 0) + 0.08, 0, 0.6);
           co.revenue = (co.revenue || 0) * 1.06;
-          return 'Three of theirs are yours. It was not cheap and it was noticed.';
+          return 'Three of theirs are yours. Not cheap, and it was noticed.';
         },
       },
     ],
@@ -1505,7 +1505,7 @@ export const CO_EVENTS = [
         takenBy: (d) => 1 + d.patience * 0.5,
         apply: (world, co) => {
           co.revenue = (co.revenue || 0) * 0.96;
-          return 'Two days of everybody doing paperwork instead of work. It passed.';
+          return 'Two days of paperwork instead of work. It passed.';
         },
       },
       {
@@ -1516,7 +1516,7 @@ export const CO_EVENTS = [
         takenBy: (d) => 1 + d.nerve - d.patience * 0.5,
         apply: (world, co) => {
           co.irregular = (co.irregular || 0) + 1;
-          return 'He did not stay for the afternoon. It is the sort of thing that comes out.';
+          return 'He did not stay the afternoon. That sort of thing comes out.';
         },
       },
     ],
@@ -1531,7 +1531,7 @@ export const CO_EVENTS = [
     when: (world, co) => (co.borrowed || 0) > 3e5,
     text: (world, co) => `Your lender has repriced the book. ${moneyExact(co.borrowed || 0)} is `
       + `outstanding at ${(((world.economy?.marketRate ?? 0.04)) * 100).toFixed(2)}% and they would `
-      + 'like rather more of it back than the schedule says.',
+      + 'want more of it back than the schedule says.',
     options: [
       {
         label: 'Pay down what you can',
@@ -1539,7 +1539,7 @@ export const CO_EVENTS = [
         apply: (world, co) => {
           const paid = Math.min(co.cash || 0, (co.borrowed || 0) * 0.4);
           co.cash -= paid; co.borrowed = Math.max(0, (co.borrowed || 0) - paid);
-          return `${moneyExact(paid)} off the principal, and the balance sheet is thinner in both directions.`;
+          return `${moneyExact(paid)} off the principal, and the balance sheet is thinner both ways.`;
         },
       },
       {
@@ -1561,7 +1561,7 @@ export const CO_EVENTS = [
     ],
     ignore: (world, co) => {
       co.borrowed = (co.borrowed || 0) * 1.15;
-      return 'Unanswered, so they exercised the clause they were being polite about.';
+      return 'Unanswered, so they exercised the clause they had been polite about.';
     },
   },
 ];
@@ -1698,7 +1698,7 @@ export function borrow(world, co, amount) {
     return {
       ok: false,
       reason: `Nobody will lend past half your valuation${creditMarked(world, co?.founderId)
-        ? ' — and half of that, to somebody who has already put a company into liquidation'
+        ? ' — and half of that, after a liquidation of your own'
         : ''}. There is ${Math.round(room / 1e3)}k of room.`,
     };
   }
@@ -1776,7 +1776,7 @@ export function lobby(world, co, personaId, docId, amount) {
   // not take payment from a company that has never made payroll. The door
   // opens at the office; until then, run the company.
   if (stageOf(co.valuation || 0).id === 'garage') {
-    return { ok: false, reason: 'A basement operation does not lobby the chamber. Get out of the basement first.' };
+    return { ok: false, reason: 'Lobbying starts at the office — get out of the basement first.' };
   }
   const amt = Math.round(+amount || 0);
   const price = lobbyCost(world, personaId);
@@ -1840,7 +1840,7 @@ function purseOf(world, co, personaId, from) {
     };
   }
   if (!co || co.closed) return { ok: false, reason: 'No open company to give from.' };
-  if (!outOfBasement(co)) return { ok: false, reason: 'A basement operation funds nobody. Get out of the basement first.' };
+  if (!outOfBasement(co)) return { ok: false, reason: 'Funding starts at the office — get out of the basement first.' };
   return {
     ok: true, name: co.name, personal: false,
     cash: () => Math.max(0, Math.round(co.cash || 0)),
@@ -1914,7 +1914,7 @@ export function donateCampaign(world, co, personaId, candidateId, amount, { boot
     rec.bootstrap += give;
   } else {
     const room = Math.max(0, CAMPAIGN_DONATION_CAP - rec.capped);
-    if (room <= 0) return { ok: false, reason: 'That campaign is already at the $10M a donation can buy. To back it further you would have to bootstrap it.' };
+    if (room <= 0) return { ok: false, reason: 'That campaign is already at the $10M a donation can buy. Backing it further means bootstrapping it.' };
     give = Math.min(amt, room, purse.cash());
     if (give < 1) return { ok: false, reason: purse.short };
     rec.capped += give;

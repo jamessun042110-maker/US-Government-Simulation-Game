@@ -1,6 +1,6 @@
 // Views. Everything the player touches.
 
-import { el, esc, money, moneyExact, num, pct, clamp, sum, timeAgo, bareNation, flagSvg, PALETTE } from './util.js';
+import { el, esc, money, moneyExact, num, pct, clamp, sum, timeAgo, bareNation, flagSvg, PALETTE, POLITICAL_BASE_AGE } from './util.js';
 import * as R from './rules.js';
 import * as A from './acts.js';
 import * as M from './media.js';
@@ -11,7 +11,7 @@ import * as C from './chronicle.js';
 import * as ACT from './actions.js';
 import { BUILDINGS, ZONES, PARTIES, FOREIGN } from './world.js';
 import * as GEO from './geo.js';
-import { ALASKA, HAWAII } from './atlas.js';
+import { ALASKA, HAWAII, CENTRAL_AMERICA } from './atlas.js';
 import * as MACRO from './macro.js';
 import * as CO from './company.js';
 import { nationalApproval, approvalDrivers, approvalByDistrict, DRAFT_SLOWDOWN, openElections, pactHolds, interestRate } from './sim.js';
@@ -34,6 +34,7 @@ export const S = {
   modal: null,
   seen: 0,
   adv: {},             // which "Advanced" disclosures the user has opened
+  conventionDoc: false, // the convention's document page, behind the seating one
   electionMin: false,  // ballot docked to the corner instead of taking the screen
 };
 
@@ -106,7 +107,7 @@ const fiscalPhrase = (world, d) => {
   if (!now && !yearly) return null;
   const parts = [];
   if (now) parts.push(`${moneyExact(-now)} at signing`);
-  if (yearly) parts.push(`${moneyExact(-yearly)} a year, drawn as the year runs`);
+  if (yearly) parts.push(`${moneyExact(-yearly)} a year, drawn as it runs`);
   return { now, yearly, total: now + yearly, text: parts.join(' · ') };
 };
 
@@ -200,7 +201,7 @@ function invitationCards(world) {
           el('button', { class: 'btn sm ghost', onclick: () => go('DECLINE_INVITE', { room }) }, 'Decline'))),
       el('div', { class: 'tiny dimmer', style: { marginTop: '4px' } },
         left == null ? '' : `The offer lapses in ${C.canonSpan(world, left)}. `,
-        `Accept and the room is open to you for ${R.OVAL_INVITE_MONTHS} months, counted from today.`));
+        `Accept and the room is open for ${R.OVAL_INVITE_MONTHS} months from today.`));
   });
 }
 
@@ -239,7 +240,7 @@ function deptRoster(world, room) {
 
   return [
     el('div', { class: 'tiny dimmer', style: { marginBottom: '6px' } },
-      'The Secretary and the President hold a key by office. Either may ask somebody in; '
+      'The Secretary and President hold a key by office; either may ask somebody in, '
       + `an invitation runs ${R.OVAL_INVITE_MONTHS} months from acceptance.`),
     ...keyholders,
     ...invited.map(({ g, h }) => inviteRow(world, room, g, h, mayInvite)),
@@ -263,10 +264,15 @@ export function renderHeader(root) {
   root.replaceChildren(...kids(
     // The wordmark is drawn, not set: the same 5x7 grid the rooms and the title
     // screen are drawn on. See pixfont.js.
-    el('div', { class: 'brand', title: 'The Union', html: pixText('THE UNION', { ink: 'currentColor' }) }),
+    // Stacked, like the title screen's, so the header and the way in agree.
+    // One line of eighteen letters in 88px is a four-pixel letter; two lines
+    // keep the glyph the size it was and cost the header nothing in width.
+    el('div', { class: 'brand', title: 'State of the Union' },
+      el('div', { class: 'brand-top', html: pixText('STATE OF THE', { ink: 'currentColor' }) }),
+      el('div', { html: pixText('UNION', { ink: 'currentColor' }) })),
     el('span', { class: 'tag ' + (world.phase === 'live' ? 'green' : world.phase === 'collapse' ? 'red' : 'gold') }, world.phase),
     world.emergency?.active ? el('span', { class: 'tag red', title: world.emergency.reason || '' }, 'emergency') : null,
-    world.atThePolls ? el('span', { class: 'tag blue', title: 'Canon time is stopped while the ballot is open.' }, 'at the polls') : null,
+    world.atThePolls ? el('span', { class: 'tag blue', title: 'Canon time stops while the ballot is open.' }, 'at the polls') : null,
     world.paused ? el('span', { class: 'tag red' }, 'paused') : null,
     // Pause/resume motions get their own header control below; the tag covers
     // the motions that still live only on the Season tab (reset, end).
@@ -288,7 +294,7 @@ export function renderHeader(root) {
     })(),
     // Outside the ticker so they stay pinned at the right and reachable however
     // narrow the window gets — the stats clip first.
-    el('span', { class: 'hostpill' + (CTX.net.isHost ? ' host' : ''), title: 'One tab is host and runs the tick. Open another to add a player.' },
+    el('span', { class: 'hostpill' + (CTX.net.isHost ? ' host' : ''), title: 'One tab hosts and runs the tick. Open another to add a player.' },
       (CTX.net.isHost ? '● host' : '○ client') + ' · ' + CTX.net.livePeers() + ' tab' + (CTX.net.livePeers() === 1 ? '' : 's')),
     // Light/dark. Follows the machine until you say otherwise; the title says
     // which of those two things is currently true.
@@ -390,10 +396,10 @@ function pauseControl(world) {
   return el('button', {
     class: 'btn sm' + (paused ? ' primary' : ''),
     disabled: !!m,
-    title: m ? 'Another motion is already before the table.'
+    title: m ? 'A motion is already before the table.'
       : paused ? (solo ? 'Resume the world.' : 'Move to resume — a majority of the table must agree.')
-        : (solo ? 'Pause the world. Time, elections and crises stop; actions still work.'
-          : 'Move to pause — a majority must agree. Time stops; actions still work.'),
+        : (solo ? 'Pauses the world: time, elections and crises stop, actions still work.'
+          : 'Move to pause — a majority must agree. Time stops, actions still work.'),
     onclick: () => go('TABLE_MOTION', { kind: paused ? 'resume' : 'pause' }),
   }, paused ? '▶ Resume' : '⏸ Pause');
 }
@@ -413,7 +419,7 @@ function speedControl(world) {
   const next = scale >= 4 ? 1 : scale * 2;
   return el('button', {
     class: 'btn sm' + (scale > 1 ? ' primary' : ''),
-    title: `Time runs at ${scale} tick${scale === 1 ? '' : 's'} a second. Click for ${next}×. Single player only.`,
+    title: `${scale} tick${scale === 1 ? '' : 's'} a second. Click for ${next}×. Single player only.`,
     onclick: () => go('SET_TIMESCALE', { scale: next }),
   }, `⏩ ${scale}×`);
 }
@@ -433,7 +439,7 @@ const partyChip = (persona) => {
   const party = persona?.party ? PARTIES.find((x) => x.id === persona.party) : null;
   return el('span', {
     class: 'tag' + (party ? '' : ' dim'),
-    style: { marginLeft: '6px', ...(party ? { background: party.color, color: '#111' } : {}) },
+    style: { marginLeft: '6px', ...(party ? { background: party.color, color: party.ink } : {}) },
     title: 'Party alignment',
   }, party ? party.name : 'Independent');
 };
@@ -470,8 +476,8 @@ function actionItems(world) {
     nation: ((notices, crises) => ({
       keys: told ? open.map((e) => e.uid) : [],
       label: () => (crises.length && notices.length
-        ? `${crises.length} crisis awaiting a response, and ${notices.length} notice`
-        : crises.length ? `${crises.length} crisis awaiting a response`
+        ? `${crises.length} crisis to answer, and ${notices.length} notice`
+        : crises.length ? `${crises.length} crisis to answer`
           : `${notices.length} notice to acknowledge`),
     }))(open.filter((e) => e.notice), open.filter((e) => !e.notice)),
     assembly: { keys: floor.map((d) => d.id + ':' + d.status), label: (n) => `${n} measure before the chamber` },
@@ -510,7 +516,7 @@ function actionItems(world) {
       return {
         keys,
         label: () => [
-          bills.length ? `${bills.length} bill${bills.length === 1 ? '' : 's'} awaiting your signature` : null,
+          bills.length ? `${bills.length} bill${bills.length === 1 ? '' : 's'} to sign` : null,
           cabinet.length ? `${cabinet.length} cabinet seat${cabinet.length === 1 ? '' : 's'} to fill` : null,
         ].filter(Boolean).join(', '),
       };
@@ -527,13 +533,13 @@ function actionItems(world) {
     intrigue: ((ints) => ({
       keys: [...rising.map((u) => u.id), ...(told ? ints.map((ev) => ev.uid) : [])],
       label: (n) => (rising.length && !ints.length ? 'a rising is under way'
-        : rising.length ? `a rising, and ${ints.length} matter awaiting a response`
-          : `${n} matter awaiting a response`),
+        : rising.length ? `a rising, and ${ints.length} matter to answer`
+          : `${n} matter to answer`),
     }))(intrigueEvents(world).filter((ev) => !ev.resolved)),
     // The court's one tab. A justice with an unvoted case is told so; anyone else
     // who can see the tab is a party, and the count is their own hearing.
     chambers: mine.length
-      ? { keys: mine.map((c) => c.id), label: (n) => `${n} case awaiting your vote` }
+      ? { keys: mine.map((c) => c.id), label: (n) => `${n} case to vote on` }
       : ((cs) => ({
         keys: cs.map((c) => c.id),
         label: (n) => `${n} hearing before the court`,
@@ -855,15 +861,15 @@ function bigStat(label, value, cls, series, help, opts = {}) {
  * "Treasury" now, and every row carries the sentence that explains it.
  */
 const DRIVER_WHY = {
-  Unemployment: 'People out of work, beyond the ~4% treated as normal. Jobs and relief money move it.',
-  Housing: 'People with nowhere to live, beyond what the country tolerates. New housing moves it.',
-  Taxes: 'What the total tax burden costs in goodwill, beyond about 8%.',
-  Order: 'Public order against a settled 50. Police money and jails raise it; unrest lowers it.',
+  Unemployment: 'Out of work beyond the ~4% treated as normal. Jobs and relief money move it.',
+  Housing: 'Nowhere to live beyond what the country tolerates. New housing moves it.',
+  Taxes: 'What the tax burden costs in goodwill, beyond about 8%.',
+  Order: 'Order against a settled 50. Police money and jails raise it, unrest lowers it.',
   Amenities: 'Parks, schools and hospitals close enough to use.',
-  Health: 'Public health. Hospitals hold it up; neglect lets it slide.',
-  War: 'War exhaustion. Every tick of a war costs a little, and recovers slowly in peace.',
+  Health: 'Public health. Hospitals hold it up, neglect lets it slide.',
+  War: 'War exhaustion. Every tick of war costs a little; peace recovers it slowly.',
   Emergency: 'A state of emergency is in force, and the country can tell.',
-  Treasury: 'Years of spending in reserve. Full marks at two; running it down costs you, a deficit more.',
+  Treasury: 'Years of spending in reserve. Full marks at two; drawing it down costs you, a deficit more.',
 };
 
 function approvalBreakdown() {
@@ -922,7 +928,7 @@ function districtStanding() {
     }),
     el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
       'A district reads you through its own temper; its own people are kinder. '
-      + 'This is the figure their member weighs when your bill reaches the floor.'));
+      + 'It is what their member weighs when your bill reaches the floor.'));
 }
 
 function approvalCard() {
@@ -949,7 +955,7 @@ function waterfrontDistricts(world) {
 function districtCard() {
   const world = w();
   const wf = waterfrontDistricts(world);
-  return el('div', { class: 'card' }, el('h3', {}, 'Districts'),
+  return el('div', { class: 'card' }, el('h3', {}, 'States'),
     el('table', { class: 't' },
       el('thead', {}, el('tr', {}, ...['State', 'Pop', 'Mood', 'Unemp', 'Homeless', 'Land', 'In Congress'].map((h) => el('th', {}, h)))),
       el('tbody', {}, ...world.districts.map((d) => {
@@ -969,7 +975,7 @@ function districtCard() {
             el('span', { class: 'tiny dimmer mono' }, Math.round(d.mood))),
           el('td', { class: 'mono ' + (d.unemployment > 0.1 ? 'red' : '') }, pct(d.unemployment)),
           el('td', { class: 'mono' }, num(d.homeless)),
-          el('td', { class: 'mono dim' }, '$' + d.landValue),
+          el('td', { class: 'mono dim' }, '$' + d.landValue + 'k'),
           el('td', { class: 'small dim' },
             rep ? rep.name
               : delegation.length
@@ -1044,7 +1050,7 @@ function crisisCard(ev) {
       ? el('div', {},
         emergencyPrompt(ev.options.filter((o) => o.cost).map((o) => el('button', {
           class: 'btn sm',
-          title: 'Drafts the appropriation and lays it before the chamber at once.',
+          title: 'Drafts the appropriation and lays it before the chamber.',
           onclick: () => go('CREATE_DOC', {
             introduce: true,
             doc: {
@@ -1065,12 +1071,12 @@ function crisisCard(ev) {
           // said "the chamber" was right nowhere in particular.
         }, `Refer to the ${R.office(world, world.constitution.legislature?.chamber)?.name || 'chamber'} — ${money(o.cost)}`))),
         el('div', { class: 'tiny dimmer', style: { marginTop: '4px' } },
-          'A bill takes a vote and time. An emergency takes neither, and costs approval every tick.'))
+          'A bill takes a vote and time. An emergency takes neither and costs approval every tick.'))
       : null,
     el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
       mine
         ? 'A prompt, not a script. Ignore it and it resolves against you.'
-        : 'Ignored, it resolves against the republic — and the record says who was in the chair.'));
+        : 'Ignored, it resolves against the republic, and the record says who held the chair.'));
 }
 
 /**
@@ -1081,7 +1087,7 @@ function crisisCard(ev) {
  * the one nobody anticipated.
  */
 const EMERGENCY_REASONS = [
-  'A crisis is running ahead of the legislature and will not wait for a bill.',
+  'A crisis is outrunning the legislature and will not wait for a bill.',
   'The treasury cannot answer this under our own spending rules.',
   'Public order has broken down and must be restored before it spreads.',
   'A foreign power is moving against us.',
@@ -1110,7 +1116,7 @@ export function emergencyPrompt(alongside = null) {
     return el('div', { class: 'blocked', style: { marginTop: '10px' } },
       el('b', {}, 'A state of emergency is in force. '),
       `Declared by ${world.personas[em.by]?.name || 'the executive'}${em.reason ? ' — ' + em.reason : ''}. `,
-      `Spending thresholds are suspended for ${Math.max(0, left)} more ticks. Approval falls while it lasts.`,
+      `Spending thresholds lift for ${Math.max(0, left)} more ticks. Approval falls while it lasts.`,
       canEnd || others.length
         ? el('div', { class: 'row', style: { marginTop: '8px' } },
           canEnd ? el('button', { class: 'btn sm', onclick: () => go('EMERGENCY', { on: false }) }, 'Lift the emergency') : null,
@@ -1126,13 +1132,13 @@ export function emergencyPrompt(alongside = null) {
   const office = R.office(world, c.office);
   const canDeclare = p && R.hasPower(world, p.id, 'emergency');
   return el('div', { class: 'blocked', style: { marginTop: '10px' } },
-    `The ${office?.name || 'executive'} may declare a state of emergency, suspending the spending thresholds for up to ${c.maxYears} canon year(s)`,
-    c.suspendsLegislature ? ' and suspends the legislature' : '', '. It costs approval the whole time it runs.',
+    `The ${office?.name || 'executive'} may declare an emergency, lifting the spending thresholds for up to ${c.maxYears} canon year(s)`,
+    c.suspendsLegislature ? ' and suspends the legislature' : '', '. It costs approval while it runs.',
     canDeclare
       ? el('div', { class: 'row', style: { marginTop: '8px' } }, el('button', {
           class: 'btn sm danger', onclick: () => ask({
             title: 'Declare a state of emergency',
-            body: `Spending thresholds are suspended for up to ${c.maxYears} year(s). Every district loses approval at once and keeps losing it. Recorded under your name.`,
+            body: `Spending thresholds lift for up to ${c.maxYears} year(s). Every district loses approval at once and keeps losing it. Recorded in your name.`,
             label: 'Declare it', danger: true,
             input: { label: 'Stated reason', presets: EMERGENCY_REASONS, placeholder: 'The encampment cannot wait for the Assembly.' },
             onConfirm: (reason) => go('EMERGENCY', { on: true, reason }),
@@ -1198,7 +1204,7 @@ function plotCard() {
   if (!plot) {
     if (isHead) return null; // the head of government does not conspire against themselves
     return el('div', { class: 'card' }, el('h3', {}, 'Conspire in the dark'),
-      el('p', { class: 'tiny dimmer' }, 'Recruit one minister at a time; a comfortable one may refuse and run to the government. Then raise a revolution with the cabal as leverage, or strike.'),
+      el('p', { class: 'tiny dimmer' }, 'Recruit ministers one at a time; a comfortable one may refuse and run to the government. Then raise a revolution with the cabal behind you, or strike.'),
       el('input', { id: 'plotcause', placeholder: 'What you tell those you sound out', style: { marginBottom: '8px' } }),
       el('div', { class: 'row' },
         el('button', { class: 'btn', onclick: () => go('PLOT_START', { kind: 'revolution', cause: document.getElementById('plotcause').value }) }, 'Begin a revolution plot'),
@@ -1222,7 +1228,7 @@ function plotCard() {
       ? el('div', { class: 'tiny', style: { margin: '4px 0' } },
           el('b', { class: odds.p > 0.55 ? 'green' : odds.p < 0.35 ? 'red' : '' }, `coup odds ${Math.round(odds.p * 100)}%`),
           el('span', { class: 'dimmer' }, ' — rises sharply with each minister who joins'))
-      : el('div', { class: 'tiny dimmer', style: { margin: '4px 0' } }, 'More ministers sworn in at launch means more leverage.'),
+      : el('div', { class: 'tiny dimmer', style: { margin: '4px 0' } }, 'More ministers sworn at launch, more leverage.'),
     inPlot ? el('label', { class: 'field', style: { marginBottom: 0 } }, el('span', {}, 'Sound out a minister'),
       select([['', 'choose…'], ...recruitable], '', (v) => v && go('PLOT_RECRUIT', { targetId: v }))) : null,
     invited ? el('div', { class: 'row', style: { marginTop: '8px' } },
@@ -1291,25 +1297,50 @@ function conventionBack(world) {
       }, 'Stay here')));
 }
 
+/**
+ * The convention, in two screens.
+ *
+ * This game is the United States, not a kit for inventing a country: the
+ * government it opens with is the one the Constitution lays out — a President
+ * and a Vice President, a House of 45 apportioned by population, a Senate of
+ * twenty. So the screen a table actually has to walk through is the short one:
+ * take a chair, pick a side, ready up. The document is still fully editable and
+ * still compiles to the rules the engine enforces — it is one button away, on
+ * its own page, for the table that means to argue about it.
+ *
+ * The two screens are one view because they share the constitution `c`, the
+ * `push` that broadcasts it and the seat list that reads it. Which one is up
+ * lives in S, not in the world: it is a fact about this player's screen, not
+ * about the republic, and another tab's founder should not be dragged into the
+ * document because you opened it.
+ */
 VIEWS.convention = (root) => {
   const world = w();
   const c = world.constitution;
+  const docOpen = !!S.conventionDoc;
+  const openDoc = (on) => { S.conventionDoc = on; CTX.rerender(true); };
+  const docBack = () => el('div', { class: 'row' },
+    el('button', { class: 'btn ghost sm', onclick: () => openDoc(false) },
+      '← Back to the seating'));
+
   root.append(
     el('div', { class: 'setup-step' }, 'Before the Season begins'),
-    el('h1', { class: 'page' }, 'Constitutional Convention'),
-    el('p', { class: 'sub' }, 'Every clause below compiles into a rule the engine enforces. Change it, then argue.'),
+    el('h1', { class: 'page' }, docOpen ? 'Constitutional Convention' : 'Take your seat'),
+    el('div', { class: 'tricolour left' }, el('i', {}), el('i', {}), el('i', {})),
+    el('p', { class: 'sub' }, docOpen
+      ? 'Every clause below compiles to a rule the engine enforces. Change it, then argue.'
+      : 'The government is the one the Constitution sets out. Choose the chair you will hold and the party you will hold it for, then ready up.'),
   );
 
-  root.append(el('div', { class: 'split' },
-    el('div', { class: 'stack' },
+  const docCol = el('div', { class: 'stack' },
       el('div', { class: 'card' },
         el('h3', {}, 'Preamble'),
         el('textarea', { rows: 3, oninput: (e) => { c.preamble = e.target.value; }, value: c.preamble }, c.preamble),
-        el('div', { class: 'tiny dimmer' }, 'Prose — the only part of this document the engine will not enforce.')),
+        el('div', { class: 'tiny dimmer' }, 'Prose — the only part the engine will not enforce.')),
 
-      el('div', { class: 'card' }, el('h3', {}, 'Offices and the powers that attach to them'),
+      el('div', { class: 'card' }, el('h3', {}, 'Offices and the powers attached to them'),
         el('p', { class: 'tiny dimmer', style: { marginTop: '-4px' } },
-          'Strike any office you don’t want — set seats to 0, or Remove.'),
+          'Strike any office you don’t want: set seats to 0, or Remove.'),
         // At-will cabinet posts aren't shown here — no one can hold one at the
         // founding; the President names them later from the Offices view.
         ...c.offices.map((o, oi) => o.atWill ? null : el('div', { class: 'office-card' + (o.seats > 0 ? '' : ' struck') },
@@ -1326,7 +1357,7 @@ VIEWS.convention = (root) => {
           // Stated in place, under the name, rather than in a dialog — the
           // warning has to be readable while you are still editing the field.
           o.seats > 0 ? null : el('div', { class: 'blocked', style: { margin: '2px 0 8px' } },
-            `Zero seats: the ${o.name} will not exist in game. The office stays here so you can change your mind; it is dropped at ratification.`),
+            `Zero seats: the ${o.name} will not exist in game. It stays in case you change your mind, dropped at ratification.`),
 
           el('div', { class: 'office-fields' },
             labeledNum('Seats', o.seats, (v) => setOfficeSeats(o, v), 0, R.seatCap(o.id)),
@@ -1338,7 +1369,7 @@ VIEWS.convention = (root) => {
               select(['election', 'appointment'], o.selection, (v) => { o.selection = v; push(); }))),
           o.electorate === 'district' && o.seats > 0
             ? el('div', { class: 'tiny dimmer', style: { marginTop: '-2px', marginBottom: '8px' } },
-              `${o.seats} district${o.seats === 1 ? '' : 's'}, one member each — every chamber elected by district is cut to the same map`)
+              `${o.seats} district${o.seats === 1 ? '' : 's'}, one member each — every chamber elected by district shares the map`)
             : null,
 
           // Folded away, one disclosure per office.
@@ -1365,8 +1396,31 @@ VIEWS.convention = (root) => {
                 labeledNum('Terms allowed', R.termLimitOf(o), (v) => { o.termLimit = clamp(+v, 0, 20); push(); CTX.rerender(true); }),
                 el('div', { class: 'tiny dimmer', style: { maxWidth: '320px' } },
                   R.termLimitOf(o)
-                    ? `No one may hold the ${o.name} more than ${R.termLimitOf(o)} time${R.termLimitOf(o) === 1 ? '' : 's'}. A deputy succeeding with under half the term left is finishing someone else's, and does not count. Amendable in Season.`
-                    : `Zero means no limit: held as long as the voters keep returning them.`)))
+                    ? `No one may hold the ${o.name} more than ${R.termLimitOf(o)} time${R.termLimitOf(o) === 1 ? '' : 's'}. A deputy with under half a term left finishes someone else's; that does not count. Amendable in Season.`
+                    : `Zero means no limit: held as long as the voters return them.`)))
+            : null,
+
+          // The qualification the real document spends one clause on and every
+          // table forgets until someone is refused a chair for it. Folded away
+          // beside the term limit for the same reason: it is a provision you
+          // argue about once, when it has just cost you something.
+          //
+          // Only for an elected office. An appointment is the President's to
+          // make and the age floor there is the President's problem, not the
+          // constitution's — and the cabinet carries no minAge in the template.
+          o.selection === 'election' && o.seats > 0
+            ? advSection('minage-' + o.id, `Advanced — age for the ${o.name} (${R.minAgeFor(world, o.id)})`,
+              el('div', { class: 'row' },
+                labeledNum('Minimum age', R.minAgeFor(world, o.id),
+                  (v) => { o.minAge = clamp(Math.floor(+v) || 0, POLITICAL_BASE_AGE, 90); push(); CTX.rerender(true); },
+                  POLITICAL_BASE_AGE, 90),
+                el('div', { class: 'tiny dimmer', style: { maxWidth: '320px' } },
+                  `No one under ${R.minAgeFor(world, o.id)} may stand for the ${o.name} or sit in it.`
+                  + ` ${POLITICAL_BASE_AGE} is the floor under the floor — nobody younger takes any office.`
+                  + (o.ticket || o.termFollows
+                    ? ` Running on another's ticket does not waive it.`
+                    : '')
+                  + ` It is asked afresh, so someone barred today stands the year they grow into it. Amendable in Season.`)))
             : null,
 
           advSection('powers-' + o.id, `Advanced — powers of the ${o.name} (${o.powers.length})`,
@@ -1397,7 +1451,7 @@ VIEWS.convention = (root) => {
         advSection('purse', 'Advanced — spending bands and discretion',
         el('div', { class: 'quote' },
           el('div', { class: 'tiny dimmer', style: { marginBottom: '6px' } },
-            'Each band applies at or above its figure; the highest matching one governs.'),
+            'Each band applies at or above its figure; the highest match governs.'),
           ...(c.spending || []).sort((a, b) => a.above - b.above).map((r, i) => el('div', { class: 'row', style: { margin: '4px 0' } },
             el('span', { class: 'small dim' }, 'above'),
             el('input', {
@@ -1453,7 +1507,7 @@ VIEWS.convention = (root) => {
             }),
             el('span', { class: 'small dim' }, 'canon year(s)')),
           el('div', { class: 'tiny dimmer' },
-            'Total disbursable without a vote in a rolling window. Set 0 for no cap — a threshold is then a payment ceiling.')))),
+            'Total disbursable without a vote in a rolling window. Set 0 for no cap; a threshold then caps each payment.')))),
 
       ((named, open) => el('div', { class: 'card' }, el('h3', {}, 'Rights'),
         el('p', { class: 'tiny dimmer', style: { marginTop: '-4px' } },
@@ -1467,7 +1521,7 @@ VIEWS.convention = (root) => {
           el('div', {},
             el('b', { class: 'small' }, 'Rights retained'),
             el('div', { class: 'tiny dim serif' },
-              'What is not written here is not thereby denied. The court may find a right the founders never listed — weaker ground than an enumerated one, and a wide majority tells against it.')),
+              'The court may find a right the founders never listed — weaker ground than an enumerated one, and a wide majority tells against it.')),
           el('input', {
             type: 'checkbox', checked: !!open,
             onchange: (e) => {
@@ -1486,9 +1540,30 @@ VIEWS.convention = (root) => {
           named.length ? null : el('div', { class: 'blocked' }, 'No enumerated rights. Nothing stops an arrest for words alone.'))))(
         c.rights.filter((rt) => !(rt.open || rt.id === 'unenumerated')),
         c.rights.some((rt) => rt.open || rt.id === 'unenumerated')),
-    ),
+  );
 
-    el('div', { class: 'stack' },
+  const seatCol = el('div', { class: 'stack' },
+      // What the table is about to ratify, said in four lines rather than left
+      // to be inferred from eighty toggles on the page behind this button. A
+      // summary that is read off the live document, so it cannot drift from it.
+      el('div', { class: 'card' },
+        el('div', { class: 'spread' }, el('h3', {}, 'The government, as written'),
+          el('button', { class: 'btn sm ghost', onclick: () => openDoc(true) }, 'Amend it →')),
+        el('p', { class: 'tiny dim', style: { marginTop: '-2px' } },
+          'The Constitution of the United States, as the engine enforces it. You do not have to touch any of it.'),
+        ...c.offices.filter((o) => !o.atWill && o.seats > 0).map((o) => el('div', {
+          class: 'spread small', style: { padding: '3px 0' },
+        }, el('span', {}, o.name),
+          el('span', { class: 'tiny dimmer' },
+            `${o.seats} seat${o.seats === 1 ? '' : 's'} · `
+            + (o.termFollows ? `term follows the ${R.office(world, o.termFollows)?.name || o.termFollows}`
+              : `${o.termYears}-year term`)
+            + (o.selection === 'election' ? '' : ' · appointed')))),
+        el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
+          `Ordinary legislation passes at ${Math.round((c.legislature.passFraction || 0) * 100)}%`
+          + `, a veto is overridden at ${Math.round((c.legislature.overrideFraction || 0) * 100)}%`
+          + `, and this document is amended at ${Math.round((c.amendment?.fraction || 0) * 100)}%.`)),
+
       el('div', { class: 'card gold' + (Object.values(world.players).some((p) => !world.seats.some((s) => s.personaId === p.personaId)) ? ' cta-pulse' : '') },
         el('div', { class: 'spread' }, el('h3', {}, 'Take a seat'),
           ((n) => n ? el('span', { class: 'cta-bubble' }, `${n} still to be seated`) : null)(Object.values(world.players).filter((p) => !world.seats.some((s) => s.personaId === p.personaId)).length)),
@@ -1533,6 +1608,34 @@ VIEWS.convention = (root) => {
             barred ? el('div', { class: 'tiny', style: { color: 'var(--red)', marginTop: '2px' } },
               `You are ${young.age}. The constitution sets ${young.need} for this office — eligible in ${young.years} year${young.years === 1 ? '' : 's'}.`) : null);
         }); })())),
+      // The side of the aisle you woke up on. It used to be dealt: the founding
+      // screen wrote every player in as a Liberal (see app.convene) and you
+      // found out from a chip beside your name on the Offices tab, three screens
+      // later. A party is the single fact about a politician the country sorts
+      // itself by at the polls, so it belongs on the same page as the chair —
+      // and it is the choice the inauguration is dressed in.
+      //
+      // Still changeable in Season, from Offices, at the usual cost of crossing
+      // the floor. This is only where it is asked for the first time.
+      (() => {
+        const mineP = me();
+        if (!mineP) return null;
+        const chosen = PARTIES.find((x) => x.id === mineP.party);
+        const pick = (id) => el('button', {
+          class: 'btn sm' + ((id ? mineP.party === id : !mineP.party) ? ' primary' : ' ghost'),
+          onclick: () => go('CHOOSE_PARTY', { party: id }),
+        }, id ? PARTIES.find((x) => x.id === id).name : 'Independent');
+        return el('div', { class: 'card' },
+          el('div', { class: 'spread' }, el('h3', {}, 'Your party'),
+            el('span', {
+              class: 'tag',
+              style: chosen ? { background: chosen.color, color: chosen.ink } : {},
+            }, chosen ? chosen.name : 'Independent')),
+          el('p', { class: 'tiny dim', style: { marginTop: '-2px' } },
+            'Voters sort by district: a party candidate has that bloc behind them, an independent only the undecided. The inauguration flies your colours.'),
+          el('div', { class: 'row' }, ...PARTIES.map((p) => pick(p.id)), pick(null)));
+      })(),
+
       el('div', { class: 'card' }, el('h3', {}, 'Founders present'),
         ...Object.values(world.players).map((p) => el('div', { class: 'spread small', style: { padding: '3px 0' } },
           el('span', {}, el('span', { style: { color: p.color } }, '● '), p.name),
@@ -1557,7 +1660,7 @@ VIEWS.convention = (root) => {
             : 'Every founder must ready. Changing the constitution or a seat stands them all down.'),
           unseated.length
             ? el('div', { class: 'blocked', style: { marginBottom: '8px' } },
-                'Every founder must take a chair first. Still unseated: ',
+                'Every founder needs a chair first. Still unseated: ',
                 unseated.map((p) => p.name).join(', '), '.')
             : null,
           !solo && !unseated.length
@@ -1576,12 +1679,18 @@ VIEWS.convention = (root) => {
                   : 'Ready up'),
           el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
             !solo && iAmReady && waiting > 0
-              ? `Waiting for ${waiting} more founder${waiting === 1 ? '' : 's'} to ready up.`
-              : 'After the Season begins this takes an amendment — under the rules you just wrote.'));
+              ? `Waiting on ${waiting} more founder${waiting === 1 ? '' : 's'} to ready up.`
+              : 'After the Season begins this takes an amendment, under the rules you just wrote.'));
       })(),
       conventionBack(world),
-    ),
-  ));
+  );
+
+  root.append(docOpen
+    // The way back sits at both ends of the document: it is a long page, and a
+    // table that has read to the bottom of it should not have to scroll back up
+    // to get to the chairs.
+    ? el('div', { class: 'stack' }, docBack(), docCol, docBack())
+    : seatCol);
 
   function push() { go('SET_CONSTITUTION', { constitution: c }); }
 
@@ -1715,7 +1824,7 @@ VIEWS.assembly = (root) => {
   root.append(el('div', { class: 'card', style: { marginTop: '14px' } },
     officeWindow(world, 'chamber'),
     el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
-      'The floor, from the well. The mace stands while the chamber sits.')));
+      'The floor, from the well, mace up while the chamber sits.')));
 };
 
 /**
@@ -1782,7 +1891,7 @@ function docCard(d) {
     d.disrepute?.length
       ? el('div', { class: 'blocked', style: { marginBottom: '8px' } },
         el('b', {}, 'Entered in the record as written. '),
-        `This act ${d.disrepute.map((g) => g.replace(/^it /, '')).join(', and ')}. The chamber will not carry it, the districts hold it against everyone who votes for it, and it hands the court a plain ground to strike it.`)
+        `This act ${d.disrepute.map((g) => g.replace(/^it /, '')).join(', and ')}. The chamber will not carry it, the districts punish anyone voting for it, and the court gets plain ground to strike it.`)
       : null,
     el('header', {},
       el('h4', {}, d.title),
@@ -1829,11 +1938,17 @@ function docCard(d) {
         iVote ? el('button', { class: 'btn sm', onclick: () => go('VOTE', { docId: d.id, ballot: 'nay' }) }, 'Vote nay') : null,
         iVote ? el('button', { class: 'btn sm ghost', onclick: () => go('VOTE', { docId: d.id, ballot: 'abstain' }) }, 'Abstain') : null,
         !iVote ? el('span', { class: 'tiny dimmer' }, 'You hold no seat in this chamber.') : null,
-        el('button', { class: 'btn sm ghost', onclick: () => {
-          if (Object.keys(d.votes || {}).length === 0) {
-            ask({ title: 'Call the question with no votes cast?', body: 'Nobody has voted — closing now decides the bill on an empty chamber.', label: 'Call it anyway', danger: true, onConfirm: () => go('CLOSE_FLOOR', { docId: d.id }) });
-          } else go('CLOSE_FLOOR', { docId: d.id });
-        } }, 'Call the question')),
+        // The gavel, not the ballot. The Vice President votes in the Senate only
+        // to break a tie but presides over it always, so the button appears for
+        // them on a Senate measure and not on a House one — which is the engine's
+        // answer too, and this only stops the player asking for a refusal.
+        R.mayCloseFloor(world, p?.id, d).ok
+          ? el('button', { class: 'btn sm ghost', onclick: () => {
+            if (Object.keys(d.votes || {}).length === 0) {
+              ask({ title: 'Call the question with no votes cast?', body: 'Nobody has voted — closing now decides the bill on an empty chamber.', label: 'Call it anyway', danger: true, onConfirm: () => go('CLOSE_FLOOR', { docId: d.id }) });
+            } else go('CLOSE_FLOOR', { docId: d.id });
+          } }, 'Call the question')
+          : null),
     );
   } else if (d.status === 'awaiting-signature') {
     // The chamber's work is finished. Signing is an executive act and it
@@ -1909,7 +2024,7 @@ export function composeModal() {
 
   const body = el('div', {},
     el('h2', {}, 'Draft'),
-    el('p', { class: 'tiny dimmer' }, 'Clauses are machine-executable: what you write is what the engine does.'),
+    el('p', { class: 'tiny dimmer' }, 'What you write in a clause is what the engine does.'),
     // Rulings are written by the court, not drafted here; orders are signed in
     // the Oval Office and reach this editor already pinned to their type.
     d.lockType
@@ -1963,7 +2078,7 @@ export function composeModal() {
       // A multi-seat office is a chamber of people: "majority of the Minister
       // seats", not "majority of the Minister".
       `Needs ${R.fracText(req.fraction)} of the ${(() => { const b = R.office(world, req.body); return b ? (b.seats > 1 ? b.name + ' seats' : b.name) : req.body; })()}. (${req.label})`)
-      : el('div', { class: 'allowed' }, 'An order takes effect when signed, if your office holds every power its clauses need.'),
+      : el('div', { class: 'allowed' }, 'Takes effect when signed, if your office holds every power its clauses need.'),
     fisc ? el('div', { class: 'quote' }, 'Fiscal effect: ', fisc.text, '. Treasury holds ', moneyExact(world.economy.treasury), '.') : null,
     p && !R.mayPropose(world, p.id, d.type).ok
       ? el('div', { class: 'blocked' }, R.mayPropose(world, p.id, d.type).reason) : null,
@@ -2047,7 +2162,7 @@ function clauseEditor(c) {
         select(opts, c[f.k], set),
         willRezone
           ? el('div', { class: 'tiny dimmer', style: { marginTop: '4px' } },
-              `This land is ${ZONES[pp.zone].label}; passing the bill rezones it ${ZONES[target].label} and builds. No separate zoning clause needed.`)
+              `This land is ${ZONES[pp.zone].label}; passing the bill rezones it ${ZONES[target].label} and builds. No zoning clause needed.`)
           : null);
     }
     if (f.t === 'powers') return el('div', { class: 'field', style: { gridColumn: '1 / -1' } }, el('span', {}, f.label),
@@ -2095,7 +2210,7 @@ function taxCodeCard(world, p, a) {
       el('span', { class: 'val' }, (v * 100).toFixed(1) + '%'))),
     p && R.hasPower(world, p.id, 'tax')
       ? el('div', { class: 'tiny green' }, 'Your office holds the power to tax; a bill with a rate clause binds.')
-      : el('div', { class: 'tiny dimmer' }, 'Your office does not hold the power to tax.'));
+      : el('div', { class: 'tiny dimmer' }, 'Your office has no power to tax.'));
 }
 
 function underConstructionCard(world) {
@@ -2148,8 +2263,8 @@ function debtCard(world, a, live) {
     live && a.repaidYtd ? row('Repaid this year', money(a.repaidYtd), 'green') : null,
     el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
       d.verdict ? `The books call it ${d.verdict}. ` : '',
-      'A shortfall is borrowed, not conjured — the treasury stops at zero and the hole appears here, '
-      + 'costing interest for as long as it is carried.'));
+      'A shortfall is borrowed, not conjured: the treasury stops at zero and the hole shows here, '
+      + 'costing interest as long as it is carried.'));
 }
 
 /**
@@ -2171,19 +2286,19 @@ function monetaryCard(world, live) {
   const pctOf = (v) => (v * 100).toFixed(2) + '%';
 
   const body = [
-    row('Policy rate', pctOf(e.policyRate ?? 0), 'What the bank says the rate will be. It buys and sells until the market clears there.'),
-    row('The state borrows at', pctOf(e.marketRate ?? 0), 'The short rate, plus this republic’s credit spread, plus a premium for how much of the nation’s savings the state is absorbing.'),
-    row('Real rate', pctOf(MACRO.realRate(world)), 'The nominal rate less expected inflation. This is the one investment answers to.'),
+    row('Policy rate', pctOf(e.policyRate ?? 0), 'The rate the bank declares. It trades until the market clears there.'),
+    row('The state borrows at', pctOf(e.marketRate ?? 0), 'The short rate, this republic’s credit spread, and a premium for the share of national savings the state absorbs.'),
+    row('Real rate', pctOf(MACRO.realRate(world)), 'The nominal rate less expected inflation. The one investment answers to.'),
     el('div', { class: 'rule' }),
-    row('Money supply', money(MACRO.moneySupply(world)), 'The monetary base, times the multiplier the reserve ratio implies.'),
+    row('Money supply', money(MACRO.moneySupply(world)), 'The base, times the multiplier the reserve ratio implies.'),
     row('Reserve requirement', ((e.reserveRatio ?? 0.1) * 100).toFixed(1) + '%'),
-    row('Money multiplier', '×' + MACRO.moneyMultiplier(world).toFixed(1), 'One over the reserve ratio: what a dollar of reserves becomes once the banks have lent it out.'),
+    row('Money multiplier', '×' + MACRO.moneyMultiplier(world).toFixed(1), 'One over the reserve ratio: what a dollar of reserves becomes once lent out.'),
   ];
 
   if (!mine) {
     body.push(el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
       independent
-        ? 'The bank is independent of this government. It leans against inflation and a slack economy by its own rule, and does not care about the election coming.'
+        ? 'The bank is independent of this government. It leans against inflation and slack by its own rule, not the election coming.'
         : 'The bank answers to the Secretary of the Treasury and the President. You are neither.'));
     return el('div', { class: 'card' }, el('h3', {}, 'The money market'), ...body);
   }
@@ -2213,29 +2328,29 @@ function monetaryCard(world, live) {
 
   body.push(
     tool('Set the policy target',
-      'The bank buys or sells until the money market clears at the number you give it. Lower means cheaper credit, a wider output gap, more inflation and fewer out of work; higher is all four in reverse. It arrives over months, not at once.',
+      'The bank trades until the market clears where you set it. Lower: cheaper credit, a wider output gap, more inflation, fewer out of work; higher reverses all four, over months.',
       el('div', { class: 'row' }, rateInput, el('span', { class: 'small dim' }, '%'),
         el('button', {
           class: 'btn sm primary',
           onclick: () => { const v = parseFloat(S.money.rate); if (Number.isFinite(v)) go('MONETARY', { tool: 'rate', value: v / 100 }); },
         }, 'Instruct the bank'))),
     tool('Open market operations',
-      'Buy bonds and the money to pay for them is created: the supply rises, the rate falls, and public debt is retired. Sell, and the money paid leaves circulation. This is the tool a central bank actually uses.',
+      'Buy bonds and money is created: supply rises, the rate falls, public debt retires. Sell, and it leaves circulation.',
       el('div', { class: 'row' }, omoInput,
         el('button', {
           class: 'btn sm', onclick: () => { const v = parseAmount(S.money.omo); if (Number.isFinite(v)) go('MONETARY', { tool: 'omo', value: v }); },
         }, 'Execute'),
         el('span', { class: 'tiny dimmer' }, 'negative to sell'))),
     tool('Reserve requirement',
-      'The bluntest of the three, and why nobody uses it: it moves the multiplier rather than the base, so halving it doubles every dollar of reserves at once.',
+      'The bluntest of the three: it moves the multiplier, not the base — halve it and every dollar of reserves doubles at once.',
       el('div', { class: 'row' },
         ...[0.05, 0.1, 0.15, 0.25].map((r) => el('button', {
           class: 'btn sm' + (Math.abs((e.reserveRatio ?? 0.1) - r) < 1e-9 ? ' primary' : ' ghost'),
           onclick: () => go('MONETARY', { tool: 'reserve', value: r }),
         }, (r * 100).toFixed(0) + '%')))),
     el('div', { class: 'blocked', style: { marginTop: '10px' } },
-      'This bank is not independent of the government. Nothing stops you cutting into an election and paying for it in the term after — '
-      + 'which is the argument for the clause you did not adopt.'));
+      'This bank is not independent. Nothing stops you cutting into an election and paying the term after — '
+      + 'the argument for the clause you did not adopt.'));
 
   return el('div', { class: 'card gold' }, el('h3', {}, 'The money market'), ...body);
 }
@@ -2251,18 +2366,18 @@ function outputCard(world, a, live) {
     el('span', { class: 'small dim', title: hint || '' }, k), el('span', { class: 'mono ' + (cls || '') }, v));
   return el('div', { class: 'card' }, el('h3', {}, 'Output, prices and work'),
     row('Output gap', (gap * 100).toFixed(2) + '%', gap > 0.03 ? 'red' : gap < -0.03 ? 'red' : 'green',
-      'How far output is above or below what the economy can sustain. Above is a boom showing up as inflation; below is slack showing up as unemployment.'),
+      'How far output is above or below what the economy can sustain. Above, a boom showing as inflation; below, slack as unemployment.'),
     row('Inflation', (infl * 100).toFixed(2) + '%', Math.abs(infl - 0.02) > 0.03 ? 'red' : 'green',
-      'Where prices are heading. The bank is aiming at 2%.'),
+      'Where prices are heading. The bank aims at 2%.'),
     row('Price level', (live ? world.economy.priceLevel : a.priceLevel ?? 100).toFixed(1),
-      '', 'Indexed to 100 at the founding. A hundred and twenty means everything costs a fifth more than it did.'),
+      '', 'Indexed to 100 at the founding: 120 means everything costs a fifth more.'),
     live ? row('Unemployment', pct(world.economy.unemployment ?? 0), '',
-      'The structural rate the map dictates, plus the cyclical part the output gap is responsible for.') : null,
+      'The structural rate the map dictates, plus the cyclical part from the output gap.') : null,
     live ? row('— of which cyclical', ((world.economy.cyclical || 0) * 100).toFixed(2) + '%', '',
-      'Okun’s law: output below potential puts people out of work, and above it pulls them back in. This is the part policy can reach.') : null,
+      'Okun’s law: output below potential puts people out of work, above it pulls them back. The part policy can reach.') : null,
     el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
-      'These three move together and against each other. Buying lower unemployment with cheap money buys inflation with it; '
-      + 'squeezing it back out is paid for in jobs. No setting is good at all three.'));
+      'Cheap money buys lower unemployment, and inflation with it; '
+      + 'squeezing it back out is paid for in jobs.'));
 }
 
 // The rating alone. What is owed against it has a card of its own now.
@@ -2331,7 +2446,7 @@ function disburseCard() {
       return;
     }
     if (!hits.length) {
-      reading.textContent = 'Reads as: nothing in particular — it will circulate, lift the mood, and leave no mark.';
+      reading.textContent = 'Reads as: nothing in particular — it circulates, lifts the mood, leaves no mark.';
       reading.style.color = 'var(--red)';
       return;
     }
@@ -2374,7 +2489,7 @@ function allowanceMeter() {
   const d = R.discretionUsed(world);
   if (!Number.isFinite(d.cap)) {
     return el('div', { class: 'blocked', style: { marginTop: '10px' } },
-      'No discretionary allowance — nothing stops sub-threshold payments draining the treasury.');
+      'No discretionary allowance: nothing stops sub-threshold payments draining the treasury.');
   }
   const pctUsed = clamp((d.used / d.cap) * 100, 0, 100);
   return el('div', { style: { marginTop: '12px' } },
@@ -2408,7 +2523,7 @@ VIEWS.city = (root) => {
   const selD = sel ? world.districts.find((x) => x.id === sel.district) : null;
 
   root.append(el('h1', { class: 'page' }, 'Domestic geography'),
-    el('p', { class: 'sub' }, 'Zoning, districting and building. A jail lowers land values around it; housing cuts homelessness once built.'));
+    el('p', { class: 'sub' }, 'Zoning, districting and building. A jail lowers nearby land values, housing cuts homelessness once built.'));
 
   root.append(el('div', { class: 'split' },
     el('div', { class: 'card' },
@@ -2427,7 +2542,7 @@ VIEWS.city = (root) => {
       selD ? districtPanel(selD) : null,
       sel ? parcelInspector(sel) : el('div', { class: 'card dim small' }, 'Select a parcel to read its district.'),
       el('div', { class: 'card' }, el('h3', {}, 'District map & representation'),
-        el('p', { class: 'tiny dimmer' }, 'District lines are electorates. Moving parcels between them is a REDISTRICT clause — gerrymandering is a bill.'),
+        el('p', { class: 'tiny dimmer' }, 'District lines are electorates. Moving parcels between them is a REDISTRICT clause: gerrymandering is a bill.'),
         ...world.districts.map((d) => el('div', { class: 'spread small', style: { padding: '3px 0' } },
           el('span', {}, el('span', { style: { color: d.color } }, '▍'), ' ', d.name),
           el('span', { class: 'mono dimmer' }, world.city.parcels.filter((x) => x.district === d.id).length + ' parcels · ' + num(d.pop))))),
@@ -2470,7 +2585,7 @@ function districtPanel(d) {
     bar('Order', d.order ?? 50, 'var(--blue)'),
     bar('Health', d.health ?? 50, 'var(--teal)'),
     el('div', { class: 'spread tiny', style: { marginTop: '8px' } },
-      el('span', { class: 'dim' }, 'Land value · average'), el('span', { class: 'mono' }, '$' + avgLand)),
+      el('span', { class: 'dim' }, 'Land value · average'), el('span', { class: 'mono' }, '$' + avgLand + 'k')),
     el('div', { class: 'spread tiny' },
       el('span', { class: 'dim' }, 'Unemployment'),
       el('span', { class: 'mono ' + ((d.unemployment ?? 0) > 0.09 ? 'red' : '') }, ((d.unemployment ?? 0) * 100).toFixed(1) + '%')),
@@ -2881,7 +2996,7 @@ function parcelCell(pp) {
   return el('div', {
     class: 'parcel' + (S.parcel === pp.i ? ' sel' : ''),
     style: { background: bg, opacity: pp.building || pp.project ? 1 : 0.55 },
-    title: `#${pp.i} ${d?.name} · ${ZONES[pp.zone].label} · $${pp.landValue}${b ? ' · ' + b.name : ''}`,
+    title: `#${pp.i} ${d?.name} · ${ZONES[pp.zone].label} · $${pp.landValue}k${b ? ' · ' + b.name : ''}`,
     onclick: () => { S.parcel = pp.i; CTX.rerender(true); },
   },
     b ? el('span', { class: 'glyph' }, glyph(pp.building)) : null,
@@ -2900,14 +3015,14 @@ function parcelInspector(pp) {
     return el('div', { class: 'card gold' },
       el('h3', {}, 'Parcel #' + pp.i),
       el('div', { class: 'small' }, (d?.name || 'Open water') + ' · water'),
-      el('div', { class: 'quote' }, 'Water — nothing is built here. Districts along it lean to trade, and their land is worth more for it.'));
+      el('div', { class: 'quote' }, 'Water — nothing is built here. Districts along it lean to trade, and their land is worth more.'));
   }
   const b = pp.building ? BUILDINGS[pp.building] : null;
   const canZone = p && R.hasPower(world, p.id, 'zone');
 
   const node = el('div', { class: 'card gold' },
     el('h3', {}, 'Parcel #' + pp.i),
-    el('div', { class: 'small' }, d?.name, ' · ', ZONES[pp.zone].label, ' · land value $', pp.landValue),
+    el('div', { class: 'small' }, d?.name, ' · ', ZONES[pp.zone].label, ' · land value $', pp.landValue + 'k'),
     // Not `.quote`. That class sets EB Garamond with a gold rule down the side and
     // exists for the documents — constitutions, preambles, opinions of the court.
     // A building's jobs-and-upkeep line borrowing it meant clicking a district put
@@ -2927,7 +3042,7 @@ function parcelInspector(pp) {
           el('div', { class: 'tiny dimmer' }, money(bb.cost), ' · ', bb.years, ' yrs · ', bb.jobs, ' jobs', bb.homes ? ', ' + bb.homes + ' homes' : '')),
         el('button', {
           class: 'btn sm' + (gate.ok && canZone ? ' primary' : ''), disabled: !gate.ok || !canZone,
-          title: !canZone ? 'Your office does not hold the power to order construction.' : gate.reasons.join(' '),
+          title: !canZone ? 'Your office has no power to order construction.' : gate.reasons.join(' '),
           onclick: () => go('BUILD', { parcel: pp.i, building: k }),
         }, 'build')));
     }
@@ -2966,7 +3081,10 @@ VIEWS.world = (root) => {
     us: { fill: '#efe7d3' },
     canada: { fill: '#dcb970' },
     mexico: { fill: '#a9c6a2' },
-    sab: { fill: '#9fb6c4' },
+    // Clay, not the blue-grey it used to be. At '#9fb6c4' the archipelago read as
+    // a patch of shallow water with a coastline drawn round it — the one power
+    // on this map whose territory did not look like land.
+    sab: { fill: '#d3a494' },
   };
 
   const parts = [];
@@ -3014,6 +3132,14 @@ VIEWS.world = (root) => {
   // The land itself: sand, with a fat sand stroke straddling the coastline so the
   // outer half of it reads as beach once the countries are painted inside.
   const sand = (d) => `<path d="${d}" fill="#e2d7bc" stroke="#d8c79a" stroke-width="7" stroke-linejoin="round"/>`;
+  // The isthmus first, and under everything: it is scenery, not a player, and it
+  // is the only land on this map nobody can take. Drawn a shade greyer than the
+  // countries and with no capital, no name and no standing — the eye should read
+  // "the continent carries on" and then stop looking at it. See
+  // atlas.CENTRAL_AMERICA for why it is not part of the continent proper.
+  parts.push(sand(GEO.pathOf(CENTRAL_AMERICA)));
+  parts.push(`<path d="${GEO.pathOf(CENTRAL_AMERICA)}" fill="#cfc7b0"/>`);
+  parts.push(`<path d="${GEO.pathOf(CENTRAL_AMERICA)}" fill="none" stroke="#26506a" stroke-opacity="0.42" stroke-width="1.4" stroke-linejoin="round"/>`);
   parts.push(sand(GEO.pathOf(G.ring)));
   parts.push(sand(GEO.pathOf(G.sab)));
 
@@ -3085,7 +3211,7 @@ VIEWS.world = (root) => {
   // inked across the water it does not reach.
   if (G.sabTaken) {
     parts.push(`<defs><clipPath id="wsab"><path d="${GEO.pathOf(G.sab)}"/></clipPath></defs>`);
-    parts.push(`<g clip-path="url(#wsab)"><path d="${GEO.pathOf(G.sabTaken.poly)}" fill="${LAY.usgov.fill}"/>`
+    parts.push(`<g clip-path="url(#wsab)"><path d="${GEO.pathOf(G.sabTaken.poly)}" fill="${LAY.us.fill}"/>`
       + `<path d="${GEO.lineOf(G.sabTaken.line)}" fill="none" stroke="#2e2416" stroke-opacity="0.55" stroke-width="1.3"/></g>`);
   }
   // A faint ink line on the shore of both landmasses.
@@ -3115,12 +3241,30 @@ VIEWS.world = (root) => {
   // What is left of the league's islands, as a label anchor: the middle of the
   // ground west of the cut, so a partitioned SAB writes its name on the part it
   // still holds. Nothing is left to name once the whole archipelago is taken.
+  //
+  // Both branches used to write y = 150 and the whole-archipelago branch used a
+  // hardcoded x = 41 as well, which is open Pacific eight hundred miles off Baja
+  // — a country's name and its standing floating in empty sea a hundred and
+  // fifty units from the island they belonged to, with nothing under them and no
+  // label on the island itself. Measured off the drawing now, both ways.
   const sabSpot = () => {
-    if (!G.sabTaken) return { x: 41, y: 150, w: 46, room: 12 };
     const b = GEO.bounds(G.sab);
+    // On the islands, and allowed to overhang them.
+    //
+    // The archipelago is four times as wide as it is tall, so `fits` — which
+    // scales a name to the clearance it is given — squeezes a name measured
+    // against the island's own height down to about a third of what every other
+    // country gets. So it is handed the width of open water it actually has
+    // rather than the width of the land, which is what an atlas does with a
+    // small island chain: the name runs out over the sea at both ends.
+    //
+    // Not below it, which was the first fix. There is now an isthmus down there
+    // — see atlas.CENTRAL_AMERICA — and the name landed on Belize.
+    const mid = (b.y0 + b.y1) / 2;
+    if (!G.sabTaken) return { x: (b.x0 + b.x1) / 2, y: mid, w: 80, room: 12 };
     const cut = G.sabTaken.line[Math.floor(G.sabTaken.line.length / 2)][0];
     const w = cut - b.x0;
-    return w < 10 ? null : { x: (b.x0 + cut) / 2, y: 150, w, room: Math.min(12, w / 2) };
+    return w < 10 ? null : { x: (b.x0 + cut) / 2, y: mid, w: Math.max(w, 44), room: 12 };
   };
   const label = (id, name, isPlayer) => {
     const L = LAY[id];
@@ -3180,7 +3324,7 @@ VIEWS.world = (root) => {
 
   root.append(
     el('h1', { class: 'page' }, 'The World'),
-    el('p', { class: 'sub' }, `${world.nation} and its neighbours. Hostility drifts on its own — the fascist ones faster — and a treaty or a war changes the board.`),
+    el('p', { class: 'sub' }, `${world.nation} and its neighbours. Hostility drifts on its own — the fascist ones faster — and a treaty or war changes the board.`),
     el('div', { class: 'split' },
       el('div', { class: 'stack' }, el('div', { class: 'card' }, map)),
       el('div', { class: 'stack' }, ...foreign.map((f) => {
@@ -3193,7 +3337,7 @@ VIEWS.world = (root) => {
           // and no army to measure. It keeps its card, because it is still part
           // of the record of the Season — see acts.applyPeaceTerms.
           ...(f.absorbed ? [el('div', { class: 'small dim serif', style: { margin: '0' } },
-            `Annexed entire, ${C.canonDate(world, f.absorbed)}. There is no such state now — only the ground, which is ours.`)]
+            `Annexed entire, ${C.canonDate(world, f.absorbed)}. Only the ground now, and it is ours.`)]
             : [bar('Hostility', Math.round(f.hostility), 100, f.hostility >= 55 ? 'var(--red)' : 'var(--gold)'),
               bar('Strength', Math.round(f.strength), 200, 'var(--dim)')]),
           // Whether it is at war with you, and nothing more. The odds used to be
@@ -3217,7 +3361,7 @@ VIEWS.press = (root) => {
   a.outletId = a.outletId || mine[0]?.id;
 
   root.append(el('h1', { class: 'page' }, 'The Press'),
-    el('p', { class: 'sub' }, 'Media shifts opinion by reach and credibility. A story citing the Chronicle lands harder; an uncited one costs you.'));
+    el('p', { class: 'sub' }, 'Media shifts opinion by reach and credibility. A story citing the Chronicle lands harder, an uncited one costs you.'));
 
   root.append(el('div', { class: 'split' },
     el('div', { class: 'stack' },
@@ -3264,7 +3408,7 @@ VIEWS.press = (root) => {
         // engine refuses a second either way; this is so the form is not sitting
         // there inviting you to try.
         mine.length ? el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
-          'One press each. To hold another you would have to take it by law.')
+          'One press each. To hold another you must take it by law.')
           : el('div', {},
             el('label', { class: 'field', style: { marginTop: '8px' } }, el('span', {}, 'Found a paper'),
               el('input', { id: 'newpaper', placeholder: 'e.g. The ' + bareNation(world.nation) + ' Ledger' })),
@@ -3279,7 +3423,7 @@ VIEWS.press = (root) => {
             }, 'Found it')),
         R.rightBlocking(world, 'SEIZE_PRESS')
           ? el('div', { class: 'tiny green', style: { marginTop: '6px' } }, 'Protected: ' + R.rightBlocking(world, 'SEIZE_PRESS').name)
-          : el('div', { class: 'tiny red', style: { marginTop: '6px' } }, 'No enumerated right protects the press in this constitution.')),
+          : el('div', { class: 'tiny red', style: { marginTop: '6px' } }, 'No enumerated right protects the press here.')),
 
       el('div', { class: 'card' }, el('h3', {}, 'All outlets'),
         ...world.media.outlets.map((o) => el('div', { class: 'spread small', style: { padding: '3px 0' } },
@@ -3380,17 +3524,26 @@ function cloakroomView(root, which) {
   const o = R.office(world, room);
   const channel = which === 'upper' ? 'cloakroom_upper' : 'cloakroom';
   const bicameral = R.isBicameral(world);
+  const upper = which === 'upper';
   const title = !bicameral ? 'The Cloakroom' : cloakLabel(o?.name || 'Chamber');
 
-  root.append(el('h1', { class: 'page' }, title),
-    el('p', { class: 'sub' }, bicameral
-      ? `Off the floor, off the record, and off limits to the other chamber. Everyone with a seat in the ${o?.name || 'chamber'} hears it; nothing here is published or binding.`
-      : 'Off the floor, off the record. Everyone with a seat hears it; nothing here is published or binding.'));
+  root.append(el('div', { class: 'cloak' + (upper ? ' cloak-upper' : '') },
+    el('h1', { class: 'page' }, title),
+    // The two rooms say different things because they *are* different rooms. The
+    // House's is a working room of four hundred-odd people on a two-year clock;
+    // the Senate's is twenty people with six years in hand and a presiding
+    // officer from the other branch standing in it. Same mechanic, and a player
+    // who lands in the wrong one should know inside a sentence.
+    el('p', { class: 'sub' }, !bicameral
+      ? 'Off the record. Everyone with a seat hears it; nothing here is published or binding.'
+      : upper
+        ? `Off the record, at the other end of the building. The ${o?.name || 'chamber'} keeps its counsel for six years; nothing here is published or binding.`
+        : `Off the record, off limits to the other chamber. Everyone with a seat in the ${o?.name || 'chamber'} hears it; nothing here is published or binding.`)));
 
   if (!room) { root.append(el('div', { class: 'card dim' }, 'This constitution has no such chamber.')); return; }
   if (!R.mayEnterCloakroom(world, p?.id, room)) {
     root.append(el('div', { class: 'card dim' },
-      `This room is closed to you. It belongs to the ${o?.name || 'chamber'}.`));
+      `Closed to you. It belongs to the ${o?.name || 'chamber'}.`));
     return;
   }
 
@@ -3398,7 +3551,11 @@ function cloakroomView(root, which) {
   // standing in — you arrive somewhere before you start reading paperwork,
   // and a room that only appears once you have scrolled past the business is
   // a picture rather than a place.
-  root.append(officeWindow(world, 'balcony'));
+  //
+  // Each chamber gets its own window. They are at opposite ends of the Capitol
+  // and they look at different cities out of it; drawing the same view twice
+  // made the pair read as one room reached by two doors.
+  root.append(officeWindow(world, upper ? 'balcony_upper' : 'balcony'));
 
   // Who is actually in here: this chamber's members, plus the presiding officer
   // where they preside. The Vice President is in the Senate's room and no other.
@@ -3418,16 +3575,29 @@ function cloakroomView(root, which) {
     el('div', { class: 'stack' }, chatCard(channel, bicameral
       ? `${title} — the ${o?.name || 'chamber'}${presiderName(world, room) ? ' and the ' + presiderName(world, room) : ''}`
       : undefined)),
-    el('div', { class: 'card' }, el('h3', {}, 'Who is in the room'),
+    el('div', { class: 'card' }, el('h3', {}, upper ? 'Who is in the room' : 'Who is on the floor'),
       el('div', { class: 'tiny dimmer', style: { marginBottom: '6px' } },
         bicameral
           ? `The ${o?.name || 'chamber'}${presider ? ` and the ${R.office(world, presider.office)?.name}` : ''}, and nobody else. The other chamber has its own room and cannot read this one.`
-          : 'Everyone with a seat that votes reads this, whatever they said on the floor.'),
+          : 'Everyone with a voting seat reads this, whatever they said on the floor.'),
+      // The right-hand column carries what actually distinguishes a member of
+      // this chamber from a member of the other one. In the House that is the
+      // numbered district they answer to — forty-five of them, and TX-3 is the
+      // only thing separating two Texans. In the Senate every member is one
+      // whole state and the interesting number is the clock: six years is long
+      // enough that when a colleague next faces the voters is a fact you plan
+      // around, and it is why the room is quieter than the other one.
       ...roster(seated.map((s) => world.personas[s.personaId]).filter(Boolean)).map((per) => {
+        const seat = world.seats.find((s) => s.personaId === per.id && s.office === room);
+        const note = !seat
+          ? R.titleOf(world, per.id) || ''
+          : upper
+            ? `${seatCd(world, seat) || '—'}${seat.termEnds ? ' · to ' + C.canonDate(world, seat.termEnds) : ''}`
+            : seatCd(world, seat) || '';
         return el('div', { class: 'spread small', style: { padding: '3px 0' } },
           el('span', {}, per.name,
             per.playerId === CTX.playerId ? el('span', { class: 'tag gold', style: { marginLeft: '6px' } }, 'you') : null),
-          el('span', { class: 'tiny dimmer' }, R.titleOf(world, per.id) || ''));
+          el('span', { class: 'tiny dimmer' }, note));
       }))));
 }
 
@@ -3450,8 +3620,8 @@ function rescueCard(world, p) {
   return el('div', { class: 'card gold' },
     el('h3', {}, failing.length === 1 ? 'A company in trouble' : `${failing.length} companies in trouble`),
     el('div', { class: 'tiny dimmer', style: { marginBottom: '8px' } },
-      'Public money can be put into a private business to keep it trading. The republic ranks with its creditors '
-      + 'for what it puts in, and the country reads the whole thing in the Chronicle.'),
+      'Public money can keep a private business trading. The republic ranks with its creditors '
+      + 'for what it puts in, and the country reads it in the Chronicle.'),
     ...failing.map((co) => {
       const staff = (co.employees || []).length;
       const left = Math.max(0, (co.distress.deadline || 0) - world.clock.tick);
@@ -3505,7 +3675,7 @@ VIEWS.oval = (root) => {
   const p = me();
   root.append(el('h1', { class: 'page' }, 'The Oval Office'),
     el('p', { class: 'sub' }, 'The executive’s private room, and who is let in.'));
-  if (!canOval(world, p)) { root.append(el('div', { class: 'card dim' }, 'This room is closed to you.')); return; }
+  if (!canOval(world, p)) { root.append(el('div', { class: 'card dim' }, 'Closed to you.')); return; }
 
   // The room, at the top — see the note at VIEWS.cloakroom.
   root.append(ovalRoom(world));
@@ -3517,7 +3687,7 @@ VIEWS.oval = (root) => {
     : el('button', {
       class: 'btn danger', onclick: () => ask({
         title: 'Declare a state of emergency?', danger: true, label: 'Declare it',
-        body: 'It answers a genuine crisis, costs approval while it runs, and lapses on its own.',
+        body: 'It answers a real crisis, costs approval while it runs, and lapses on its own.',
         input: { label: 'Reason (entered in the Chronicle)', presets: EMERGENCY_REASONS, multiline: true, placeholder: 'The situation in the harbour will not wait for a bill.' },
         onConfirm: (reason) => go('EMERGENCY', { on: true, reason }),
       }),
@@ -3558,7 +3728,7 @@ VIEWS.oval = (root) => {
             class: 'btn sm ghost',
             onclick: () => { S.view = 'assembly'; CTX.rerender(true); },
           }, 'Read the floor'),
-          !canSign && !canVeto ? el('span', { class: 'tiny dimmer' }, 'Your office holds neither the signature nor the veto.') : null));
+          !canSign && !canVeto ? el('span', { class: 'tiny dimmer' }, 'Your office holds neither signature nor veto.') : null));
     })) : null;
 
   // Appointments are made here, behind the door, and reported by the Chronicle
@@ -3614,7 +3784,7 @@ VIEWS.oval = (root) => {
           // otherwise the room looks broken while someone thinks it over.
           pending && !h
             ? el('div', { class: 'tiny dimmer', style: { marginTop: '4px' } },
-              `${world.personas[pending.personaId]?.name || 'Your nominee'} has been offered the post and has not answered. The seat stays empty until they accept.`,
+              `${world.personas[pending.personaId]?.name || 'Your nominee'} has the offer and has not answered. The seat stays empty until they accept.`,
               can ? el('div', { style: { marginTop: '5px' } },
                 el('button', { class: 'btn sm ghost', onclick: () => go('WITHDRAW_NOMINATION', { seatId: s.id }) }, 'withdraw the offer')) : null)
             : null,
@@ -3658,7 +3828,7 @@ VIEWS.oval = (root) => {
         class: 'btn primary', style: { width: '100%' },
         onclick: () => { S.draft = newDraft('order', true); S.modal = 'compose'; CTX.rerender(true); },
       }, 'Draft an executive order')
-      : el('div', { class: 'blocked' }, mayOrder?.reason || 'Executive orders require an office with executive power.'),
+      : el('div', { class: 'blocked' }, mayOrder?.reason || 'Executive orders need an office with executive power.'),
     orderDrafts.length ? el('div', { style: { marginTop: '10px' } },
       el('div', { class: 'tiny dim' }, 'Unsigned drafts'),
       ...orderDrafts.map((d) => el('div', { class: 'spread', style: { padding: '4px 0' } },
@@ -3700,29 +3870,39 @@ VIEWS.oval = (root) => {
               && !R.ovalGuests(world).some((g) => g.id === x.id)))], '',
           (v) => v && go('INVITE_OVAL', { personaId: v }))) : null,
         el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
-          `An offer lapses in ${R.INVITE_ANSWER_MONTHS} month if unanswered; once accepted the room is open for ${R.OVAL_INVITE_MONTHS} months. The cabinet and Vice President hold a key by office.`))),
+          `An offer lapses in ${R.INVITE_ANSWER_MONTHS} month unanswered; accepted, the room is open ${R.OVAL_INVITE_MONTHS} months. The Vice President also holds a key by office.`))),
   ));
 
   // The survey. Cosmetic — nothing in the simulation reads the drawing — but it
   // is the picture of the country everyone has been looking at all Season, so
-  // it is ordered from this room and rationed to once every two canon years.
+  // it is the President's to order and rationed to once every two canon years.
+  //
+  // Five offices hold a key to this room and only one of them may commission it.
+  // The Vice President is in here by right and has no business redrawing the
+  // country; so the card says who it belongs to rather than offering a button
+  // the engine will refuse.
   {
     const last = world.mapRedrawnAt;
-    const wait = 2 * world.clock.ticksPerYear;
+    const wait = ACT.MAP_REDRAW_YEARS * world.clock.ticksPerYear;
     const left = last == null ? 0 : Math.max(0, wait - (world.clock.tick - last));
+    const mayOrder = R.hasPower(world, p.id, 'spend');
     root.append(el('div', { class: 'card' },
       el('h3', {}, 'The national survey'),
       el('p', { class: 'small dim serif', style: { margin: '0 0 8px' } },
         'Coast, border and interior come from one survey. Order it again: same name, same history, new shape.'),
       el('div', { class: 'row' },
-        el('button', {
-          class: 'btn' + (left ? ' ghost' : ''),
-          title: left ? `Last ordered ${C.canonDate(world, last)}.` : 'Redraw the coast, the border and the terrain.',
-          onclick: () => go('REDRAW_MAP', {}),
-        }, 'Order the survey redrawn'),
-        left
+        mayOrder
+          ? el('button', {
+            class: 'btn' + (left ? ' ghost' : ''),
+            title: left ? `Last ordered ${C.canonDate(world, last)}.` : 'Redraw the coast, border and terrain.',
+            onclick: () => go('REDRAW_MAP', {}),
+          }, 'Order the survey redrawn')
+          : el('span', { class: 'tiny dimmer' }, 'The survey is the President’s to commission.'),
+        mayOrder && left
           ? el('span', { class: 'tiny dimmer' }, `Again in ${C.canonSpan(world, left)}.`)
-          : el('span', { class: 'tiny dimmer' }, 'Once every two years.'))));
+          : mayOrder
+            ? el('span', { class: 'tiny dimmer' }, `Once every ${ACT.MAP_REDRAW_YEARS} years.`)
+            : null)));
   }
 
 };
@@ -3835,7 +4015,7 @@ function summitRow(world, p, f) {
         onclick: () => go('SUMMIT', { foreignId: f.id, kind: k }),
       }, '✈ ', a.label.replace(/ them$/, ''), a.cost ? el('span', { class: 'dimmer' }, ' · ' + money(a.cost)) : null))),
     el('div', { class: 'tiny dimmer' },
-      `Go yourself — no waiting on their delegation. Costs a week abroad, `
+      `Go yourself, no waiting on their delegation. Costs a week abroad, `
       + `${C.canonSpan(world, weeks)} with none of your office’s powers. Once a year.`));
 }
 
@@ -3845,7 +4025,7 @@ VIEWS.state = (root) => {
   root.append(el('h1', { class: 'page' }, 'The Department of State'),
     el('p', { class: 'sub' }, 'Where the republic talks to powers it would rather not fight.'));
   if (!R.mayEnterDept(world, p?.id, 'state')) {
-    root.append(el('div', { class: 'card dim' }, 'This building is not open to you.'));
+    root.append(el('div', { class: 'card dim' }, 'Not open to you.'));
     return;
   }
 
@@ -3931,11 +4111,11 @@ VIEWS.exchequer = (root) => {
   S.spend = S.spend || { amount: 0, raw: '', purpose: '' };
   root.append(el('h1', { class: 'page' }, 'The Department of the Treasury'),
     el('p', { class: 'sub' }, byOffice
-      ? 'The books, as they stand. The interface won’t disburse money the constitution forbids.'
-      : 'The books, as they stood when the chamber asked for them.'));
+      ? 'The books as they stand. The interface won’t disburse what the constitution forbids.'
+      : 'The books, as they stood when the chamber asked.'));
   if (!byOffice && !byResolution) {
     root.append(el('div', { class: 'card dim' },
-      'This building is not open to you. The chamber may vote itself a copy of the accounts by resolution.'));
+      'Not open to you. The chamber may vote itself a copy of the accounts by resolution.'));
     return;
   }
 
@@ -3948,7 +4128,7 @@ VIEWS.exchequer = (root) => {
   // number off this page in debate without knowing how old it is.
   if (!live) {
     root.append(el('div', { class: 'blocked', style: { marginBottom: '12px' } },
-      `A copy of the accounts, laid before the chamber on ${C.canonDate(world, a.at)}, true only as of that day. `
+      `A copy of the accounts, laid before the chamber on ${C.canonDate(world, a.at)}, true only for that day. `
       + `The chamber keeps it until ${C.canonDate(world, world.accountsOpenUntil)}; anything newer takes another resolution.`));
   }
 
@@ -3973,7 +4153,7 @@ VIEWS.exchequer = (root) => {
       live ? row('Cost of borrowing', `${(interestRate(world) * 100).toFixed(1)}%`) : null,
       a.debt > 0 ? row('Debt', moneyExact(a.debt), 'red') : null,
       el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
-        'Cover is what the approval chart calls Treasury: years of spending in reserve.')),
+        'Cover is the approval chart’s Treasury: years of spending in reserve.')),
     el('div', { class: 'card' }, el('h3', {}, 'Standing commitments'),
       (a.programs || []).length
         ? el('div', {}, ...(a.programs || []).map((pr) => row(pr.name, money(pr.cost) + '/yr')))
@@ -4009,7 +4189,7 @@ VIEWS.exchequer = (root) => {
         ...deptRoster(world, 'exchequer'),
         byResolution && !byOffice
           ? el('div', { class: 'blocked', style: { marginTop: '8px' } },
-            'You are reading a copy on the chamber\'s resolution, not sitting in the building.')
+            'A copy on the chamber\'s resolution, not the building itself.')
           : null),
       // No chat in the Treasury. The Secretary who answers the President is
       // in the Oval Office; the department is a room to read the books in, not
@@ -4042,8 +4222,8 @@ function ownMoneyCard(world, p) {
   return el('div', { class: 'card', style: { marginBottom: '14px' } },
     el('h3', {}, 'Money of your own'),
     el('p', { class: 'small dim serif', style: { margin: '0 0 8px' } },
-      `You have ${moneyExact(wallet)} that belongs to you rather than to any company. `
-      + 'It gives to a party the same way a company\'s does, to the same $100M ceiling, and onto the same public record. '
+      `You have ${moneyExact(wallet)} that is yours, not any company's. `
+      + 'It gives to a party as a company\'s does, to the same $100M ceiling and public record. '
       + 'A campaign takes it from the ballot, while an election is open.'),
     el('div', { class: 'row' },
       ...PARTIES.map((party) => el('button', {
@@ -4076,30 +4256,30 @@ function privateSectorCard(world, p) {
     return el('div', { class: 'card', style: { marginBottom: '14px' } },
       el('h3', {}, 'The private sector'),
       el('p', { class: 'small dim serif', style: { margin: '0 0 4px' } },
-        'Closed to you while you hold an office of this republic. Leave the chair and the door opens; '
-        + 'until then, the money in this country reaches you across a table rather than from your own side of it.'));
+        'Closed to you while you hold an office of this republic. Leave the chair and it opens; '
+        + 'until then, money reaches you across a table.'));
   }
   S.newco = S.newco || '';
   S.newcoSector = S.newcoSector || CO.SECTORS[0].id;
   return el('div', { class: 'card', style: { marginBottom: '14px' } },
     el('h3', {}, 'The private sector'),
     el('p', { class: 'small dim serif', style: { margin: '0 0 8px' } },
-      'There is another way to have your way in this republic, and it does not need anybody to vote for you. '
-      + 'A quarter of a million of your own money, a basement, and whatever the government’s economy lets you keep.'),
+      'Another way to have your way here, needing nobody’s vote: '
+      + 'a quarter of a million of your own money, a basement, and whatever the government’s economy lets you keep.'),
     // "On top of the quarter-million" is what this said, and it has not been
     // true since founding-and-selling stopped being a living: `found` takes the
     // *greater* of the seed and the wallet, because adding them minted money —
     // W' = 225,000 + 0.9W, converging on $2.25M in twenty clicks with no tick
     // passing. The card should say what the engine does.
     (p.wallet || 0) > 0 ? el('div', { class: 'tiny green', style: { margin: '0 0 8px' } },
-      `You have ${moneyExact(p.wallet)} put by. You found the next one on that, or on the quarter-million, whichever is more.`) : null,
+      `You have ${moneyExact(p.wallet)} put by. The next one is founded on that or the quarter-million, whichever is more.`) : null,
     // A failure follows the person, not the company. It is on the public record
     // and the people who lend money have read it — see company.creditMarked.
     (p.bankruptcies || 0) > 0 ? el('div', { class: 'tiny red', style: { margin: '0 0 8px' } },
       `You have put ${p.bankruptcies === 1 ? 'a company' : `${p.bankruptcies} companies`} into liquidation owing ${moneyExact(p.writtenOff || 0)}. `
       + (CO.creditMarked(world, p.id)
-        ? 'While that is fresh, anybody lending to the next one lends half of what they otherwise would.'
-        : 'It is old enough now that lenders have stopped counting it against you.')) : null,
+        ? 'While that is fresh, anybody lending to the next one lends half what they would.'
+        : 'It is old enough that lenders have stopped counting it against you.')) : null,
     el('div', { class: 'row' },
       el('input', {
         placeholder: 'What it will be called', style: { flex: 1 },
@@ -4123,8 +4303,8 @@ function privateSectorCard(world, p) {
       onclick: () => { if (S.newco.trim()) go('FOUND_COMPANY', { name: S.newco, sector: S.newcoSector }); },
     }, 'Found it'),
     el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
-      'What you are worth is your earnings times one over the real rate of interest — so the central bank owns your valuation, '
-      + 'the tax code your margin, the output gap your growth. You will start reading the Treasury tab.'));
+      'Your worth is earnings times one over the real rate of interest; '
+      + 'the tax code owns your margin, the output gap your growth. You will start reading Treasury.'));
 }
 
 /**
@@ -4151,7 +4331,7 @@ function memoirCard(world, p) {
       el('div', { class: 'spread' }, el('b', {}, '“' + mine.title + '”'),
         el('span', { class: 'tag gold' }, mine.chapters + (mine.chapters === 1 ? ' chapter' : ' chapters'))),
       el('div', { class: 'tiny dimmer', style: { marginTop: '4px' } },
-        `Published ${mine.date}. The article about you was revised afterwards.`),
+        `Published ${mine.date}. The article about you was revised after.`),
       el('div', { class: 'row', style: { marginTop: '8px' } },
         el('button', { class: 'btn sm ghost', onclick: () => { S.view = 'chronicle'; CTX.rerender(true); } },
           'Read what it says now')));
@@ -4188,8 +4368,8 @@ function memoirCard(world, p) {
   return el('div', { class: 'card', style: { marginBottom: '14px' } },
     el('h3', {}, 'Your own account of it'),
     el('p', { class: 'small dim serif', style: { margin: '0 0 8px' } },
-      'You held the chair, and the histories have decided what that was worth. There is one thing left to do '
-      + 'about it, and it is to write the version where you were right.'),
+      'The histories have decided what your tenure was worth. One thing is left: '
+      + 'write the version where you were right.'),
     el('div', { class: 'row' },
       el('input', {
         // Bound, not just written to: the page rerenders as the republic ticks,
@@ -4205,10 +4385,10 @@ function memoirCard(world, p) {
       onclick: () => { if (S.memoir.trim()) go('MEMOIR', { title: S.memoir, chapters: S.memoirChapters }); },
     }, 'Publish it'),
     el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
-      'A chapter carries a tenth of what a newspaper carries, because a book about yourself is the least credible '
-      + 'account of you there is and the country knows it. What it has instead is reach: every chapter lands on the '
-      + 'same day, in every district, and nobody answers back. You write one, and the article about you is rewritten '
-      + 'in light of it — which is the whole reason to.'));
+      'A chapter carries a tenth of a newspaper’s — a book about yourself is the least credible '
+      + 'account there is. Its virtue is reach: every chapter lands the '
+      + 'same day in every district, and nobody answers back. Write one and the article '
+      + 'about you is rewritten.'));
 }
 
 /**
@@ -4262,16 +4442,16 @@ function distressCard(world, co) {
     el('p', { class: 'serif', style: { margin: '0 0 10px' } },
       illiquid
         ? `${moneyExact(co.unpaid || 0)} of wages went unpaid this tick and there is nothing left to borrow against. `
-          + 'Cash from anywhere fixes this: your own money, a building sold, a smaller payroll, or harvesting the margin.'
+          + 'Cash from anywhere fixes it: your own money, a building sold, a smaller payroll, harvesting the margin.'
         : `${co.name} owes ${moneyExact(co.borrowed || 0)} against a business worth ${moneyExact(Math.max(0, CO.enterprise(world, co) + (co.cash || 0)))}. `
-          + 'Repaying will not help — cash and debt come off together and the gap does not move. Outside money, a sold '
+          + 'Repaying will not help: cash and debt come off together and the gap does not move. Outside money, a sold '
           + 'asset or a better business will.'),
     el('div', { class: 'spread small' },
       el('span', { class: 'dim' }, illiquid ? 'Short by' : 'Underwater by'),
       el('span', { class: 'mono red' }, moneyExact(illiquid ? (co.unpaid || 0) : -eq))),
     el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
-      `If it is still like this in ${Math.max(0, left)} ticks it is wound up: the assets are broken up, the lenders `
-      + 'are paid first, and whatever is left over — if anything is — is yours.'));
+      `Still like this in ${Math.max(0, left)} ticks and it is wound up: assets broken up, lenders `
+      + 'paid first, and whatever is left — if anything — is yours.'));
 }
 
 /**
@@ -4301,10 +4481,10 @@ function bidCard(world, co) {
       + `${bid.debt ? `, and will take on the ${moneyExact(bid.debt)} it owes` : ''}. `
       + `The ${bid.staff} ${bid.staff === 1 ? 'person' : 'people'} in the building `
       + `${bid.staff === 1 ? 'keeps their job' : 'keep their jobs'}; the buildings, the order book and `
-      + 'anything the treasury put in go across with them. '
+      + 'anything the treasury put in go with them. '
       + (bid.trouble
-        ? 'They are bidding what winding it up would fetch, because that is what the alternative pays.'
-        : 'They are bidding what it is worth as a going concern.')),
+        ? 'They bid what winding it up would fetch, which is what the alternative pays.'
+        : 'They bid what it is worth as a going concern.')),
     el('div', { class: 'spread small' },
       el('span', { class: 'dim' }, 'To you, after the creditors'),
       el('span', { class: 'mono' }, moneyExact(bid.toSeller))),
@@ -4316,7 +4496,7 @@ function bidCard(world, co) {
     el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
       bid.trouble
         ? 'Saying no does not stop the clock above. Saying nothing is saying no.'
-        : 'Saying nothing is saying no, and the offer will not be repeated soon.'));
+        : 'Saying nothing is saying no, and the offer will not come again soon.'));
 }
 
 /**
@@ -4379,7 +4559,7 @@ VIEWS.company = (root) => {
         // `earnings` is already net of payroll, interest and tax — the figure
         // below is the whole answer, not a subtotal to take something else off.
         row('Earnings, after tax', money(eps), eps >= 0 ? 'green' : 'red',
-          'After wages, interest and the state. Profits are taxed as income here — the Treasury\'s tax card is the rate you pay.'),
+          'After wages, interest and the state. Profits are taxed as income — the Treasury\'s tax card is your rate.'),
         el('div', { class: 'rule' }),
         row('Borrowed', moneyExact(co.borrowed || 0), (co.borrowed || 0) ? 'red' : ''),
         // What the stake is actually worth, shown only when the answer is
@@ -4389,12 +4569,12 @@ VIEWS.company = (root) => {
         // difference is the whole of whether it is about to be wound up.
         CO.equity(world, co) < 0
           ? row('Underwater by', moneyExact(-CO.equity(world, co)), 'red',
-            'What it owes, less everything it is and holds. Repaying does not move this — cash and debt fall together.')
+            'What it owes, less everything it is and holds. Repaying does not move it — cash and debt fall together.')
           : null,
         row('At', ((world.economy.marketRate ?? 0) * 100).toFixed(2) + '%', '',
-          'The same rate the state borrows at. When the bank moves, your interest bill moves with it.'),
+          'The rate the state borrows at. When the bank moves, your interest bill moves with it.'),
         row('Earnings multiple', '×' + CO.multiple(world).toFixed(1), '',
-          'One over the real rate of interest, floored. The whole of monetary policy, landing on what you are worth.'),
+          'One over the real rate of interest, floored — monetary policy landing on your worth.'),
         el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
           next
             ? `${money(next.at - val)} of valuation from ${next.tab.toLowerCase()}.`
@@ -4416,8 +4596,8 @@ VIEWS.company = (root) => {
             Math.round((s.ceiling - 1) * 100) >= 0 ? '+' : '', Math.round((s.ceiling - 1) * 100), '% capacity'),
           el('div', { class: 'tiny dimmer' }, s.blurb)))),
         el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
-          'Growth is bought out of the margin — you are paying for capacity you do not yet need. '
-          + 'Harvesting buys it back by declining to build anything.')) : null,
+          'Growth comes out of the margin: you pay for capacity you do not yet need. '
+          + 'Harvesting buys it back by building nothing.')) : null,
 
       // What this particular business lives on. Not decoration: it is the line
       // that tells a founder which tab to open when they want to know why the
@@ -4428,8 +4608,8 @@ VIEWS.company = (root) => {
           el('span', { class: 'mono' }, '×' + sector.demand(world).toFixed(2))),
         el('div', { class: 'tiny dimmer' }, 'Watch: ', sector.watch, '.'),
         el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
-          'This multiplies what the business could sell before anything else is counted. '
-          + 'Another founder in another line is reading the opposite number off the same budget.')),
+          'This multiplies what the business could sell before anything else counts. '
+          + 'Another line reads the opposite number off the same budget.')),
 
       // The politics of it. Available once there is money to do it with.
       isFounder ? lobbyCard(world, co) : null,
@@ -4437,7 +4617,7 @@ VIEWS.company = (root) => {
       // candidate's campaign from the ballot when an election is open.
       isFounder ? el('div', { class: 'card' }, el('h3', {}, 'Political money'),
         el('div', { class: 'tiny dimmer', style: { marginBottom: '8px' } },
-          'Give to a party — up to $100M, for as much as a per cent at the polls — or bankroll a candidate when an election is open. On the record, like lobbying.'),
+          'Give a party up to $100M, for as much as a per cent at the polls — or bankroll a candidate while an election is open. On the record, like lobbying.'),
         el('div', { class: 'row' },
           ...PARTIES.map((party) => el('button', {
             class: 'btn sm ghost', disabled: (co.cash || 0) < 5e6,
@@ -4451,7 +4631,7 @@ VIEWS.company = (root) => {
     el('div', { class: 'stack' },
       isFounder ? el('div', { class: 'card gold' }, el('h3', {}, 'Raise money'),
         el('div', { class: 'tiny dimmer', style: { marginBottom: '8px' } },
-          'Debt is fast and it compounds against you at whatever the central bank has set. '
+          'Debt is fast, and compounds at whatever the central bank has set. '
           + 'A listing is slow, needs scale, and sells a quarter of the company for good.'),
         el('div', { class: 'row' },
           ...[250000, 1e6, 5e6].map((amt) => el('button', {
@@ -4466,7 +4646,7 @@ VIEWS.company = (root) => {
         // for negative equity that does not require the business to get better.
         (p.wallet || 0) > 0 ? el('div', { style: { marginTop: '10px' } },
           el('div', { class: 'tiny dimmer', style: { marginBottom: '6px' } },
-            `You have ${moneyExact(p.wallet)} of your own. Money you put in is the company's, and you get it back only as the company is worth more.`),
+            `You have ${moneyExact(p.wallet)} of your own. Money you put in is the company's; you get it back only as it is worth more.`),
           el('div', { class: 'row' },
             ...[0.25, 0.5, 1].map((frac) => el('button', {
               class: 'btn sm ghost',
@@ -4484,7 +4664,7 @@ VIEWS.company = (root) => {
                   onclick: () => go('SELL_SHARES', { shares: Math.round(co.founderShares * frac) }),
                 }, `Sell ${Math.round(frac * 100)}%`, el('span', { class: 'dimmer' }, ' · ' + moneyExact(Math.round(CO.sharePrice(world, co) * co.founderShares * frac)))))) : null,
               (isFounder && co.founderShares > 0) ? el('div', { class: 'tiny dimmer', style: { marginTop: '4px' } },
-                'Selling shares is money into your own account, not the company\'s, and dilutes your holding without giving up control.') : null)
+                'Selling shares is money into your own account, not the company\'s; it dilutes your holding without losing control.') : null)
             : el('div', {},
               el('button', {
                 class: 'btn primary', style: { width: '100%' },
@@ -4492,7 +4672,7 @@ VIEWS.company = (root) => {
                 onclick: () => ask({
                   title: `Take ${co.name} public?`,
                   body: 'A quarter of the company is sold to the public and the money lands on the balance sheet. '
-                    + 'It cannot be undone, and from then on what you are worth is a number other people set every second.',
+                    + 'It cannot be undone, and from then on your worth is a number other people set every second.',
                   label: 'List it',
                   onConfirm: () => go('COMPANY_IPO', {}),
                 }),
@@ -4507,20 +4687,20 @@ VIEWS.company = (root) => {
       // less the haircut for selling in a hurry.
       isFounder ? el('div', { class: 'card' }, el('h3', {}, 'Sell the company'),
         el('div', { class: 'tiny dimmer', style: { marginBottom: '8px' } },
-          'The whole of it, to a buyer, for good. You keep the proceeds; the company leaves your hands — '
-          + 'which frees you to start another, or to stand for an office you could not hold while you ran this.'),
+          'The whole of it, to a buyer, for good. You keep the proceeds — '
+          + 'and are free to start another, or stand for an office you could not hold while you ran this.'),
         // A sale is not a way out of a debt: the buyer takes the company with
         // what it owes inside it, which is why nobody buys one that owes more
         // than it is worth. See company.sell.
         CO.equity(world, co) < 0
           ? el('div', { class: 'dim small' },
-            `Nobody will buy it while it is ${moneyExact(-CO.equity(world, co))} underwater — a buyer would be paying `
-            + 'for the privilege of taking on the debts. Trade out of it, put your own money in, or let it go under.')
+            `Nobody buys it while it is ${moneyExact(-CO.equity(world, co))} underwater — a buyer would pay `
+            + 'for the privilege of taking on the debts. Trade out, put your own money in, or let it go under.')
           : el('button', {
             class: 'btn primary', style: { width: '100%' },
             onclick: () => ask({
               title: `Sell ${co.name}?`,
-              body: `The company is worth ${moneyExact(val)} today. A quick sale takes ${Math.round(CO.SALE_HAIRCUT * 100)}% off, `
+              body: `Worth ${moneyExact(val)} today. A quick sale takes ${Math.round(CO.SALE_HAIRCUT * 100)}% off, `
                 + `so you would walk away with about ${moneyExact(Math.round(val * (1 - CO.SALE_HAIRCUT)))}. It cannot be undone.`,
               label: 'Sell it',
               onConfirm: () => go('SELL_COMPANY', {}),
@@ -4529,7 +4709,7 @@ VIEWS.company = (root) => {
 
       el('div', { class: 'card' }, el('h3', {}, 'The payroll'),
         el('div', { class: 'tiny dimmer', style: { marginBottom: '6px' } },
-          'Everyone here can walk into this building. Nobody holding an office of the republic can be on this list.'),
+          'Everyone here can walk in. Nobody holding an office of the republic can be on it.'),
         el('div', { class: 'spread small', style: { padding: '3px 0' } },
           el('span', { class: 'dim' }, `Buildings — ${(co.employees || []).length}/${CO.capacityOf(co)} desks filled`
             + (CO.managersOf(co) ? `, ${CO.managersOf(co)} manager${CO.managersOf(co) === 1 ? '' : 's'} at 4× wage` : '')),
@@ -4571,7 +4751,7 @@ VIEWS.company = (root) => {
             class: 'btn ghost', style: { flex: 1 },
             onclick: () => ask({
               title: 'Sell a building?',
-              body: `It fetches ${money(Math.round(CO.BUILDING_COST * CO.BREAKUP_BUILDING))} — rather less than the ${money(CO.BUILDING_COST)} it cost — `
+              body: `It fetches ${money(Math.round(CO.BUILDING_COST * CO.BREAKUP_BUILDING))}, less than the ${money(CO.BUILDING_COST)} it cost — `
                 + `and the room goes with it. ${Math.max(0, (co.employees || []).length - (CO.capacityOf(co) - CO.BUILDING_CAP))} of the people here would be let go.`,
               label: 'Sell it',
               onConfirm: () => go('COMPANY_SELL_BUILDING', {}),
@@ -4620,8 +4800,7 @@ function rivalsCard(world, co) {
   if (!others.length) return null;
   return el('div', { class: 'card' }, el('h3', {}, 'The other companies'),
     el('div', { class: 'tiny dimmer', style: { marginBottom: '8px' } },
-      'What it would cost to own one. The debt comes with it, and so do the people — which is the whole '
-      + 'difference between buying a company and watching it be wound up.'),
+      'What it would cost to own one. The debt comes with it, and so do the people.'),
     ...others.map((t) => {
       const price = CO.acquisitionPrice(world, t);
       const staff = (t.employees || []).length;
@@ -4664,7 +4843,7 @@ function lobbyCard(world, co) {
       'Money buys a thumb on the scale and nothing more — and it is minuted in the Chronicle, '
       + 'written onto the member\'s file, and admissible against both of you.'),
     !floor.length
-      ? el('div', { class: 'dim small' }, 'Nothing is before the chamber to be lobbied about.')
+      ? el('div', { class: 'dim small' }, 'Nothing before the chamber to lobby about.')
       : el('div', {},
         el('label', { class: 'field' }, el('span', {}, 'The measure'),
           select([['', 'choose…'], ...floor.map((d) => [d.id, d.title])], S.lobby.doc,
@@ -4687,7 +4866,7 @@ function lobbyCard(world, co) {
         }, 'Pay it'),
         (co.lobbySpend || 0)
           ? el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
-            `${moneyExact(co.lobbySpend)} spent this way so far. All of it is in the record.`)
+            `${moneyExact(co.lobbySpend)} spent this way so far, all of it in the record.`)
           : null));
 }
 
@@ -4727,9 +4906,9 @@ VIEWS.defense = (root) => {
   const world = w();
   const p = me();
   root.append(el('h1', { class: 'page' }, 'The Department of Defense'),
-    el('p', { class: 'sub' }, 'Below ground, lit by its own screens. The work that matters is done before the shooting.'));
+    el('p', { class: 'sub' }, 'Below ground, lit by its own screens.'));
   if (!R.mayEnterDept(world, p?.id, 'defense')) {
-    root.append(el('div', { class: 'card dim' }, 'This building is not open to you.'));
+    root.append(el('div', { class: 'card dim' }, 'Not open to you.'));
     return;
   }
   root.append(officeWindow(world, 'defense'));
@@ -4785,8 +4964,8 @@ VIEWS.defense = (root) => {
                 onclick: () => go('PRESS_ON', { foreignId: f.id }),
               }, 'Refuse, and press on'),
               el('div', { class: 'tiny dimmer', style: { marginTop: '3px' } },
-                `No terms at all: the front gives back ${A.PRESS_SETBACK}, they rally and mobilise, the pacts go home, `
-                + 'and the war then ends only when one army is spent outright. Win it and the whole country is on the table.'))) : null)(
+                `No terms: the front gives back ${A.PRESS_SETBACK}, they rally and mobilise, the pacts go home, `
+                + 'and the war ends only when one army is spent outright. Win it and the whole country is on the table.'))) : null)(
             (world.dictate || []).find((x) => x.foreignId === f.id)),
           // Volunteers only go to a war, so the row only exists during one.
           // Committed here they fight at full weight instead of being thinned
@@ -4894,9 +5073,9 @@ VIEWS.defense = (root) => {
             class: 'btn sm ghost', onclick: () => go('COMMISSION_AIR', { count: n }),
           }, `Air wing${n === 1 ? '' : 's'} ${n}`, el('span', { class: 'dimmer' }, ' · ' + money(n * DEP.AIRWING_COST))))),
         el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
-          'Divisions cost money to raise and keep. The reserve fights anywhere; those in place fight better. '
-          + 'Volunteers are a tenth as strong and a fraction of the price — raisable without a vote, and the first to fall. '
-          + 'Air wings add weight to the front, or fly against an enemy\'s cities.')),
+          'Divisions cost to raise and keep; the reserve fights anywhere, those in place better. '
+          + 'Volunteers: a tenth the strength at a fraction of the price, no vote needed, first to fall. '
+          + 'Air wings add weight at the front, or bomb an enemy\'s cities.')),
       el('div', { class: 'card' }, el('h3', {}, 'The department'),
         ...deptRoster(world, 'defense')),
       chatCard('defense'))));
@@ -4925,7 +5104,7 @@ function frontMap(world, f) {
   if (!line) {
     box.append(el('h3', {}, `The war with ${f.name}`),
       el('p', { class: 'small dim serif', style: { margin: 0 } },
-        `${f.name} shares no land border with us — the war is fought at sea and on other people's coasts, and no ground changes hands.`));
+        `${f.name} shares no land border with us — the war is fought at sea and on other coasts, and no ground changes hands.`));
     return box;
   }
 
@@ -4993,7 +5172,7 @@ function frontMap(world, f) {
       el('span', { class: 'mono small' }, `${ours} on this border`),
       el('button', { class: 'btn sm ghost', onclick: () => go('DEPLOY', { foreignId: f.id, count: ours + 1 }) }, '+ division')),
     el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
-      `${holding} Ground held shows on the World and City maps; it returns when the war ends.`));
+      `${holding} Ground held shows on the World and City maps, and returns when the war ends.`));
   return box;
 }
 
@@ -5001,9 +5180,9 @@ VIEWS.mansion = (root) => {
   const world = w();
   const p = me();
   root.append(el('h1', { class: 'page' }, "The Vice President's Mansion"),
-    el('p', { class: 'sub' }, 'The residence. No powers attach to it; nothing decided here is binding.'));
+    el('p', { class: 'sub' }, 'The residence. Nothing decided here is binding.'));
   if (!R.mayEnterMansion(world, p?.id)) {
-    root.append(el('div', { class: 'card dim' }, 'This is a private house. You have not been asked up.'));
+    root.append(el('div', { class: 'card dim' }, 'A private house. You have not been asked up.'));
     return;
   }
   const isVP = R.officesOf(world, p.id).some((o) => o.id === 'vp');
@@ -5015,8 +5194,8 @@ VIEWS.mansion = (root) => {
     el('div', { class: 'stack' },
       el('div', { class: 'card' }, el('h3', {}, 'Who is up here'),
         el('div', { class: 'tiny dimmer', style: { marginBottom: '6px' } },
-          isVP ? 'Your house. No office holds a key, not even the President, and a new Vice President starts empty.'
-            : `${vp ? vp.name : 'The Vice President'} asked you up. You are here as a guest, and can be shown out again.`),
+          isVP ? 'Your house. No office holds a key, not even the President; a new Vice President starts empty.'
+            : `${vp ? vp.name : 'The Vice President'} asked you up. You are a guest, and can be shown out.`),
         vp ? el('div', { class: 'spread small', style: { padding: '3px 0' } },
           el('span', {}, vp.name, ' — ', R.office(world, 'vp')?.name || 'Vice President'),
           el('span', { class: 'tag gold' }, 'host')) : null,
@@ -5057,11 +5236,11 @@ VIEWS.chambers = (root) => {
 
   root.append(el('h1', { class: 'page' }, co?.name || 'The Supreme Court'),
     el('p', { class: 'sub' }, onBench
-      ? 'Behind the door. Cases arrive on their own, usually when an office overreaches its grant. Majority rules.'
-      : 'You are a party to a case, so this door is open — your hearing, until the court decides.'));
+      ? 'Cases arrive on their own, usually when an office overreaches its grant. Majority rules.'
+      : 'You are party to a case, so this door is open — your hearing, until the court decides.'));
 
   if (!CT.mayEnterChamber(world, p?.id)) {
-    root.append(el('div', { class: 'card dim' }, 'This room is closed to you.'));
+    root.append(el('div', { class: 'card dim' }, 'Closed to you.'));
     return;
   }
 
@@ -5071,7 +5250,7 @@ VIEWS.chambers = (root) => {
   if (onBench && !bench.length) root.append(el('div', { class: 'crisis', style: { marginBottom: '14px' } },
     el('b', {}, 'No court sits.'),
     el('div', { class: 'tiny dimmer', style: { marginTop: '4px' } },
-      'Until the bench is filled, no case can be heard and suits lapse.')));
+      'Until the bench is filled, no case is heard and suits lapse.')));
 
   const cases = CT.chamberCases(world, p.id);
 
@@ -5109,7 +5288,7 @@ VIEWS.chambers = (root) => {
         ? el('button', {
           class: 'btn sm', style: { marginTop: '8px' }, onclick: () => ask({
             title: `Answer ${c.title}?`,
-            body: 'Your answer is read into the record alongside the pleading.',
+            body: 'Your answer is read into the record beside the pleading.',
             label: 'Enter it',
             input: { label: 'Your answer', multiline: true, placeholder: 'What actually happened.' },
             onConfirm: (text) => go('COURT_ANSWER', { caseId: c.id, text }),
@@ -5199,7 +5378,7 @@ VIEWS.chambers = (root) => {
         'You sit on this court. Cases before it are yours to decide.') : null),
     el('div', { class: 'card' }, el('h3', {}, 'The reports'),
       el('div', { class: 'tiny dimmer' },
-        'What this court has held is public, and kept in the Chronicle.'),
+        'What this court has held is kept in the Chronicle.'),
       el('button', {
         class: 'btn sm ghost', style: { marginTop: '8px' },
         onclick: () => { S.view = 'chronicle'; CTX.rerender(true); },
@@ -5227,7 +5406,7 @@ VIEWS.offices = (root) => {
           el('button', { class: 'btn sm primary', onclick: () => go('ACCEPT_POST', { seatId: myNom.seatId }) }, 'Accept'),
           el('button', { class: 'btn sm ghost', onclick: () => go('DECLINE_POST', { seatId: myNom.seatId }) }, 'Decline'))),
       el('div', { class: 'tiny dimmer', style: { marginTop: '4px' } },
-        `Nominated by ${world.personas[myNom.by]?.name}. Accept to take the department, or decline.`)));
+        `Nominated by ${world.personas[myNom.by]?.name}. Accept the department, or decline.`)));
   }
 
   // The other career, offered on the page about careers. A republic where the
@@ -5242,10 +5421,10 @@ VIEWS.offices = (root) => {
   if (p) {
     root.append(el('div', { class: 'card', style: { marginBottom: '14px' } },
       el('div', { class: 'spread' }, el('b', {}, 'Your party'),
-        el('span', { class: 'tag', style: p.party ? { background: PARTIES.find((x) => x.id === p.party)?.color, color: '#111' } : {} },
+        el('span', { class: 'tag', style: p.party ? { background: PARTIES.find((x) => x.id === p.party)?.color, color: PARTIES.find((x) => x.id === p.party)?.ink } : {} },
           PARTIES.find((x) => x.id === p.party)?.name || 'Independent')),
       el('div', { class: 'tiny dimmer', style: { margin: '4px 0 8px' } },
-        'Voters sort themselves by district; a party candidate has that bloc behind them, an independent has only the undecided.'),
+        'Voters sort by district: a party candidate has that bloc behind them, an independent only the undecided.'),
       el('div', { class: 'row' },
         ...PARTIES.map((party) => el('button', {
           class: 'btn sm' + (p.party === party.id ? ' primary' : ' ghost'),
@@ -5355,13 +5534,13 @@ function electionModal() {
     // held is the republic; the ballot has a clock of its own and that is the
     // only thing running.
     el('p', { class: 'sub' },
-      'The republic is held while the ballot is open — no crisis, no treasury, no term running out. Only the count moves.'),
+      'The republic is held while the ballot is open: no crisis, no treasury, no term running out.'),
     el('div', { class: 'stack' }, ...open.map((e) => electionCard(e, true))),
     waiting.length
       ? el('div', { class: 'tiny dimmer', style: { marginTop: '12px' } },
         'Waiting on ', waiting.map((pl) => pl.name).join(', '), ' to submit. The count follows immediately.')
       : el('div', { class: 'allowed', style: { marginTop: '12px' } },
-        'Every ballot is in. The count is being taken.'),
+        'Every ballot is in. The count is under way.'),
     el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
       'The citizenry votes alongside you, weighted by the constitution.'));
 }
@@ -5494,7 +5673,7 @@ function ballotRows(world, e, o, p, sealed) {
         }, 'bankroll') : null,
         (p && (p.wallet || 0) >= 1e6) ? el('button', {
           class: 'btn sm ghost',
-          title: `Back this campaign with ${moneyExact(Math.min(1e6, p.wallet))} of your own money — the same $10M cap, the same public record.`,
+          title: `Back this campaign with ${moneyExact(Math.min(1e6, p.wallet))} of your own — the same $10M cap and public record.`,
           onclick: () => go('DONATE_CAMPAIGN', { candidatePersonaId: c.personaId, amount: 1e6, from: 'wallet' }),
         }, 'give $1M') : null));
   };
@@ -5524,7 +5703,7 @@ function ballotRows(world, e, o, p, sealed) {
   }
   if (!home) {
     out.push(el('div', { class: 'blocked', style: { marginTop: '6px' } },
-      'You are from no district, so there is no seat here that is yours to fill.'));
+      'You are from no district, so no seat here is yours to fill.'));
   }
   for (const g of groups) {
     const yours = g.id === home;
@@ -5560,7 +5739,7 @@ function electionCard(e, big = false) {
     el('div', { class: 'spread' }, el('b', {}, 'Election — ' + o.name),
       el('span', { class: 'tag mono' }, left + 's to the count')),
     el('div', { class: 'tiny dimmer', style: { margin: '4px 0 10px' } },
-      `Citizen weight ${world.constitution.elections.citizenWeight}× · player weight ${world.constitution.elections.playerWeight}× · citizens vote alongside you`),
+      `Citizen weight ${world.constitution.elections.citizenWeight}× · player weight ${world.constitution.elections.playerWeight}×`),
 
     // A pending invitation to join a candidate's ticket (e.g. run for VP).
     ((nom) => nom ? el('div', { style: { margin: '0 0 10px', padding: '8px 10px', border: '2px solid var(--line)', borderRadius: '10px', background: '#f7edd0' } },
@@ -5602,7 +5781,7 @@ function electionCard(e, big = false) {
     // mark — and the page goes on holding canon time down on your behalf.
     sealed
       ? el('div', { class: 'tiny green', style: { marginTop: '8px' } },
-        'Submitted and final. It is counted when the polls close.')
+        'Submitted and final. Counted when the polls close.')
       : e.ballots[p?.id]
         ? el('div', { style: { marginTop: '8px' } },
           el('button', {
@@ -5633,7 +5812,7 @@ VIEWS.intrigue = (root) => {
   const canInvestigate = p && (R.hasPower(world, p.id, 'arrest') || R.hasPower(world, p.id, 'strike_law') || R.hasPower(world, p.id, 'impeach'));
 
   root.append(el('h1', { class: 'page' }, 'Intrigue'),
-    el('p', { class: 'sub' }, 'Betrayal is mechanized, not smuggled in through alt accounts. Private rooms are private, but leave a trail.'));
+    el('p', { class: 'sub' }, 'Betrayal is a mechanic, not an alt account. Private rooms are private, but leave a trail.'));
 
   // A spy taken at the border or a rising in the streets is this tab's business,
   // but both only ever appeared on Nation — the sidebar even badged this tab
@@ -5676,7 +5855,7 @@ VIEWS.intrigue = (root) => {
                 ? select([['', 'target…'], ...rosterOptions(world.seats.filter((s) => s.personaId).map((s) => world.personas[s.personaId]).filter(Boolean))], S.spyTarget || '', (v) => (S.spyTarget = v))
                 : null,
               el('button', { class: 'btn sm', onclick: () => go('MISSION', { kind: k, targetId: S.spyTarget }) }, 'run'))))),
-          el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } }, 'If the agent is taken, your name goes in the record. That is the trade.'))
+          el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } }, 'If the agent is taken, your name goes in the record.'))
           : el('div', {},
               el('div', { class: 'row' },
                 el('input', { id: 'cover', placeholder: 'Cover name — “The Courier”', style: { flex: 1 } }),
@@ -5723,7 +5902,7 @@ VIEWS.intrigue = (root) => {
       el('div', { class: 'card' }, el('h3', {}, 'Investigations'),
         canInvestigate
           ? el('button', { class: 'btn primary', style: { width: '100%' }, onclick: () => go('INVESTIGATE', {}) }, 'Open an investigation')
-          : el('div', { class: 'tiny dimmer' }, 'Requires an office with the power to arrest, to try, or to strike.'),
+          : el('div', { class: 'tiny dimmer' }, 'Requires an office with power to arrest, try, or strike.'),
         (world.investigations || []).length ? null : el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } }, 'No investigations opened yet.'),
         // Files still open, and when they report. An investigation with no
         // reporting date is just a rumour with a filing cabinet.
@@ -5801,9 +5980,9 @@ function conspiracyCard(c) {
       el('div', { class: 'bar', style: { margin: '6px 0' } },
         el('i', { style: { width: c.exposure + '%', background: c.exposure > 55 ? 'var(--red)' : 'var(--gold-dim)' } })),
       el('div', { class: 'tiny dim' }, 'In the room: ', c.members.map((m) => world.personas[m]?.name).join(', ')),
-      c.exposed ? el('div', { class: 'blocked', style: { marginTop: '8px' } }, 'Exposed. Everything below is now in the public record.') : null,
+      c.exposed ? el('div', { class: 'blocked', style: { marginTop: '8px' } }, 'Exposed. Everything below is now public record.') : null,
       el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
-        'Every line raises exposure, and may leave a fragment an investigation finds.')),
+        'Every line raises exposure, and may leave a fragment for an investigation.')),
     extra: el('div', { class: 'row', style: { marginTop: '8px' } },
       select([['', 'invite…'], ...rosterOptions(Object.values(world.personas).filter((x) => x.alive && !c.members.includes(x.id)))], '',
         (v) => v && go('CONSPIRE_INVITE', { conId: c.id, personaId: v })),
@@ -5917,7 +6096,7 @@ function bioModal() {
       : null,
     !bio.final
       ? el('div', { class: 'tiny dimmer' },
-        'A legacy is not finished when the presidency is. It is rewritten twelve years after the tenure.')
+        'A legacy is rewritten twelve years after the tenure ends.')
       : null);
 }
 
@@ -6000,13 +6179,12 @@ function chronRow(e, interactive) {
   return row;
 }
 
-// --- Season / moderation ---------------------------------------------------
+// --- Season ----------------------------------------------------------------
 
 VIEWS.season = (root) => {
   const world = w();
-  const mod = myPlayer()?.moderator;
   root.append(el('h1', { class: 'page' }, 'The Season'),
-    el('p', { class: 'sub' }, 'Seasons are designed to end. Collapse is not failure — it is the third act.'));
+    el('p', { class: 'sub' }, 'Seasons are designed to end. Collapse is not failure but the third act.'));
 
   root.append(el('div', { class: 'grid g2' },
     el('div', { class: 'card' }, el('h3', {}, 'This Season'),
@@ -6024,21 +6202,7 @@ VIEWS.season = (root) => {
           p.moderator ? el('span', { class: 'tag purple', style: { marginLeft: '6px' } }, 'moderator') : null),
         el('span', { class: 'tiny dimmer' }, world.personas[p.personaId]?.name))),
       el('div', { class: 'quote', style: { marginTop: '10px' } },
-        'Admin and in-game power are separate. No office grants moderation; nobody can delete the nation.')),
-
-    mod ? el('div', { class: 'card' }, el('h3', {}, 'Moderation — outside the fiction'),
-      el('div', { class: 'row', style: { marginBottom: '10px' } },
-        ...Object.entries(R.CANON).map(([k, v]) =>
-          el('button', { class: 'btn sm' + (world.canon === k ? ' primary' : ' ghost'), onclick: () => go('MOD', { op: 'set_canon', value: k }) }, v.label))),
-      el('label', { class: 'field' }, el('span', {}, 'Ticks per canon year'),
-        el('div', { class: 'small dim', style: { padding: '7px 0' } }, world.clock.ticksPerYear + ' — set at founding, fixed for the Season')),
-      // No event injector, and no collapse toggle. A Season ends two ways: the
-      // table wipes it, or the republic brings it down itself. A moderator button
-      // that fires a crisis on cue, or drops the phase straight to collapse, is a
-      // third way — and it makes the other two mean less, because anything that
-      // happened might have been handed down rather than earned.
-      el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
-        'The director paces the Season. It ends when the table wipes it, or the republic collapses.')) : null,
+        'No office grants moderation, and nobody can delete the nation.')),
 
     tableCard(),
 
@@ -6100,7 +6264,7 @@ function tableCard() {
         title: solo ? 'Wipe this Season?' : 'Move to wipe this Season?',
         body: solo
           ? `${world.nation} — ${world.chronicle.length} recorded acts — will be erased from every open tab. Download the chronicle first to keep it.`
-          : `This puts it to the table. ${Math.floor(active.length / 2) + 1} of ${active.length} active players must agree before anything is erased.`,
+          : `This puts it to the table: ${Math.floor(active.length / 2) + 1} of ${active.length} active players must agree before anything is erased.`,
         label: solo ? 'Wipe it' : 'Put it to the table', danger: true,
         // Solo needs no table vote: the dialog is the one and only confirmation,
         // so wipe immediately rather than making the player press a second button.
@@ -6113,8 +6277,8 @@ function tableCard() {
           onclick: () => ask({
             title: solo ? 'End the Season?' : 'Move to end the Season?',
             body: solo
-              ? 'The world stops and the record closes. It stays browsable and exportable.'
-              : `This puts it to the table. ${Math.floor(active.length / 2) + 1} of ${active.length} active players must agree. The record is kept.`,
+              ? 'The world stops and the record closes, still browsable and exportable.'
+              : `This puts it to the table: ${Math.floor(active.length / 2) + 1} of ${active.length} active players must agree. The record is kept.`,
             label: solo ? 'End it' : 'Put it to the table', danger: true,
             input: { label: 'Epitaph (optional)', placeholder: 'It was always going to end like this.', multiline: true },
             onConfirm: (ep) => go('TABLE_MOTION', { kind: 'end', payload: { epitaph: ep } }),
@@ -6201,8 +6365,8 @@ function chatCard(channel, titleOverride) {
   const titles = {
     floor: 'The floor',
     oval: 'Oval Office — private',
-    cloakroom: 'The Cloakroom — the chamber only',
-    cloakroom_upper: 'The Cloakroom — the chamber only',
+    cloakroom: 'The House Cloakroom — the House only',
+    cloakroom_upper: 'The Senate Cloakroom — the Senate and the chair',
     mansion: 'The Mansion — the Vice President and guests',
     // A department is no longer only its two keyholders; either of them can ask
     // somebody in, and whoever is in the building can hear the room.
@@ -6381,7 +6545,15 @@ function inaugurationModal() {
   return el('div', { class: 'inaug' },
     // The tableau is rasterised in scene.js now, on the same grid and out of the
     // same seasonal palette as the room the new President is about to walk into.
-    el('div', { class: 'inaug-scene', html: SC.inaugurationScene(world, head?.gender || 'x') }),
+    // The colours the building is dressed in are the incoming administration's
+    // — the party of whoever is taking the oath, which at the founding is the
+    // chair you chose your side for at the convention. A president who sits
+    // independent is sworn in under the national flag alone.
+    el('div', {
+      class: 'inaug-scene',
+      html: SC.inaugurationScene(world, head?.gender || 'x',
+        PARTIES.find((x) => x.id === head?.party)?.color || null),
+    }),
     el('div', { class: 'inaug-kicker' }, founding ? 'The founding of' : 'A new administration of'),
     el('h1', { class: 'inaug-nation' }, world.nation),
     el('div', { class: 'inaug-sub serif' }, world.constitution.name + (canon ? ' · ' + canon.label : '')),
@@ -6429,7 +6601,7 @@ function inaugurationModal() {
         markInaugurated(world); S.inaugLine = null; S.modal = null; CTX.rerender(true);
       } }, iAmHead ? 'Take office' : 'Enter the republic')
       : el('div', { class: 'inaug-wait tiny dimmer', style: { marginTop: '18px' } },
-        `Waiting on ${head.name} to take the oath. The calendar has not started; nothing happens without you.`));
+        `Waiting on ${head.name} to take the oath. The calendar has not started.`));
 }
 
 function personaModal() {
@@ -6504,7 +6676,7 @@ function joinModal() {
 
   return el('div', {},
     el('h2', {}, 'Take a seat'),
-    el('p', { class: 'sub' }, 'Each browser tab is one player. Open another to bring someone else to the table.'),
+    el('p', { class: 'sub' }, 'Each browser tab is one player. Open another to bring someone else in.'),
     shown ? el('div', { class: 'blocked', style: { marginBottom: '10px' } }, shown) : null,
     el('label', { class: 'field' }, el('span', {}, 'Your name'), input),
     el('div', { class: 'tiny dimmer', style: { margin: '-4px 0 10px' } },

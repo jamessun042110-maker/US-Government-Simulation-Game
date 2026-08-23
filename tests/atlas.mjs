@@ -5,7 +5,7 @@
 
 import {
   P, unP, US_RING, STATES, BORDER_CA, BORDER_MX, FOUR_CORNERS,
-  ringsAt, CONTINENT_RING, CANADA_RING, MEXICO_RING,
+  ringsAt, CONTINENT_RING, CANADA_RING, MEXICO_RING, codeOf, postalOf,
 } from '../js/atlas.js';
 import { area, centroid, bounds, inPoly, WORLD_W, WORLD_H } from '../js/geo.js';
 
@@ -238,6 +238,23 @@ ok(LAND.length > 2000, 'the continent samples enough ground to measure', `${LAND
   // find the ground the state is standing on.
   const off = STATES.filter((s) => !inPoly(centroid(s.poly), CONTINENT_RING));
   ok(off.length === 0, 'every state stands on the continent', off.map((s) => s.id).join(', ') || 'all twenty');
+}
+
+{
+  // A state abbreviation is two letters, and the twenty are the only states
+  // there are — so uniqueness among the twenty is the whole requirement. It has
+  // to hold, because `assignDistrictSeats` numbers congressional districts off
+  // the code and two states sharing one would hand out two TX-1s.
+  const codes = STATES.map((s) => s.code);
+  ok(codes.every((c) => /^[A-Z]{2}$/.test(c)), 'every state code is two capital letters',
+    codes.filter((c) => !/^[A-Z]{2}$/.test(c)).join(', ') || codes.join(' '));
+  ok(new Set(codes).size === codes.length, 'and no two states share one',
+    codes.filter((c, i) => codes.indexOf(c) !== i).join(', ') || 'twenty distinct');
+  // The six states that were not merged keep their own real postal code.
+  const whole = STATES.filter((s) => s.merged.length === 1);
+  const wrong = whole.filter((s) => codeOf(s) !== postalOf(s)[0]);
+  ok(wrong.length === 0, 'an unmerged state keeps its real postal code',
+    wrong.map((s) => `${s.name} ${s.code}`).join(', ') || whole.map((s) => s.code).join(' '));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

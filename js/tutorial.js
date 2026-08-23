@@ -17,9 +17,9 @@ const tab = (t) => el('span', { class: 'tut-tab' }, t);
 
 const PAGES = [
   {
-    title: 'Welcome to the Union',
+    title: 'Welcome to State of the Union',
     body: () => [
-      el('p', {}, 'A persistent nation you found, govern and betray each other over. Tens of thousands of simulated citizens live in it, and vote.'),
+      el('p', {}, 'A persistent United States you found, govern and betray each other over. Three hundred million simulated citizens live in it, and vote.'),
       el('ul', {},
         el('li', {}, el('b', {}, 'Each browser tab is one player.'), ' Open another and a seat appears.'),
         el('li', {}, el('b', {}, 'Time runs on its own.'), ' One second is one tick, and things happen whether you act or not.'),
@@ -29,11 +29,11 @@ const PAGES = [
   {
     title: 'The rules are the game',
     body: () => [
-      el('p', {}, 'The rules you write are the rules the engine enforces. If spending over $10M needs 3/5 of the Assembly, Disburse fails until that vote exists.'),
+      el('p', {}, 'The rules you write are the rules the engine enforces. If spending over $1B needs a majority of the House, Disburse fails until that vote exists.'),
       el('p', {}, 'Every consequential act — a tax, a war, a pardon — is a clause in a document: prose ', el('i', {}, 'and'), ' executable effect. When it passes, the clauses happen.'),
       el('ul', {},
-        el('li', {}, 'Draft one in ', tab('Assembly'), ' tab, add clauses, and table it.'),
-        el('li', {}, 'Its threshold comes from its cost and the constitution.'),
+        el('li', {}, 'Draft one in ', tab('Congress'), ', add clauses, and table it.'),
+        el('li', {}, 'A bill passes the House, then the Senate. Both, or it is nothing.'),
         el('li', {}, 'Amendments change the rules mid-Season. Write them carefully.')),
     ],
   },
@@ -42,22 +42,23 @@ const PAGES = [
     body: () => [
       el('p', {}, 'The sidebar, one line each. A badge means something wants you.'),
       el('ul', {},
-        el('li', {}, tab('Nation'), ' approval, treasury, districts, crises.'),
-        el('li', {}, tab('Assembly'), ' where documents are debated and voted.'),
-        el('li', {}, tab('Treasury'), ' the ledger, taxes, and disbursements.'),
-        el('li', {}, tab('City'), ' the parcel map: zoning and building.'),
+        el('li', {}, tab('Nation'), ' approval, treasury, states, crises.'),
+        el('li', {}, tab('Congress'), ' where documents are debated and voted.'),
+        el('li', {}, tab('Domestic'), ' the parcel map: zoning and building.'),
+        el('li', {}, tab('World'), ' neighbours, hostility, treaties and war.'),
         el('li', {}, tab('Press'), ' found a paper, publish, sway opinion.'),
         el('li', {}, tab('Offices'), ' who holds what power.'),
         el('li', {}, tab('Intrigue'), ' conspiracies, spies, suits, uprisings. Private.'),
         el('li', {}, tab('Chronicle'), ' the permanent record.'),
-        el('li', {}, tab('Season'), ' clock speed, pauses, and ending it.')),
+        el('li', {}, tab('Season'), ' the clock, the table, and ending it.')),
+      el('p', { class: 'tiny dimmer' }, 'Rooms appear above these when an office opens their door.'),
     ],
   },
   {
     title: 'The world reacts',
     body: () => [
-      el('p', {}, 'The ~24,000 citizens aren’t scenery: income, jobs, housing and mood per district. Pass a housing act and homelessness falls when the building opens, not when the vote does.'),
-      el('p', {}, el('b', {}, 'Press:'), ' found a paper and publish. A story citing the Chronicle hits harder and builds credibility; an uncited smear costs you.'),
+      el('p', {}, 'The citizenry is not scenery: income, jobs, housing and mood, state by state, seeded from the real country. Pass a housing act and homelessness falls when the building opens, not when the vote does.'),
+      el('p', {}, el('b', {}, 'Press:'), ' found a paper and publish. A story citing the Chronicle hits harder; an uncited smear costs you.'),
       el('p', {}, el('b', {}, 'Intrigue:'), ' conspiracy rooms are private, but every message adds to the exposure trail. Uprisings turn on real support — allegiance, offices, arms.'),
     ],
   },
@@ -72,10 +73,10 @@ const PAGES = [
     title: 'Your first ten minutes',
     body: () => [
       el('ul', {},
-        el('li', {}, 'Read the constitution in ', tab('Offices'), ' — it tells you who can do what.'),
+        el('li', {}, 'Read the constitution in ', tab('Offices'), ' — it says who can do what.'),
         el('li', {}, 'Check ', tab('Nation'), ' for crises — they have deadlines and resolve against you if ignored.'),
-        el('li', {}, 'Stand when an election opens — it stops the clock and asks everyone — or be useful to someone who does.'),
-        el('li', {}, 'Draft your first document in ', tab('Assembly'), ' — something small.'),
+        el('li', {}, 'Stand when an election opens, or be useful to someone who does.'),
+        el('li', {}, 'Draft your first document in ', tab('Congress'), ' — something small.'),
         el('li', {}, 'Talk. The floor chat is where deals happen.')),
       el('p', {}, 'Reopen this any time with ', el('b', {}, '"? How to play"'), ' in the header. Good luck — the Chronicle is watching.'),
     ],

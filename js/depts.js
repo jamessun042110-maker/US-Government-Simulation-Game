@@ -64,14 +64,14 @@ export function recallLeft(world, e) {
 
 /** Ask a foreign power to send its ambassador to the department. */
 export function receive(world, personaId, foreignId) {
-  if (!R.mayEnterDept(world, personaId, 'state')) return { ok: false, reason: 'The Department of State is not open to you.' };
+  if (!R.mayEnterDept(world, personaId, 'state')) return { ok: false, reason: 'The Department of State is closed to you.' };
   const f = byId(world.foreign, foreignId);
   if (!f) return { ok: false, reason: 'No such power.' };
   const e = envoys(world)[foreignId];
   if (audienceOpen(world, e)) return { ok: false, reason: `${e.name} is already in the building.` };
-  if (f.atWar) return { ok: false, reason: `${f.name} is at war with us. Their delegation went home the day it was declared.` };
+  if (f.atWar) return { ok: false, reason: `${f.name} is at war with us. Their delegation went home that day.` };
   const left = recallLeft(world, e);
-  if (left > 0) return { ok: false, reason: `${f.name} will not send anyone back yet. The last audience was too recent.` };
+  if (left > 0) return { ok: false, reason: `${f.name} will not send anyone back — the last audience was too recent.` };
   e.received = world.clock.tick;
   log(world, 'office', `${e.name} of ${f.name} is received at the Department of State.`, { actors: [personaId], weight: 1 });
   return { ok: true, value: e };
@@ -104,19 +104,19 @@ export const APPROACHES = {
       // told, in plain words, how close a foreign power actually is to moving.
       const h = f.hostility;
       const read = h >= 75 ? 'They do not bother to deny it. This is a country looking for a pretext.'
-        : h >= 55 ? 'The denials are thin and the ambassador is embarrassed by them. They are preparing something.'
-          : h >= 35 ? 'Cool, correct, unwilling to give ground. No plan yet, and no goodwill.'
-            : 'Genuinely puzzled by the question. Whatever is coming, it is not coming from them.';
+        : h >= 55 ? 'The denials are thin and the ambassador embarrassed. They are preparing something.'
+          : h >= 35 ? 'Cool, correct, unwilling to give ground. No plan yet, no goodwill.'
+            : 'Genuinely puzzled. Whatever is coming is not coming from them.';
       return `${e0(f)} ${read}`;
     },
   },
   terms: {
     label: 'Offer terms',
-    cost: 8e6,
+    cost: 8e9,
     blurb: 'Aid, tariff relief, a border commission. Expensive, and it works.',
     apply: (world, f) => {
       f.hostility = clamp(f.hostility - 22, 0, 100);
-      return `${f.name} accepts the terms. The hostility of the last decade is bought down a decade's worth.`;
+      return `${f.name} accepts the terms. A decade of hostility is bought down.`;
     },
   },
 };
@@ -124,14 +124,14 @@ export const APPROACHES = {
 const e0 = (f) => `${f.name}:`;
 
 export function talk(world, personaId, foreignId, kind) {
-  if (!R.mayEnterDept(world, personaId, 'state')) return { ok: false, reason: 'The Department of State is not open to you.' };
+  if (!R.mayEnterDept(world, personaId, 'state')) return { ok: false, reason: 'The Department of State is closed to you.' };
   const a = APPROACHES[kind];
   if (!a) return { ok: false, reason: 'No such approach.' };
   const f = byId(world.foreign, foreignId);
   const e = envoys(world)[foreignId];
   if (!f || !e) return { ok: false, reason: 'No such power.' };
-  if (!audienceOpen(world, e)) return { ok: false, reason: `${e ? e.name : 'The ambassador'} is not in the building. Ask them to come in first.` };
-  if (e.spoke) return { ok: false, reason: 'That audience has had its business. Ask them back another time.' };
+  if (!audienceOpen(world, e)) return { ok: false, reason: `${e ? e.name : 'The ambassador'} is not in the building. Ask them in first.` };
+  if (e.spoke) return { ok: false, reason: 'That audience is done. Ask them back another time.' };
   if (a.cost) {
     // Money offered across a table is money out of the treasury, and it goes
     // through the same gate as any other disbursement: the constitution's
@@ -174,7 +174,7 @@ export function maySummon(world, personaId, foreignId) {
   // the head of state would hold none of their powers for the rest of the game
   // — found by walking into exactly that state while testing.
   if (world.phase !== 'live') {
-    return { ok: false, reason: 'The republic has not begun. There is nobody to visit yet.' };
+    return { ok: false, reason: 'The republic has not begun. Nobody to visit yet.' };
   }
   const head = R.headOffice(world);
   if (!head || !R.officesOf(world, personaId).some((o) => o.id === head.id)) {
@@ -188,7 +188,7 @@ export function maySummon(world, personaId, foreignId) {
   }
   const y = year(world);
   if (lastSummit(world, personaId) === y) {
-    return { ok: false, reason: `You have already spent a week abroad this year. The next is Yr ${y + SUMMIT_YEARS}.` };
+    return { ok: false, reason: `You have already spent a week abroad this year. Next is Yr ${y + SUMMIT_YEARS}.` };
   }
   return { ok: true, foreign: f, weeks: R.summitTicks(world) };
 }
@@ -244,7 +244,7 @@ export function tickSummit(world) {
 
 /** Show the ambassador out — ends the audience early and starts the recall clock. */
 export function dismiss(world, personaId, foreignId) {
-  if (!R.mayEnterDept(world, personaId, 'state')) return { ok: false, reason: 'The Department of State is not open to you.' };
+  if (!R.mayEnterDept(world, personaId, 'state')) return { ok: false, reason: 'The Department of State is closed to you.' };
   const e = envoys(world)[foreignId];
   if (!e || !audienceOpen(world, e)) return { ok: false, reason: 'Nobody is waiting.' };
   closeAudience(world, e);
@@ -314,7 +314,7 @@ export function planFor(world, foreignId) {
 }
 
 export function draftPlan(world, personaId, foreignId, posture) {
-  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is not open to you.' };
+  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is closed to you.' };
   const f = byId(world.foreign, foreignId);
   if (!f) return { ok: false, reason: 'No such power.' };
   if (!POSTURES[posture]) return { ok: false, reason: 'No such posture.' };
@@ -328,7 +328,7 @@ export function draftPlan(world, personaId, foreignId, posture) {
  * Raise divisions. Costs money and time to matter — the money now, the time
  * because a division raised this tick fights as badly as one raised this tick.
  */
-export const DIVISION_COST = 6e6;
+export const DIVISION_COST = 6e10;
 
 /**
  * How long a division takes to exist after it is paid for.
@@ -346,7 +346,7 @@ export const formingCount = (world) =>
   (world.military?.forming || []).reduce((n, f) => n + (f.count || 0), 0);
 
 export function mobilize(world, personaId, n) {
-  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is not open to you.' };
+  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is closed to you.' };
   const count = Math.max(1, Math.min(6, Math.round(+n || 1)));
   const cost = count * DIVISION_COST;
   // An army is bought with public money. $6M a division is well over any
@@ -366,7 +366,7 @@ export function mobilize(world, personaId, n) {
     ready: world.clock.tick + FORMATION_TICKS,
   });
   log(world, 'war', `${count} division${count === 1 ? '' : 's'} ordered, at ${moneyExact(cost)}. `
-    + `They muster and drill; expect them in the field in ${FORMATION_TICKS} ticks.`,
+    + `They muster and drill; in the field in ${FORMATION_TICKS} ticks.`,
   { actors: [personaId], weight: 2 });
   return { ok: true };
 }
@@ -377,15 +377,15 @@ export function mobilize(world, personaId, n) {
 // line. $900k is an ordinary disbursement, not a matter for the chamber the way a
 // $6M division is; and they are the first into the ground when the shooting starts
 // (see sim.tickWar), which is the other half of what "volunteer" means here.
-export const VOLUNTEER_COST = 9e5;
+export const VOLUNTEER_COST = 9e8;
 export const VOLUNTEER_STRENGTH = 0.1;
 
 export function mobilizeVolunteers(world, personaId, n) {
-  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is not open to you.' };
+  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is closed to you.' };
   // Volunteers are raised for a war, not kept as a standing force — and they are
   // disbanded when it ends (sim.tickWar). No war, no call to arms.
   const atWar = (world.military.wars || []).some((w) => world.foreign.find((f) => f.id === w.foreign)?.atWar);
-  if (!atWar) return { ok: false, reason: 'Volunteers are called up for a war. There is no war to raise them for.' };
+  if (!atWar) return { ok: false, reason: 'There is no war to raise volunteers for.' };
   const count = Math.max(1, Math.min(10, Math.round(+n || 1)));
   const cost = count * VOLUNTEER_COST;
   const gate = A.disburseGate(world, personaId, cost);
@@ -393,7 +393,7 @@ export function mobilizeVolunteers(world, personaId, n) {
   world.economy.treasury -= cost;
   A.noteDiscretion(world, cost, gate, personaId, `${count} volunteer division(s)`);
   world.military.volunteers = (world.military.volunteers || 0) + count;
-  log(world, 'war', `${count} volunteer division${count === 1 ? '' : 's'} raised, at ${moneyExact(cost)} — a tenth the strength of the regular line, each.`, { actors: [personaId], weight: 2 });
+  log(world, 'war', `${count} volunteer division${count === 1 ? '' : 's'} raised, at ${moneyExact(cost)} — a tenth the strength of the line, each.`, { actors: [personaId], weight: 2 });
   return { ok: true };
 }
 
@@ -401,7 +401,7 @@ export function mobilizeVolunteers(world, personaId, n) {
 // ways: it adds to the weight the army fights at (air superiority over the front),
 // and it can be flown against an enemy's cities directly, which is what wears a
 // country's will to fight down fastest.
-export const AIRWING_COST = 8e6;
+export const AIRWING_COST = 8e10;
 export const AIR_COMBAT = 0.4;       // each wing's air-superiority weight in the line
 export const BOMB_COOLDOWN = 6;      // ticks a wing needs to refuel and rearm between raids
 export const BOMB_EXHAUSTION = 0.05; // enemy war-weariness a raid adds per wing flown
@@ -410,7 +410,7 @@ export const BOMB_FLAK = 0.12;       // chance a raid costs a wing to the enemy'
 const AIR_SORTIE_CAP = 6;            // most wings that fly one raid
 
 export function commissionAir(world, personaId, n) {
-  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is not open to you.' };
+  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is closed to you.' };
   const count = Math.max(1, Math.min(6, Math.round(+n || 1)));
   const cost = count * AIRWING_COST;
   const gate = A.disburseGate(world, personaId, cost);
@@ -469,16 +469,16 @@ export const BEACHHEAD_RAMP = 40;
  * as it establishes itself (see sim.tickWar, which reads the ramp).
  */
 export function landAllies(world, personaId, foreignId) {
-  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is not open to you.' };
+  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is closed to you.' };
   const f = byId(world.foreign, foreignId);
   if (!f || !f.atWar) return { ok: false, reason: 'You are not at war with them.' };
   const war = liveWar(world, foreignId);
-  if (!war) return { ok: false, reason: 'There is no live war on that front.' };
+  if (!war) return { ok: false, reason: 'No live war on that front.' };
   if (war.landing) return { ok: false, reason: `${byId(world.foreign, war.landing.ally)?.name || 'An ally'} already has a force ashore there.` };
   const ally = (world.foreign || []).find((a) => a.allied && !a.atWar && a.id !== foreignId);
-  if (!ally) return { ok: false, reason: 'No overseas ally is in a position to land a force.' };
+  if (!ally) return { ok: false, reason: 'No overseas ally can land a force.' };
   war.landing = { ally: ally.id, since: world.clock.tick || 1 };
-  log(world, 'war', `${ally.name} lands a force in ${f.name}'s own territory — weak against the defences at first, and stronger as it digs in.`, { actors: [personaId], weight: 3 });
+  log(world, 'war', `${ally.name} lands a force in ${f.name}'s own territory — weak against the defences at first, stronger as it digs in.`, { actors: [personaId], weight: 3 });
   return { ok: true, ally: ally.id };
 }
 
@@ -490,15 +490,15 @@ export function landingRamp(world, war) {
 
 /** Fly a bombing raid over an enemy at war: wears their will down and their army with it. */
 export function bomb(world, personaId, foreignId) {
-  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is not open to you.' };
+  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is closed to you.' };
   const wings = world.military.airforce || 0;
-  if (wings < 1) return { ok: false, reason: 'There is no air force to fly the raid — commission one first.' };
+  if (wings < 1) return { ok: false, reason: 'No air force to fly the raid — commission one first.' };
   const f = byId(world.foreign, foreignId);
   if (!f || !f.atWar) return { ok: false, reason: 'You are not at war with them.' };
   const war = liveWar(world, foreignId);
-  if (!war) return { ok: false, reason: 'There is no live war on that front.' };
+  if (!war) return { ok: false, reason: 'No live war on that front.' };
   if (war.bombedAt != null && world.clock.tick - war.bombedAt < BOMB_COOLDOWN) {
-    return { ok: false, reason: 'The wings are refuelling and rearming from the last raid. Give them a day or two.' };
+    return { ok: false, reason: 'The wings are refuelling from the last raid. Give them a day or two.' };
   }
   war.bombedAt = world.clock.tick || 1;
   const sortie = Math.min(wings, AIR_SORTIE_CAP);
@@ -507,7 +507,7 @@ export function bomb(world, personaId, foreignId) {
   const lost = chance(world, BOMB_FLAK) ? 1 : 0;
   if (lost) world.military.airforce = Math.max(0, wings - 1);
   log(world, 'war', `Air wings strike ${f.name}'s cities${lost ? ' — one is lost to flak' : ''}. `
-    + `Their army is down to ${Math.round(f.strength)}, and their people's stomach for the war wears thinner.`,
+    + `Their army is down to ${Math.round(f.strength)}, and their stomach for the war wears thinner.`,
     { actors: [personaId], weight: 2 });
   return { ok: true, lostWing: lost };
 }
@@ -548,15 +548,15 @@ export const volunteersHome = (world) =>
  * is actually fighting — there is no front to send them to otherwise.
  */
 export function sendVolunteers(world, personaId, foreignId, n) {
-  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is not open to you.' };
+  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is closed to you.' };
   const f = byId(world.foreign, foreignId);
   if (!f) return { ok: false, reason: 'No such power.' };
-  if (!f.atWar) return { ok: false, reason: `${world.nation} is not at war with ${f.name}. There is no front to send them to.` };
+  if (!f.atWar) return { ok: false, reason: `${world.nation} is not at war with ${f.name}. No front to send them to.` };
   const want = Math.max(0, Math.round(+n || 0));
   const elsewhere = volunteersCommitted(world) - volunteersAt(world, foreignId);
   const total = world.military.volunteers || 0;
   if (want + elsewhere > total) {
-    return { ok: false, reason: `There are ${total} volunteer division(s) and ${elsewhere} are already at another front.` };
+    return { ok: false, reason: `There are ${total} volunteer division(s), ${elsewhere} already at another front.` };
   }
   const before = volunteersAt(world, foreignId);
   volunteerFront(world)[foreignId] = want;
@@ -571,7 +571,7 @@ export function sendVolunteers(world, personaId, foreignId, n) {
 
 /** Put divisions on a border, or take them off it. */
 export function deploy(world, personaId, foreignId, n) {
-  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is not open to you.' };
+  if (!R.mayEnterDept(world, personaId, 'defense')) return { ok: false, reason: 'The Department of Defense is closed to you.' };
   const f = byId(world.foreign, foreignId);
   if (!f) return { ok: false, reason: 'No such power.' };
   const want = Math.max(0, Math.round(+n || 0));
@@ -815,7 +815,7 @@ export function weighAssent(world, doc) {
   // country at peace has no business signing. Both are refused the wrong way
   // round: only-at-war for peace, only-at-peace for the others.
   if (t.kind === 'TREATY_PEACE') {
-    if (!f.atWar) return { ok: false, reason: `${world.nation} is not at war with ${f.name}. There is no war to end.` };
+    if (!f.atWar) return { ok: false, reason: `${world.nation} is not at war with ${f.name}. No war to end.` };
     // Their willingness follows the ground. The front is signed from *our*
     // point of view — positive means we are winning, so they want to stop —
     // and negative means they are winning, so they are not looking to. Map
@@ -832,13 +832,13 @@ export function weighAssent(world, doc) {
     return { chance: clamp(p, 0.02, 0.98), foreign: f, reasons };
   }
 
-  if (f.atWar) return { ok: false, reason: `${f.name} is at war with ${world.nation}. There is nothing to discuss.` };
+  if (f.atWar) return { ok: false, reason: `${f.name} is at war with ${world.nation}. Nothing to discuss.` };
 
   if (refusing(world, f)) {
     return {
       ok: false,
       reason: `${f.name} turned this down inside the last ${REFUSAL_YEARS} years and will not be `
-        + 'asked again yet. Move the hostility and come back.',
+        + 'asked again yet. Move the hostility first.',
     };
   }
   // Hostility past the point where there is anything to talk about. A hard
@@ -849,7 +849,7 @@ export function weighAssent(world, doc) {
     return {
       ok: false,
       reason: `${f.name} reads ${world.nation} as an enemy — hostility ${Math.round(f.hostility)}. `
-        + 'There is nothing to sign until that comes down.',
+        + 'Nothing to sign until that comes down.',
     };
   }
 

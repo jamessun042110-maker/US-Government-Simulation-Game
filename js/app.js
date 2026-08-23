@@ -31,20 +31,24 @@ let introSeen = false; // the title screen shows once, before the founding setup
 let founderAge = 35, founderGender = 'm', founderCollege = 'harborlight';
 
 /**
- * The offices an age shuts you out of, in a sentence, with the year each opens.
+ * The offices an age shuts you out of, in a sentence, with each one's floor.
  *
  * Empty at 35 and above, which is the point: the default founder is eligible
  * for everything and sees nothing, and the line only appears when it has
  * something to say.
+ *
+ * It says "at the beginning of the game" rather than counting down the years,
+ * because the countdown was wrong the moment the convention edited an age floor
+ * and it invited the reader to plan around a date instead of reading a number.
  */
 function ageBarsText(age) {
   const barred = officesBarredAt(age);
   if (!barred.length) return '';
-  const parts = barred.map((o) => `${o.name} (${o.minAge}, in ${o.minAge - age}yr)`);
+  const parts = barred.map((o) => `${o.name} (${o.minAge})`);
   const list = parts.length > 1
     ? parts.slice(0, -1).join(', ') + ' and ' + parts.at(-1)
     : parts[0];
-  return `At ${age} you cannot hold: ${list}. You age into them as the Season runs.`;
+  return `At ${age} you cannot hold: ${list} at the beginning of the game.`;
 }
 // Where the founder is from. Defaults to the first region on the map rather than
 // to a favourite: any default here is a thumb on the scale for one state's
@@ -385,7 +389,7 @@ function buildShell() {
 const cfg = {
   nation: 'The United States', seasonName: 'Season I', templateId: 'federal-republic',
   // Founding canon, no longer asked for at setup — see the archived chooser below.
-  canon: 'cold', ticksPerYear: 240, districtCount: 6, seedPop: 24000, treasury: 60e6,
+  canon: 'cold', ticksPerYear: 240, districtCount: 6, seedPop: 331e6, treasury: 700e9,
 };
 
 // Built exactly once. Selecting a template or a canon dial updates the chosen
@@ -410,7 +414,13 @@ function renderIntro() {
     // -webkit-text-stroke, which at some window widths landed between two of
     // the scene's pixels and read as a smear across the middle of the letters.
     el('div', { class: 'intro-inner' },
-      el('div', { class: 'intro-mark', html: pixText('THE UNION', { ink: '#f4e0a8', edge: '#141414', gap: 3 }) }),
+      // Two lines, not one. "STATE OF THE UNION" set on one line at the width
+      // the old nine-letter mark had is a four-pixel-tall letter — a smear at
+      // any window size. Stacked, the long line sets the width and "UNION"
+      // fills it, which is how a title card of unequal words is drawn anyway.
+      el('div', { class: 'intro-mark' },
+        el('div', { class: 'intro-mark-top', html: pixText('STATE OF THE', { ink: '#f4e0a8', edge: '#141414', gap: 3 }) }),
+        el('div', { class: 'intro-mark-main', html: pixText('UNION', { ink: '#f4e0a8', edge: '#141414', gap: 3 }) })),
       el('div', { class: 'intro-tag' }, 'A United States, governed by you'),
       // Red, white and blue, under the wordmark. The scene behind it flies two
       // flags off the Capitol; this is the same statement in the type.
@@ -497,9 +507,8 @@ function renderSetup() {
       age: founderAge, gender: founderGender, college: founderCollege, homeState: founderState,
       // A player's own persona is not dealt a party the way the other 24,000
       // are. makePersona rolls one off the world's seeded RNG, so which side
-      // you woke up on was a coin flip you never saw tossed — and you would
-      // find out from a chip beside your name on the Offices tab. Start
-      // everybody on the same side of the aisle and let them cross it there.
+      // you woke up on was a coin flip you never saw tossed. This is only the
+      // button that starts selected: the next screen asks, beside the chair.
       party: 'liberal',
     });
     net.publish(world);
@@ -548,14 +557,14 @@ function renderSetup() {
     // What that age costs you, said before you found a republic and discover it
     // at the convention. The constitution sets 25 for the House, 30 for the
     // Senate and 35 for both halves of the executive — so a founder who types
-    // 26 is choosing, without being told, to spend nine years out of the only
-    // chair most tables actually want. It is not an error and does not block
-    // anything: you age into every one of them, and the line says when.
+    // 26 is choosing, without being told, to spend years out of the only chair
+    // most tables actually want. It is not an error and does not block anything:
+    // you age into every one of them, and the convention can move the floors.
     el('div', { id: 'ageBars', class: 'tiny', style: { color: 'var(--red)', marginTop: '-2px' } },
       ageBarsText(founderAge)),
     el('div', { class: 'stack', style: { marginTop: '8px' } },
       el('div', { class: 'tiny dimmer' },
-        'Where you read. A grander college opens with more goodwill and a steadier treasury, but hands the press a stick — and it has fewer alumni in the chamber to find you a friendly vote.'),
+        'Where you read. A grander college opens with more goodwill and a steadier treasury, but hands the press a stick, and has fewer alumni in the chamber to find you a vote.'),
       ...collegeCards),
     // Submit, on a panel whose fields are already live. It commits nothing that
     // was not already committed — every control here writes straight through, so
@@ -601,15 +610,15 @@ function renderSetup() {
       // so the field may as well be denominated in the unit they already have.
       el('label', { class: 'field' }, el('span', {}, 'Seconds per year'),
         el('input', { type: 'number', value: cfg.ticksPerYear, oninput: (e) => (cfg.ticksPerYear = clamp(+e.target.value, 20, 3000)) })),
-      el('label', { class: 'field' }, el('span', {}, 'Citizens'),
-        el('input', { type: 'number', step: 1000, value: cfg.seedPop, oninput: (e) => (cfg.seedPop = clamp(+e.target.value, 2000, 4000000)) }))),
+      el('label', { class: 'field' }, el('span', {}, 'Population'),
+        el('input', { type: 'number', step: 1e6, value: cfg.seedPop, oninput: (e) => (cfg.seedPop = clamp(+e.target.value, 1e6, 2e9)) }))),
     el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
-      'One real second is one canon day\u2019s worth of clock. At 120 a year, a Season spans a generation.'));
+      'One real second is one canon day. At 120 a year, a Season spans a generation.'));
 
   const body = [
     el('h1', { class: 'page' }, 'Found the republic'),
     el('div', { class: 'tricolour left' }, el('i', {}), el('i', {}), el('i', {})),
-    el('p', { class: 'sub' }, 'Say who you are and where you are from, and convene. Everything else about the republic is argued at the convention.'),
+    el('p', { class: 'sub' }, 'Say who you are and where you are from, then convene. You take your chair and pick your party on the next screen.'),
     el('div', { class: 'card' },
       // The nation is not a field any more. It was one when the country was
       // invented and you named it; this is the United States in every Season, so
@@ -670,7 +679,7 @@ function renderSetup() {
         onclick: () => { setShowAdvanced(!showAdvanced); rebuild(); },
       }, showAdvanced ? 'Hide advanced options' : 'Show advanced options'),
       el('span', { class: 'tiny dimmer' }, showAdvanced
-        ? 'Age, college, gender, clock speed and population. Every one has a sensible default.'
+        ? 'Age, college, gender, clock speed and population. All have sensible defaults.'
         // Read off the live values rather than repeated as literals. The line
         // said "age 45, Northgate" for as long as those were the defaults and
         // would have gone on saying it afterwards — a summary that is a copy of
@@ -678,9 +687,9 @@ function renderSetup() {
         : `Founding on: age ${founderAge}, ${founderCollegeName()}, `
           + `${cfg.ticksPerYear} seconds a year, ${cfg.seedPop.toLocaleString()} citizens.`)),
     el('p', { class: 'small dim', style: { margin: '16px 0 10px' } },
-      'At the convention every founder takes a chair and argues the document line by line. The Season begins when every seated founder readies up.'),
+      'Every founder takes a chair and a side. The government is the one the Constitution sets out — a table that wants to argue the document line by line still can. The Season begins when every seated founder readies up.'),
     el('button', { class: 'btn primary', style: { width: '100%' }, onclick: convene },
-      'Convene the constitutional convention'),
+      'Convene the government'),
     // At the foot, under the way forward. A back link above the page title is
     // the first thing the eye lands on, which is an odd thing to offer somebody
     // who has just arrived and has not read what the page is for yet.

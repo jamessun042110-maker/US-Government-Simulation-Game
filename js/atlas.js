@@ -294,6 +294,44 @@ export const CANADA_RING = FOUNDED.canada;
 export const MEXICO_RING = FOUNDED.mexico;
 
 /**
+ * Central America — the isthmus, from the Guatemalan border down to Colombia.
+ *
+ * **Nobody holds this.** It is scenery, and it is deliberately not part of
+ * `CONTINENT_RING`: the engine counts land shares as
+ * `canada ? canada : mexico ? mexico : us`, so any ground added to the continent
+ * that neither neighbour positively claims becomes the United States. An isthmus
+ * that quietly annexed itself to us the moment it was drawn is worse than no
+ * isthmus, so this ring lives outside the territory system entirely and only the
+ * map reads it.
+ *
+ * It is here because the continent used to stop dead at the Guatemalan border
+ * with twenty-four units of empty sea under it — a blunt polygon edge in open
+ * water, which reads as a drawing that was not finished rather than as a country
+ * that ends. A frame edge reads as "the map continues"; a straight cut in the
+ * middle of the ocean does not. So the land now runs off the bottom of the
+ * frame, which it does at about 9°N — Panama is south of that and is clipped by
+ * the viewport, exactly as a real map clips it.
+ *
+ * The three vertices along the top are written with the same arguments as
+ * Mexico's southern frontier, so the two shapes share that edge without a seam.
+ */
+export const CENTRAL_AMERICA = [
+  // The Caribbean shore, running south-east from Chetumal.
+  P(18.5, -88.3), P(16.0, -88.9),                     // Belize
+  P(15.8, -85.5), P(15.9, -83.2),                     // the Honduran north coast to Gracias a Dios
+  P(14.0, -83.4), P(12.2, -83.7),                     // the Mosquito Coast
+  P(10.9, -83.5), P(9.6, -82.6),                      // Costa Rica and Bocas del Toro
+  P(9.4, -79.9), P(9.6, -77.8), P(8.0, -77.3),        // Panama, and the Colombian frontier
+  // The Pacific shore, running back north-west.
+  P(7.2, -78.0), P(8.4, -79.5), P(8.0, -80.9),        // the Darién and the Azuero peninsula
+  P(8.6, -82.9), P(9.4, -84.1), P(10.6, -85.7),       // Chiriquí to Nicoya
+  P(12.0, -87.0), P(13.2, -88.5), P(13.8, -90.5),     // Nicaragua, El Salvador, Guatemala
+  // And home along the frontier Mexico stops at — the same three points, so the
+  // two polygons meet exactly.
+  P(14.6, -92.3), P(15.1, -92.2), P(16.0, -90.1), P(17.8, -89.1),
+];
+
+/**
  * North America: everything the map draws land for.
  *
  * The engine's `ring` is the whole continent, which the country polygons are
@@ -344,7 +382,7 @@ export const CONTINENT_RING = [
 
 export const STATES = [
   {
-    id: 'new-england', name: 'New England', abbr: 'NE', code: 'NWE', people: 15.1,
+    id: 'new-england', name: 'New England', code: 'NE', people: 15.1, liberal: 0.6, jobless: 0.039, rough: 27, homeValue: 520, income: 89000,
     merged: ['Maine', 'New Hampshire', 'Vermont', 'Massachusetts', 'Rhode Island', 'Connecticut'],
     poly: [
       EASTPORT, P(43.7, -70.2), P(41.7, -70), P(41, -71.9), P(41, -73.5),
@@ -352,14 +390,14 @@ export const STATES = [
     ],
   },
   {
-    id: 'new-york', name: 'New York', abbr: 'NY', code: 'NY', people: 20.2, merged: ['New York'],
+    id: 'new-york', name: 'New York', code: 'NY', people: 20.2, liberal: 0.61, jobless: 0.044, rough: 52, homeValue: 460, income: 82000, merged: ['New York'],
     poly: [
       P(45, -73.3), P(42.7, -73.3), P(41, -73.5), P(40.6, -74), P(41.4, -74.7),
       P(42, -75.4), P(42, -79.8), P(43.1, -79.1), P(44.1, -76.4),
     ],
   },
   {
-    id: 'mid-atlantic', name: 'Mid-Atlantic', abbr: 'MA', code: 'MDA', people: 30.2,
+    id: 'mid-atlantic', name: 'Mid-Atlantic', code: 'MA', people: 30.2, liberal: 0.57, jobless: 0.039, rough: 13, homeValue: 350, income: 85000,
     merged: ['New Jersey', 'Pennsylvania', 'Delaware', 'Maryland', 'D.C.'],
     poly: [
       P(42, -79.8), P(42, -75.4), P(41.4, -74.7), P(40.6, -74), P(38.8, -75),
@@ -367,14 +405,14 @@ export const STATES = [
     ],
   },
   {
-    id: 'virginia', name: 'Virginia', abbr: 'VA', code: 'VRG', people: 10.4, merged: ['Virginia', 'West Virginia'],
+    id: 'virginia', name: 'Virginia', code: 'VA', people: 10.4, liberal: 0.505, jobless: 0.031, rough: 8, homeValue: 350, income: 82000, merged: ['Virginia', 'West Virginia'],
     poly: [
       P(39.7, -80.5), P(39.7, -79.5), P(38, -78.4), P(38, -75.6), P(36.9, -76),
       P(36.5, -75.9), P(36.5, -81.7), P(37.5, -82.3), P(38.4, -82.5), P(40.6, -80.5),
     ],
   },
   {
-    id: 'carolinas', name: 'The Carolinas', abbr: 'CA', code: 'CAR', people: 15.5,
+    id: 'carolinas', name: 'The Carolinas', code: 'CR', people: 15.5, liberal: 0.47, jobless: 0.039, rough: 10, homeValue: 310, income: 68000,
     merged: ['North Carolina', 'South Carolina'],
     poly: [
       P(36.5, -81.7), P(36.5, -75.9), P(35.2, -75.5), P(33.9, -78), P(32.8, -79.9),
@@ -382,7 +420,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'florida', name: 'Florida', abbr: 'FL', code: 'FL', people: 21.5, merged: ['Florida'],
+    id: 'florida', name: 'Florida', code: 'FL', people: 21.5, liberal: 0.48, jobless: 0.033, rough: 14, homeValue: 390, income: 71000, merged: ['Florida'],
     poly: [
       P(31, -87.6), P(31, -85), P(30.7, -83), P(30.7, -81.5), P(30.3, -81.4),
       P(28.4, -80.6), P(25.8, -80.2), KEY_WEST, P(27.8, -82.6), P(29.7, -85),
@@ -390,7 +428,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'deep-south', name: 'Deep South', abbr: 'DS', code: 'DPS', people: 18.7,
+    id: 'deep-south', name: 'Deep South', code: 'DS', people: 18.7, liberal: 0.45, jobless: 0.034, rough: 9, homeValue: 240, income: 66000,
     merged: ['Georgia', 'Alabama', 'Mississippi'],
     poly: [
       P(35, -84), P(34.8, -83.1), P(32.1, -81.1), P(30.7, -81.5), P(30.7, -83),
@@ -399,7 +437,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'upper-south', name: 'Upper South', abbr: 'US', code: 'USH', people: 11.4,
+    id: 'upper-south', name: 'Upper South', code: 'UP', people: 11.4, liberal: 0.37, jobless: 0.04, rough: 12, homeValue: 240, income: 63000,
     merged: ['Kentucky', 'Tennessee'],
     poly: [
       P(38.4, -82.5), P(37.5, -82.3), P(36.5, -81.7), P(35, -84), P(35, -88.2),
@@ -408,7 +446,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'ohio-valley', name: 'Ohio Valley', abbr: 'OV', code: 'OHV', people: 18.6, merged: ['Ohio', 'Indiana'],
+    id: 'ohio-valley', name: 'Ohio Valley', code: 'OV', people: 18.6, liberal: 0.44, jobless: 0.042, rough: 11, homeValue: 220, income: 68000, merged: ['Ohio', 'Indiana'],
     poly: [
       P(41.7, -84.8), P(41.7, -83.5), P(41.5, -80.5), P(40.6, -80.5), P(38.4, -82.5),
       P(39, -84.8), P(38.8, -84.8), P(37.8, -84.8), P(38, -88), P(41.7, -87.5),
@@ -416,21 +454,21 @@ export const STATES = [
     ],
   },
   {
-    id: 'michigan', name: 'Michigan', abbr: 'MI', code: 'MI', people: 10.1, merged: ['Michigan'],
+    id: 'michigan', name: 'Michigan', code: 'MI', people: 10.1, liberal: 0.51, jobless: 0.045, rough: 9, homeValue: 230, income: 69000, merged: ['Michigan'],
     poly: [
       P(46.5, -90), P(46.5, -84.3), P(43, -82.4), P(42.1, -83.1), P(41.7, -83.5),
       P(41.7, -84.8), P(41.7, -86.8), P(45.1, -86.3), P(45.8, -87), P(46.5, -90),
     ],
   },
   {
-    id: 'illinois', name: 'Illinois', abbr: 'IL', code: 'IL', people: 12.8, merged: ['Illinois'],
+    id: 'illinois', name: 'Illinois', code: 'IL', people: 12.8, liberal: 0.58, jobless: 0.05, rough: 15, homeValue: 260, income: 78000, merged: ['Illinois'],
     poly: [
       P(42.5, -90.6), P(42.5, -87.8), P(41.7, -87.5), P(38, -88), P(37, -89.1),
       P(36.98, -89.5), P(38.8, -90.2), P(40.4, -91.4), P(42.5, -90.6),
     ],
   },
   {
-    id: 'upper-midwest', name: 'Upper Midwest', abbr: 'UM', code: 'UMW', people: 11.6,
+    id: 'upper-midwest', name: 'Upper Midwest', code: 'UM', people: 11.6, liberal: 0.515, jobless: 0.031, rough: 13, homeValue: 300, income: 78000,
     merged: ['Wisconsin', 'Minnesota'],
     poly: [
       LAKE_OF_WOODS, P(48, -89.5), P(46.8, -92.1), P(46.5, -90), P(45.8, -87),
@@ -439,7 +477,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'heartland', name: 'Heartland', abbr: 'HL', code: 'HTL', people: 9.3, merged: ['Iowa', 'Missouri'],
+    id: 'heartland', name: 'Heartland', code: 'HL', people: 9.3, liberal: 0.43, jobless: 0.034, rough: 10, homeValue: 220, income: 70000, merged: ['Iowa', 'Missouri'],
     poly: [
       P(43.5, -96.6), P(43.5, -91.2), P(42.5, -90.6), P(40.4, -91.4), P(38.8, -90.2),
       P(36.98, -89.5), P(36, -89.7), P(36, -94.6), P(40, -94.6), P(40, -95.3),
@@ -447,7 +485,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'great-plains', name: 'Great Plains', abbr: 'GP', code: 'GPL', people: 6.6,
+    id: 'great-plains', name: 'Great Plains', code: 'GP', people: 6.6, liberal: 0.39, jobless: 0.028, rough: 12, homeValue: 230, income: 71000,
     merged: ['North Dakota', 'South Dakota', 'Nebraska', 'Kansas'],
     poly: [
       P(49, -104), P(49, -96.8), P(45.9, -96.5), P(43.5, -96.6), P(42.5, -96.4),
@@ -456,7 +494,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'south-central', name: 'South Central', abbr: 'SC', code: 'SCL', people: 11.6,
+    id: 'south-central', name: 'South Central', code: 'SC', people: 11.6, liberal: 0.37, jobless: 0.038, rough: 9, homeValue: 200, income: 60000,
     merged: ['Arkansas', 'Louisiana', 'Oklahoma'],
     poly: [
       P(37, -103), P(37, -94.6), P(36, -94.6), P(36, -89.7), P(35, -90),
@@ -465,7 +503,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'texas', name: 'Texas', abbr: 'TX', code: 'TX', people: 29.1, merged: ['Texas'],
+    id: 'texas', name: 'Texas', code: 'TX', people: 29.1, liberal: 0.47, jobless: 0.041, rough: 9, homeValue: 300, income: 75000, merged: ['Texas'],
     poly: [
       P(36.5, -103), P(36.5, -100), P(34.5, -100), P(33.9, -94.4), P(29.7, -93.8),
       P(29.3, -94.8), P(27.8, -97.4), BROWNSVILLE, P(27.5, -99.5), P(29.2, -102.9),
@@ -473,7 +511,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'mountain-west', name: 'Mountain West', abbr: 'MW', code: 'MTW', people: 3.5,
+    id: 'mountain-west', name: 'Mountain West', code: 'MW', people: 3.5, liberal: 0.35, jobless: 0.033, rough: 14, homeValue: 400, income: 71000,
     merged: ['Montana', 'Idaho', 'Wyoming'],
     poly: [
       P(49, -117), P(49, -104), P(41, -104), P(41, -111), P(42, -111),
@@ -481,7 +519,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'southwest', name: 'Southwest', abbr: 'SW', code: 'SWT', people: 21.4,
+    id: 'southwest', name: 'Southwest', code: 'SW', people: 21.4, liberal: 0.504, jobless: 0.041, rough: 21, homeValue: 440, income: 80000,
     merged: ['Colorado', 'Utah', 'Nevada', 'Arizona', 'New Mexico'],
     poly: [
       P(42, -120), P(42, -111), P(41, -111), P(41, -102), P(37, -102),
@@ -489,7 +527,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'california', name: 'California', abbr: 'CL', code: 'CA', people: 39.5, merged: ['California'],
+    id: 'california', name: 'California', code: 'CA', people: 39.5, liberal: 0.65, jobless: 0.053, rough: 46, homeValue: 780, income: 91000, merged: ['California'],
     poly: [
       P(42, -120), P(39, -120), P(35, -114.6), YUMA, P(32.5, -117.1),
       P(33.7, -118.2), P(34.4, -120.5), P(35.4, -120.9), P(37.8, -122.5),
@@ -497,7 +535,7 @@ export const STATES = [
     ],
   },
   {
-    id: 'pacific-northwest', name: 'Pacific Northwest', abbr: 'PN', code: 'PNW', people: 14.1,
+    id: 'pacific-northwest', name: 'Pacific Northwest', code: 'PN', people: 14.1, liberal: 0.59, jobless: 0.043, rough: 40, homeValue: 530, income: 88000,
     merged: ['Washington', 'Oregon', 'Alaska', 'Hawaii'],
     poly: [
       P(49, -123), P(49, -117), P(42, -117), P(42, -120), P(42, -124.2),
@@ -648,22 +686,22 @@ const POSTAL = {
 export const postalOf = (state) => (state?.merged || []).map((n) => POSTAL[n]).filter(Boolean);
 
 /**
- * The code that stands for a *region* — what a congressional district is
- * numbered from, and what a player reads beside the region's name.
+ * The code that stands for a *region* — the map label, what a congressional
+ * district is numbered from, and what a player reads beside the region's name.
  *
- * This is a third thing, and it exists because the other two cannot do the job:
+ * Two letters, because that is what a state abbreviation is. There were three
+ * once, on the reasoning that a merged region should never collide with one of
+ * the real fifty; but the twenty *are* the states here, the fifty are only what
+ * they were merged from, and `TX-1` beside `NWE-1` reads as two different kinds
+ * of thing. So the rule is uniqueness among the twenty, which the table holds
+ * and `tests/atlas.mjs` checks.
  *
- * - `abbr` is a map label invented per region and several of them are lies as
- *   state codes. The Carolinas' `CA` is California's, New England's `NE` is
- *   Nebraska's, Upper South's `US` is a country.
- * - `postalOf` is what a region is *made of*, which is a list, and a list cannot
- *   number a district.
- *
- * So a region that is one real state carries that state's real postal code, and
- * a merged region carries an invented three-letter code — three, so that it can
- * never collide with any of the fifty, which are all two.
+ * Where a region is one real state it keeps that state's real code — NY, TX,
+ * CA. The merged ones are initials: `CR` the Carolinas, `UP` the Upper South.
+ * `postalOf` is what a region is *made of*, which is a list, and a list cannot
+ * number a district.
  */
-export const codeOf = (state) => state?.code || state?.abbr || '';
+export const codeOf = (state) => state?.code || '';
 
 /**
  * How many people live there, in millions, from the 2020 census — summed over the
@@ -682,6 +720,73 @@ export const codeOf = (state) => state?.code || state?.abbr || '';
  */
 export const peopleOf = (state) => +state?.people || 0;
 
+/**
+ * How the place actually votes: the Liberal share of the two-party presidential
+ * vote in 2020, summed over the real states the region was merged from and
+ * weighted by their populations.
+ *
+ * The same kind of fact as `people` and held to the same standard — a reader can
+ * check California against 0.65 and Wyoming's corner of the Mountain West
+ * against 0.35. Two-party, so it and its complement are the whole of it; the
+ * game has exactly two parties and no third to lose the remainder to.
+ *
+ * It exists because district lean was `pick(world, PARTIES)` — a coin flip per
+ * state, every Season, with no geography in it at all. Texas came up Liberal as
+ * often as California did, which meant the map taught the player nothing and the
+ * bloc a bill had to win was a different bloc every run. Seeding against this
+ * instead is what makes "the Deep South" and "New England" mean anything when
+ * you are counting votes.
+ *
+ * Virginia, the Upper Midwest and the Southwest sit within a point of even on
+ * purpose. They are the regions that really are that close, and a Season where
+ * they can break either way is the correct simulation of them.
+ */
+export const liberalOf = (state) => {
+  const n = +state?.liberal;
+  return Number.isFinite(n) ? n : 0.5;
+};
+
+/**
+ * Three more real facts about a real place, on the same footing as `people` and
+ * `liberal` and checkable the same way.
+ *
+ * - `jobless` — the unemployment rate. Great Plains 2.8%, California 5.3%.
+ * - `rough`   — people sleeping rough or in shelter, per ten thousand. This is
+ *               the one with the widest spread in the country: New York 52 and
+ *               California 46 against Virginia's 8, a factor of six that no
+ *               national average shows you.
+ * - `homeValue` — the median home, in thousands of dollars.
+ * - `income`    — median household income, in dollars.
+ *
+ * They exist because all three were dice. Unemployment fell out of however many
+ * factories the seeder happened to drop, land value was `range(40, 140)` and
+ * homelessness was a flat 8% of everybody — so the opening board taught a player
+ * nothing about the country and the same state was a crisis in one Season and
+ * comfortable in the next. Seeded against these, the first thing you read on the
+ * Nation tab is the United States.
+ *
+ * The engine still moves all three from here. These set where the Season starts,
+ * not where it goes.
+ */
+export const joblessOf = (state) => {
+  const n = +state?.jobless;
+  return Number.isFinite(n) ? n : 0.04;
+};
+export const roughOf = (state) => {
+  const n = +state?.rough;
+  return Number.isFinite(n) ? n : 20;
+};
+export const homeValueOf = (state) => {
+  const n = +state?.homeValue;
+  return Number.isFinite(n) ? n : 300;
+};
+
+/** Median household income, in dollars. New England 89k against South Central's 60k. */
+export const incomeOf = (state) => {
+  const n = +state?.income;
+  return Number.isFinite(n) ? n : 70000;
+};
+
 /** A region by its code, for anything reading a district name back apart. */
 export const stateByCode = (code) => STATES.find((s) => s.code === code) || null;
 
@@ -690,7 +795,7 @@ export const stateByCode = (code) => STATES.find((s) => s.code === code) || null
  * what it is made of.
  *
  *   New York (NY) — NY
- *   New England (NWE) — ME · NH · VT · MA · RI · CT
+ *   New England (NE) — ME · NH · VT · MA · RI · CT
  *
  * A region of one real state repeats itself, and that is deliberate: the shape
  * of every row is the same, so the eye can run down the codes in one column

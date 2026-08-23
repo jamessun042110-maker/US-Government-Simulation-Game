@@ -17,7 +17,7 @@ const cols = ['#4a6fa5', '#5b8c5a', '#a5794a', '#8c5a7a', '#4a8c8c', '#a58c4a', 
 const states = STATES.map((s, i) => {
   const c = centroid(s.poly);
   return `<path d="${d(s.poly)}" fill="${cols[i % cols.length]}" fill-opacity=".6" stroke="#fff" stroke-width=".5"/>`
-    + `<text x="${c[0]}" y="${c[1]}" font-size="3.4" fill="#fff" text-anchor="middle" font-family="sans-serif">${s.abbr}</text>`;
+    + `<text x="${c[0]}" y="${c[1]}" font-size="3.4" fill="#fff" text-anchor="middle" font-family="sans-serif">${s.code}</text>`;
 }).join('\n');
 
 console.log(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 232" width="100%" style="max-width:100vw;height:auto;display:block">

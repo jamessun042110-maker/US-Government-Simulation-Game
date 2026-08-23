@@ -253,3 +253,32 @@ const bill = (w, authorId, title) => A.createDoc(w, {
     `${w.constitution.legislature.chamber} / ${w.constitution.legislature.upperChamber}`);
   ok('and collapses to one room', !R.isBicameral(w), R.chambers(w).join(','));
 }
+
+// --- who may call the question ----------------------------------------------
+//
+// The Vice President is President of the Senate, and a presiding officer who
+// cannot move to a vote is not presiding over anything. The rule is deliberately
+// narrow: `presidedChamber` is the Senate alone, so the gavel does not reach the
+// House, and it is tested against the room the measure is standing in *now*
+// rather than the one it started in.
+{
+  const { w } = mk();
+  const seatOf = (o) => w.seats.find((s) => s.office === o && s.personaId)?.personaId;
+  const vp = seatOf('vp'), pres = seatOf('president');
+  const rep = seatOf('assembly'), sen = seatOf('senate');
+  const doc = (stage, authorId) => ({ id: 'q' + stage, type: 'bill', status: 'floor', authorId, chamberStage: stage, votes: {}, clauses: [] });
+  const inHouse = doc(0, rep), inSenate = doc(1, rep);
+  const may = (who, d) => R.mayCloseFloor(w, who, d).ok;
+
+  ok('the Vice President calls the question in the Senate', may(vp, inSenate));
+  ok('and cannot in the House', !may(vp, inHouse));
+  ok('the author may call their own measure in either room',
+    may(rep, inHouse) && may(rep, inSenate));
+  ok('and an ordinary member of the other chamber may not', !may(sen, inHouse));
+  ok('nor an ordinary member of this one', !may(sen, inSenate));
+  // The survey is the other half of the same correction: the Vice President
+  // holds a key to the Oval Office and no power to spend, and ordering the
+  // national survey is now gated on the power rather than on the door.
+  ok('the President may commission the survey and the Vice President may not',
+    R.hasPower(w, pres, 'spend') && !R.hasPower(w, vp, 'spend'));
+}

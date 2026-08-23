@@ -18,8 +18,10 @@ const persona = (w, party) => { const p = W.makePersona(w, { synthetic: true });
 
 // --- the two parties, and a country sorted between them -------------------------
 ok('there are two default parties', W.PARTIES.length === 2, W.PARTIES.map((p) => p.id).join(', '));
-ok('liberal is yellow, conservative is purple',
-  W.PARTIES.find((p) => p.id === 'liberal')?.color === '#e0c020' && W.PARTIES.find((p) => p.id === 'conservative')?.color === '#7d5ba6');
+ok('every party carries an ink for the chip its colour is too dark to take dark type',
+  W.PARTIES.every((p) => p.ink));
+ok('liberal is blue, conservative is red',
+  W.PARTIES.find((p) => p.id === 'liberal')?.color === '#2f6fdb' && W.PARTIES.find((p) => p.id === 'conservative')?.color === '#b22234');
 {
   const { w } = mk();
   const d = w.districts[0];

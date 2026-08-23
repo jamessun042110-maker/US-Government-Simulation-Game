@@ -753,8 +753,8 @@ export function composeBio(world, personaId, { final = false, leftAt = null } = 
         : `${articleDate(world, r.since)} to ${articleDate(world, r.endedTick)}`).join('; ')
       + ` — ` + (sitting
         ? `and sits again, ${totalInOffice} in office to date.`
-        : `and left the chair for the last time on ${articleDate(world, last.endedTick)}`
-          + `${ending ? ` ${ending}` : ''} after ${totalInOffice} in office in total.`)
+        : `and left for the last time on ${articleDate(world, last.endedTick)}`
+          + `${ending ? ` ${ending}` : ''} after ${totalInOffice} in office.`)
     : `${sur} took office on ${articleDate(world, first.since)}`
       + (sitting
         ? ', and holds the chair still.'
@@ -784,7 +784,7 @@ export function composeBio(world, personaId, { final = false, leftAt = null } = 
   add('Presidency',
     presFirst,
     acts === 1 && notable.length
-      ? `A single act stands under ${sur}'s name in the Chronicle for the whole of it — ${notable[0]}.`
+      ? `A single act stands under ${sur}'s name for the whole of it — ${notable[0]}.`
       : acts
         ? `The Chronicle records ${count(acts, 'act')} under ${they.poss} name across the tenure${chair.length > 1 ? 's' : ''}.${named}`
         : `Almost nothing stands under ${sur}'s name in the Chronicle.`);
@@ -799,13 +799,13 @@ export function composeBio(world, personaId, { final = false, leftAt = null } = 
   if (T.signed.length) {
     dom.push(`${sur} signed ${T.signed.length} act${T.signed.length === 1 ? '' : 's'} into law`
       + `, among them ${titles(T.signed)}`
-      + (ownAll ? ' — the whole programme written by their own hand' : '') + '.');
+      + (ownAll ? ' — the whole programme in their own hand' : '') + '.');
     if (!ownAll && T.authored.length) {
       dom.push(`${T.authored.length} of them ${T.authored.length === 1 ? 'was' : 'were'} `
         + `written by ${they.obj} personally: ${titles(T.authored)}.`);
     }
   } else if (T.authored.length) {
-    dom.push(`${sur} wrote ${T.authored.length} of the laws of this period — ${titles(T.authored)} — `
+    dom.push(`${sur} wrote ${T.authored.length} of the laws of the period — ${titles(T.authored)} — `
       + 'though the signature on them was somebody else\'s.');
   }
   if (alsoWrote.length && T.signed.length) {
@@ -843,7 +843,7 @@ export function composeBio(world, personaId, { final = false, leftAt = null } = 
     // to say how many wars it was spread across.
     foreign.push(`${cap(they.subj)} refused a beaten enemy's surrender `
       + (times === 1 ? 'once' : `${count(times, 'time')} across ${count(refused.length, 'war')}`)
-      + ', sending the army back out rather than take the terms on the table.');
+      + ', sending the army back out rather than take the terms offered.');
   }
   // And what all of it moved. See borderLine — this is the sentence the article
   // has never had, and it is the one a reader remembers.
@@ -857,7 +857,7 @@ export function composeBio(world, personaId, { final = false, leftAt = null } = 
   // the paragraph directly after the one saying it had redrawn the continent.
   if (!T.wars.length && !treaties.length && !(T.cessions || []).length) {
     foreign.push(`No war began and no treaty was ratified under ${sur}`
-      + (allies.length ? `; the alliances of the period were inherited.` : '.'));
+      + (allies.length ? `; the period's alliances were inherited.` : '.'));
   }
   add('Abroad', ...foreign);
 
@@ -870,8 +870,8 @@ export function composeBio(world, personaId, { final = false, leftAt = null } = 
     // named directly, and keeps the capitalisation the card was written with —
     // lowercasing it gave "among them kiln hill is venting".
     const named = T.crises.slice(0, 4).map((e) => e.title);
-    cr.push(`${sur} answered ${T.crises.length === 1 ? 'a single crisis' : `${T.crises.length} crises`} `
-      + `from the chair${T.crises.length === 1 ? `, ${named[0]}` : `, among them ${list(named)}`}.`);
+    cr.push(`${sur} answered ${T.crises.length === 1 ? 'a single crisis' : `${T.crises.length} crises`}`
+      + `${T.crises.length === 1 ? `, ${named[0]}` : `, among them ${list(named)}`}.`);
   }
   if (T.ignored.length) {
     cr.push(`${T.ignored.length} ${T.ignored.length === 1 ? 'was' : 'were'} left to resolve against the government: `
@@ -883,24 +883,24 @@ export function composeBio(world, personaId, { final = false, leftAt = null } = 
       + (naked
         ? `, ${naked === T.emergencies.length
           ? (naked === 1 ? 'on no crisis the country could see' : 'each time on no crisis the country could see')
-          : `${naked} of them on no crisis at all`} — the office's gravest instrument reached for on nothing`
-        : ' — the gravest instrument the office holds, and the one the histories weigh most')
+          : `${naked} of them on no crisis at all`} — the gravest instrument the office holds`
+        : ' — the gravest instrument the office holds')
       + '.');
   }
   if (!cr.length) {
-    cr.push(`No crisis of the first order came before ${sur} from the chair, and no emergency was declared.`);
+    cr.push(`No crisis of the first order came before ${sur}, and no emergency was declared.`);
   }
   add('Crises', ...cr);
 
   // --- the courts ---------------------------------------------------------------------------
   const ct = [];
   if (T.struck.length) {
-    ct.push(`The court struck down ${T.struck.length} act${T.struck.length === 1 ? '' : 's'} of this administration: ${titles(T.struck)}.`);
+    ct.push(`The court struck down ${T.struck.length} act${T.struck.length === 1 ? '' : 's'}: ${titles(T.struck)}.`);
   }
   const suits = (world.cases || []).filter((c) => c.respondentId === personaId && T.within(c.opened));
   if (suits.length) ct.push(`${cap(they.subj)} ${they.were} named as respondent in ${suits.length} action${suits.length === 1 ? '' : 's'} before the court.`);
   if (T.struck.length && !suits.length) {
-    ct.push(`The strikings came on the merits of the acts, not from any proceeding against ${they.obj} in person.`);
+    ct.push(`The strikings came on the merits, not from any proceeding against ${they.obj}.`);
   }
   if (!ct.length) {
     ct.push(`No act of ${they.poss} administration was struck down, and ${they.subj} ${they.were} never named as respondent before the court.`);
@@ -912,7 +912,7 @@ export function composeBio(world, personaId, { final = false, leftAt = null } = 
   if (T.inquests.length) {
     const charged = T.inquests.filter((q) => q.finding === 'charged').length;
     const cleared = T.inquests.filter((q) => q.finding === 'cleared').length;
-    bad.push(`${T.inquests.length} file${T.inquests.length === 1 ? ' was' : 's were'} opened on ${sur} in office`
+    bad.push(`${T.inquests.length} file${T.inquests.length === 1 ? ' was' : 's were'} opened on ${sur}`
       + (charged ? `; ${charged} ended in charges` : '')
       + (cleared ? `${charged ? ' and' : ';'} ${cleared} found no case to answer` : '') + '.');
   }
@@ -932,7 +932,7 @@ export function composeBio(world, personaId, { final = false, leftAt = null } = 
     const spent = tainted.reduce((n, r) => n + (r.amount || 0), 0);
     bad.push(`${count(tainted.length, 'rescue')} ${tainted.length === 1 ? 'was' : 'were'} `
       + `signed by ${sur} for ${tainted.length === 1 ? 'a company' : 'companies'} `
-      + `${they.subj} ${they.were} not disinterested in, ${moneyish(spent)} of public money in all: `
+      + `${they.subj} ${they.were} not disinterested in, ${moneyish(spent)} of public money: `
       + `${list([...new Set(tainted.flatMap((r) => r.interest.grounds || []))].slice(0, 3))}.`);
   }
   const plot = (world.conspiracies || []).find((c) => c.exposed && (c.members || []).includes(personaId) && T.within(c.created));
@@ -953,9 +953,9 @@ export function composeBio(world, personaId, { final = false, leftAt = null } = 
           : row.overall >= 32 ? 'as a below-average' : 'among the worst of';
     add('Assessment',
       `Historians of ${world.nation} rank ${sur} ${tier} ${tier.endsWith('of') ? `its ${officeName}s` : `${officeName}`}`
-      + `${of > 1 ? `, ${nth(rank)} of the ${of} to have held the office` : ''}, `
+      + `${of > 1 ? `, ${nth(rank)} of the ${of} to hold it` : ''}, `
       + `at ${row.overall} of 100 across the thirteen attributes.`,
-      `They are judged strongest on ${bestAttr(row)} and weakest on ${worstAttr(row)}.`
+      `Judged strongest on ${bestAttr(row)}, weakest on ${worstAttr(row)}.`
       + (T.wars.some((x) => x.lost) || T.ignored.length >= 2
         ? ' The assessment is contested.' : ''));
   }
@@ -1032,7 +1032,7 @@ function headlineFact(world, T, sur, personaId) {
     const di = (b.inflation ?? 0) - (a.inflation ?? 0);
     if (pts(di) >= 4) {
       cands.push([pts(di), di > 0
-        ? `Prices rose ${pts(di).toFixed(0)} points faster by the end of it.`
+        ? `Prices rose ${pts(di).toFixed(0)} points faster by the end.`
         : `Inflation was brought down ${pts(di).toFixed(0)} points.`]);
     }
     const dd = (b.debt ?? 0) - (a.debt ?? 0);
@@ -1060,7 +1060,7 @@ function headlineFact(world, T, sur, personaId) {
     if (took) {
       cands.push([1000 + took, from === 1
         ? `${took}% of a neighbour's territory was annexed under ${sur}.`
-        : `Ground was annexed from ${count(from, 'neighbour')} under ${sur}, ${took}% of their territory in all.`]);
+        : `Ground was annexed from ${count(from, 'neighbour')} under ${sur}, ${took}% of their territory.`]);
     }
     if (lost) cands.push([1000 + lost, `${lost}% of the republic's own territory was signed away.`]);
   }
@@ -1079,10 +1079,10 @@ function chiefLine(world, T, sur) {
   const wiped = cess.filter((x) => x.absorbed);
   if (wiped.length) return `${sur} is remembered above all for annexing ${list(wiped.map((x) => x.name))} entire.`;
   const gave = cess.reduce((n, x) => n + Math.max(0, -x.pct), 0);
-  if (gave >= 20) return `The presidency is chiefly remembered for the ${gave}% of the republic signed away under it.`;
+  if (gave >= 20) return `The presidency is chiefly remembered for the ${gave}% of the republic signed away.`;
   if (T.wars.some((x) => x.lost)) return `The presidency is chiefly remembered for the war it lost.`;
   if (T.wars.some((x) => x.pressed)) return `${sur} sent a beaten enemy's surrender back, and the histories begin there.`;
-  if (T.wars.length) return `The presidency is chiefly remembered for the war fought during it.`;
+  if (T.wars.length) return `The presidency is chiefly remembered for the war fought in it.`;
   if (T.struck.length >= 2) return `Much of the programme was undone by the court.`;
   if (T.emergencies.length) return `${sur} governed part of the term under a state of emergency.`;
   if (T.signed.length >= 6) return `It was a legislatively busy period.`;
@@ -1147,7 +1147,7 @@ function borderLine(T, sur) {
   if (wiped.length) {
     out.push(`${list(wiped.map((x) => x.name))} ceased to exist as `
       + `${wiped.length === 1 ? 'a state' : 'states'} under ${sur} — every acre annexed, and `
-      + `${wiped.length === 1 ? 'a neighbour' : 'neighbours'} struck off the map of the continent.`);
+      + `${wiped.length === 1 ? 'a neighbour' : 'neighbours'} struck off the map.`);
   }
   if (took.length) {
     // A percentage is singular however many countries it came out of: "55% of
@@ -1159,11 +1159,11 @@ function borderLine(T, sur) {
   if (gave.length) {
     const total = gave.reduce((n, x) => n - x.pct, 0);
     out.push(`${took.length || wiped.length ? 'Against that, the republic' : 'The republic'} signed away `
-      + `${total}% of its own territory in the same period, to ${list(gave.map((x) => x.name))}.`);
+      + `${total}% of its own territory to ${list(gave.map((x) => x.name))}.`);
   }
   const won = all.reduce((n, x) => n + Math.max(0, x.money), 0);
   const paid = all.reduce((n, x) => n + Math.max(0, -x.money), 0);
-  if (won && paid) out.push(`${moneyish(won)} was taken in indemnities across the settlements, and ${moneyish(paid)} paid out in them.`);
+  if (won && paid) out.push(`${moneyish(won)} was taken in indemnities and ${moneyish(paid)} paid out.`);
   else if (won) out.push(`${moneyish(won)} was taken in indemnities.`);
   else if (paid) out.push(`${moneyish(paid)} was paid out in indemnities.`);
   return out;
@@ -1248,8 +1248,8 @@ const LEAVE_TEXT = {
   defeated: 'in defeat at the polls',
   // Not a defeat. The constitution they governed under would not let them stand,
   // so there was no contest for them to lose — see sim.tickPendingTerms.
-  'term-limited': 'at the term limit, barred from standing again',
-  'stood down': 'having chosen not to stand again',
+  'term-limited': 'at the term limit',
+  'stood down': 'having chosen not to stand',
   removed: 'in removal from office',
   detained: 'with their detention',
   dead: 'with their death',
@@ -1268,7 +1268,7 @@ function clauseTally(docs) {
     APPROPRIATE: 'appropriations', BUILD: 'public works', SET_TAX: 'taxation',
     ZONE: 'zoning', REDISTRICT: 'the district lines', RIGHT: 'rights',
     GRANT_POWER: 'the powers of office', CREATE_OFFICE: 'new offices',
-    AMEND: 'amendments to the constitution', DECLARE_WAR: 'war',
+    AMEND: 'amendments', DECLARE_WAR: 'war',
     TREATY_DEFENSE: 'alliance', TREATY_NONAGGRESSION: 'non-aggression',
     MILITARY: 'the army', PARDON: 'pardons', ARREST: 'detention', EXILE: 'exile',
     DEMAND_ACCOUNTS: 'the public accounts', TERM_LIMIT: 'term limits',
@@ -1329,9 +1329,9 @@ function economyLine(world, T, sur, personaId) {
   for (const x of [
     move(a.unemployment, b.unemployment, pt, 'unemployment rose', 'unemployment fell', 0.001, pctv),
     move(a.inflation, b.inflation, pt, 'inflation rose', 'inflation came down', 0.001, pctv),
-    move(a.homeless, b.homeless, people, 'the number sleeping rough climbed by', 'homelessness fell by', 50, people),
+    move(a.homeless, b.homeless, people, 'the number sleeping rough rose by', 'homelessness fell by', 50, people),
     move(a.gdp, b.gdp, money0, 'output grew by', 'output shrank by', 1e6),
-    move(a.approval, b.approval, raw, 'approval of the government rose', 'approval of the government fell'),
+    move(a.approval, b.approval, raw, 'government approval rose', 'government approval fell'),
   ]) if (x) parts.push(x);
   const condition = parts.length
     ? `Over the ${yearsText(span / per)} of the tenure, ${list(parts)}.`
@@ -1342,7 +1342,7 @@ function economyLine(world, T, sur, personaId) {
   const t = move(a.treasury, b.treasury, money0, 'The reserve rose by', 'The reserve fell by', 1e5);
   if (t) books.push(t + '.');
   const debtMove = move(a.debt, b.debt, money0, 'the national debt grew by', 'the debt was paid down by', 1e5);
-  if (debtMove) books.push(`Against that, ${debtMove} — ${b.debt > 0 ? `${money0(b.debt)} outstanding at the close` : 'the books cleared'}.`);
+  if (debtMove) books.push(`Against that, ${debtMove} — ${b.debt > 0 ? `${money0(b.debt)} outstanding` : 'the books cleared'}.`);
   const rateMove = move(a.rate, b.rate, pctv, 'Money cost more by the end, dearer by', 'Money got cheaper, down by', 0.0005);
   if (rateMove) books.push(rateMove + '.');
 
@@ -1359,7 +1359,7 @@ function economyLine(world, T, sur, personaId) {
   if (approps.length) {
     const voted = approps.reduce((s, c) => s + (+c.amount || 0), 0);
     books.push(`The chamber appropriated a further ${money0(voted)} over ${approps.length} `
-      + `${approps.length === 1 ? 'clause' : 'clauses'} they signed.`);
+      + `${approps.length === 1 ? 'clause' : 'clauses'}.`);
   }
 
   return [condition, books.join(' ') || null].filter(Boolean).join(' ') || null;
@@ -1422,7 +1422,7 @@ function laterLife(world, p, leftAt) {
         ? `founded ${co.name} and sold it for ${moneyish(co.soldFor)}`
         : co.closed
           ? `founded ${co.name}, which did not survive them`
-          : `founded ${co.name}${co.public ? ', took it public' : ''}, worth ${moneyish(worth)} at the last count`);
+          : `founded ${co.name}${co.public ? ', took it public' : ''}, worth ${moneyish(worth)}`);
     if ((co.lobbySpend || 0) > 0) {
       bits.push(`spent ${moneyish(co.lobbySpend)} of it lobbying the government they used to run`);
     }
@@ -1441,13 +1441,13 @@ function laterLife(world, p, leftAt) {
   if (suits.length) {
     const brought = suits.filter((c) => c.plaintiffId === p.id).length;
     bits.push(brought === suits.length ? `brought ${brought} action${brought === 1 ? '' : 's'} before the court`
-      : brought ? `was in and out of the courts on both sides of the table`
+      : brought ? `was in and out of the courts on both sides`
         : `answered ${suits.length} action${suits.length === 1 ? '' : 's'} before the court`);
   }
 
   // Whatever they were doing that they did not want reported.
   const plot = (world.conspiracies || []).find((c) => c.exposed && (c.members || []).includes(p.id) && since(c.created));
-  if (plot) bits.push(`was found to have been a party to ${plot.name}`);
+  if (plot) bits.push(`was found to be a party to ${plot.name}`);
 
   // And how it ended, if it has.
   const tail = [];
@@ -1465,7 +1465,8 @@ function laterLife(world, p, leftAt) {
 }
 
 /** Rounded to something a paragraph can say out loud. */
-const moneyish = (v) => (v >= 1e9 ? `$${(v / 1e9).toFixed(1)}bn`
+const moneyish = (v) => (v >= 1e12 ? `$${(v / 1e12).toFixed(1)}tn`
+  : v >= 1e9 ? `$${(v / 1e9).toFixed(1)}bn`
   : v >= 1e6 ? `$${Math.round(v / 1e6)}M`
     : v >= 1e3 ? `$${Math.round(v / 1e3)}k`
       : `$${Math.round(v)}`);
@@ -1544,7 +1545,7 @@ export function writeFinalBios(world) {
     bio.finalAt = world.clock.tick;
     const p = world.personas[pid];
     if (p) {
-      log(world, 'system', `The histories are revised: the article on ${p.name} is rewritten with twelve years of hindsight.`,
+      log(world, 'system', `The article on ${p.name} is rewritten with twelve years of hindsight.`,
         { actors: [pid], weight: 1 });
     }
   }
@@ -1572,7 +1573,7 @@ export function reviseBio(world, personaId, why) {
   bio.revisedFor = why;
   const p = world.personas[personaId];
   if (p) {
-    log(world, 'system', `The histories are revised: the article on ${p.name} is rewritten ${why}.`,
+    log(world, 'system', `The article on ${p.name} is rewritten ${why}.`,
       { actors: [personaId], weight: 1 });
   }
   return bio;

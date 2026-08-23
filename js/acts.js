@@ -5,7 +5,7 @@
 // change the world when promulgated. Nothing in the simulation changes except
 // through one of these, an election, or the drama director.
 
-import { uid, clamp, money, moneyExact, sum, byId, count, nudgeMood, nudgeMoodAll, nudgeApproval } from './util.js';
+import { uid, clamp, money, moneyExact, num, sum, byId, count, nudgeMood, nudgeMoodAll, nudgeApproval } from './util.js';
 import * as R from './rules.js';
 import { log, canonDate, year, writeBio } from './chronicle.js';
 import { BUILDINGS, ZONES, recomputeEconomy, distributePopulation, makePersona, totalPop, constructionCrew, CONSTRUCTION_COST_PER_WORKER } from './world.js';
@@ -118,7 +118,7 @@ export function snapshotAccounts(world) {
 
 /** What a cession is worth to the taker, per point of territory ceded. */
 export const CESSION_STRENGTH = 0.9;   // of the ceding power's base strength, per 1%
-export const CESSION_VALUE = 1.2e6;    // to the treasury, per 1% taken
+export const CESSION_VALUE = 1.2e9;    // to the treasury, per 1% taken
 
 // What one treaty may move, either way. A negotiated peace and an ordinary
 // dictated one are bounded by it; a total capitulation is the one settlement
@@ -251,7 +251,7 @@ export function applyPeaceTerms(world, f, c) {
       world.annexed[f.id] = (world.annexed[f.id] || 0) + cede;
       world.economy.treasury += cede * CESSION_VALUE;
       log(world, 'war', `${f.name} cedes ${cede}% of its territory to ${world.nation}. `
-        + `The border moves, and ${f.name} is the smaller for it.`, { weight: 4 });
+        + 'The border moves.', { weight: 4 });
       nudgeMoodAll(world, 4);
       // And a country with nothing left is not a country. It stays in the
       // record — it has a history, and the Chronicle will go on naming it — but
@@ -262,8 +262,8 @@ export function applyPeaceTerms(world, f, c) {
         f.atWar = false; f.allied = false; f.pact = null; f.alliance = null;
         f.hostility = 0;
         f.strength = 1;
-        log(world, 'war', `${f.name} ceases to exist as a state. Every acre of it is ${world.nation}, `
-          + 'and what it was is now a chapter rather than a country.', { weight: 5 });
+        log(world, 'war', `${f.name} ceases to exist as a state. Every acre of it is ${world.nation} — `
+          + 'a chapter now, not a country.', { weight: 5 });
       }
     } else {
       // Given up. The republic is smaller, and the country knows it.
@@ -334,7 +334,7 @@ export const DICTATE_TICKS = 40;
 export function dictateTerms(world, personaId, foreignId, { cede = 0, indemnity = 0 } = {}) {
   const pending = (world.dictate || []).find((d) => d.foreignId === foreignId);
   if (!pending) return fail('There is no beaten enemy waiting on terms.');
-  if (world.clock.tick > pending.until) return fail('The moment has passed; the settlement stands as it is.');
+  if (world.clock.tick > pending.until) return fail('The moment has passed; the settlement stands.');
   if (!R.hasPower(world, personaId, 'sign_treaty')) return fail('Your office does not hold the power to settle a war.');
   const f = byId(world.foreign, foreignId);
   if (!f) return fail('No such power.');
@@ -348,7 +348,7 @@ export function dictateTerms(world, personaId, foreignId, { cede = 0, indemnity 
   // cession of nothing, which is what paid for fifteen wars against the same
   // neighbour before territoryLeft existed.
   if (asked && !take && !pay) {
-    return fail(`There is nothing left of ${f.name} to take — the republic already holds all of it.`);
+    return fail(`There is nothing left of ${f.name} to take; the republic holds all of it.`);
   }
   applyPeaceTerms(world, f, { cede: take, indemnity: pay, cap });
   // Terms dictated at the point of a gun are remembered as such — by a state
@@ -391,7 +391,7 @@ export function pressOn(world, personaId, foreignId) {
   const pending = (world.dictate || []).find((d) => d.foreignId === foreignId);
   if (!pending) return fail('There is no beaten enemy waiting on terms.');
   if (pending.total) return fail('There is nothing left to press for — they have nothing left to refuse with.');
-  if (world.clock.tick > pending.until) return fail('The moment has passed; the settlement stands as it is.');
+  if (world.clock.tick > pending.until) return fail('The moment has passed; the settlement stands.');
   if (!R.hasPower(world, personaId, 'sign_treaty')) return fail('Your office does not hold the power to settle a war.');
   const f = byId(world.foreign, foreignId);
   if (!f) return fail('No such power.');
@@ -435,7 +435,7 @@ export function pressOn(world, personaId, foreignId) {
   }
 
   log(world, 'war', `${world.personas[personaId]?.name} refuses ${f.name}'s surrender and orders the army on. `
-    + 'There will be no terms now but the ones the field gives.', { actors: [personaId], weight: 5 });
+    + 'The only terms now are the ones the field gives.', { actors: [personaId], weight: 5 });
   return ok({ foreign: f, war });
 }
 
@@ -490,7 +490,7 @@ export const CLAUSES = {
       // while the balance stood still read as a treasury that had stopped
       // keeping books.
       log(w, 'money', c.recurring
-        ? `${c.purpose || 'A program'} is funded at ${moneyExact(c.amount)} a year, drawn as the year runs.${effect ? ' ' + effect : ''}`
+        ? `${c.purpose || 'A program'} is funded at ${moneyExact(c.amount)} a year, drawn as it runs.${effect ? ' ' + effect : ''}`
         : `${moneyExact(c.amount)} appropriated for ${c.purpose || 'unspecified purposes'}.${effect ? ' ' + effect : ''}`);
     },
   },
@@ -515,7 +515,7 @@ export const CLAUSES = {
     cost: (w, c) => +c.amount || 0,
     apply: (w, c) => {
       const co = (w.companies || []).find((x) => x.id === c.company && !x.closed);
-      if (!co) return log(w, 'money', 'The company the rescue was voted for is no longer trading. The money stays where it is.');
+      if (!co) return log(w, 'money', 'The company the rescue was voted for is no longer trading. The money stays put.');
       payBailout(w, co, Math.max(0, Math.round(+c.amount || 0)));
     },
   },
@@ -562,7 +562,7 @@ export const CLAUSES = {
       moved.forEach((p) => (p.district = c.to));
       distributePopulation(w, totalPop(w));
       recomputeEconomy(w);
-      log(w, 'law', `Boundaries redrawn: ${moved.length} parcels moved from ${nm(w, c.from)} to ${nm(w, c.to)}. The maps will be argued about.`);
+      log(w, 'law', `Boundaries redrawn: ${moved.length} parcels moved from ${nm(w, c.from)} to ${nm(w, c.to)}.`);
       nudgeMoodAll(w, -1.5);
     },
   },
@@ -582,7 +582,7 @@ export const CLAUSES = {
       const a = R.AMENDABLE.find((x) => x.path === c.path);
       const before = R.getPath(w.constitution, c.path);
       R.setPath(w.constitution, c.path, +c.value);
-      log(w, 'law', `Constitution amended: ${a?.label || c.path} — ${before} → ${c.value}. The rules of the game have changed.`, { weight: 3 });
+      log(w, 'law', `Constitution amended: ${a?.label || c.path} — ${before} → ${c.value}.`, { weight: 3 });
     },
   },
   // Term limits get their own clause rather than a line in AMEND, because
@@ -601,7 +601,7 @@ export const CLAUSES = {
       const n = Math.max(0, Math.round(+c.terms || 0));
       return n
         ? `No person shall hold the office of ${o?.name || c.office} more than ${n} time${n === 1 ? '' : 's'}.`
-        : `The limit upon the number of terms in the office of ${o?.name || c.office} is repealed.`;
+        : `The term limit on the office of ${o?.name || c.office} is repealed.`;
     },
     apply: (w, c) => {
       const o = R.office(w, c.office);
@@ -633,12 +633,12 @@ export const CLAUSES = {
   DEMAND_ACCOUNTS: {
     label: 'Demand the national accounts', power: null,
     fields: [{ k: 'years', t: 'number', label: 'Hold the copy for (canon years)', def: 2, min: 1, max: 20 }],
-    text: (w, c) => `The Secretary of the Treasury shall lay the accounts of ${w.nation} before the chamber as they stand this day, and the chamber shall keep that copy for ${+c.years || 2} year(s).`,
+    text: (w, c) => `The Secretary of the Treasury shall lay the accounts of ${w.nation} before the chamber as they stand this day, to be kept for ${+c.years || 2} year(s).`,
     apply: (w, c) => {
       const until = w.clock.tick + Math.max(1, +c.years || 2) * w.clock.ticksPerYear;
       w.accountsOpenUntil = Math.max(w.accountsOpenUntil || 0, until);
       w.accountsCopy = snapshotAccounts(w);
-      log(w, 'money', `The chamber demands the national accounts. A copy of the books as they stand is laid before it.`, { weight: 2 });
+      log(w, 'money', `A copy of the national accounts as they stand is laid before the chamber.`, { weight: 2 });
     },
   },
   CREATE_OFFICE: {
@@ -701,7 +701,7 @@ export const CLAUSES = {
         : { id: uid('rt'), name: c.name || 'Right', text: c.body || '', blocks: [c.blocks] });
       nudgeMoodAll(w, 2);
       log(w, 'law', open
-        ? `The people are declared to retain the rights this constitution never wrote down. The court is asked to say what they are.`
+        ? `The people retain the rights this constitution never wrote down. The court is asked to say what they are.`
         : `A right is enumerated: ${c.name}.`, { weight: 2 });
     },
   },
@@ -752,14 +752,14 @@ export const CLAUSES = {
       { k: 'party', t: 'foreign', label: 'With' },
       { k: 'years', t: 'number', label: 'Term (canon years)', def: 10, min: 1, max: 99 },
     ],
-    text: (w, c) => `${w.nation} and ${byId(w.foreign, c.party)?.name || 'the other party'} undertake for ${count(Math.max(1, +c.years || 10), 'year')} to settle their differences without recourse to arms, and neither shall take up arms against the other while it holds.`,
+    text: (w, c) => `${w.nation} and ${byId(w.foreign, c.party)?.name || 'the other party'} undertake for ${count(Math.max(1, +c.years || 10), 'year')} to settle their differences without recourse to arms while it holds.`,
     apply: (w, c) => {
       const f = byId(w.foreign, c.party);
       if (!f) return;
       const years = Math.max(1, +c.years || 10);
       f.pact = { since: w.clock.tick, ends: w.clock.tick + Math.round(years * w.clock.ticksPerYear) };
       f.hostility = Math.max(0, f.hostility - 12);
-      log(w, 'war', `Non-aggression pact signed with ${f.name}, to run ${count(years, 'year')}. Neither party may take up arms against the other while it holds.`, { weight: 2 });
+      log(w, 'war', `Non-aggression pact signed with ${f.name}, to run ${count(years, 'year')}. Neither may take up arms while it holds.`, { weight: 2 });
     },
   },
   // The one treaty a country at war can sign. The other treaties refuse
@@ -783,8 +783,8 @@ export const CLAUSES = {
     text: (w, c) => {
       const f = byId(w.foreign, c.party)?.name || 'the other party';
       const terms = peaceTermsText(w, f, c);
-      return `${w.nation} and ${f} agree that the state of war between them shall end, `
-        + `hostilities shall cease upon ratification, and the border shall stand where the guns stopped`
+      return `${w.nation} and ${f} agree that the state of war between them shall end `
+        + `upon ratification, and the border shall stand where the guns stopped`
         + (terms ? `, save that ${terms}` : '') + '.';
     },
     apply: (w, c) => {
@@ -799,7 +799,7 @@ export const CLAUSES = {
       if (war) { war.negotiated = true; war.ended = w.clock.tick; }
       // Same armistice-clock hook the dictated peace uses.
       w.military.exhaustion = Math.max(0, (w.military.exhaustion || 0) - 0.2);
-      log(w, 'war', `Peace is signed with ${f.name}. The guns stop where they stand.`, { weight: 4 });
+      log(w, 'war', `Peace is signed with ${f.name}.`, { weight: 4 });
       applyPeaceTerms(w, f, c);
     },
   },
@@ -843,7 +843,7 @@ export const CLAUSES = {
       });
       recomputeEconomy(w);
       log(w, 'war', `${n} division${n === 1 ? '' : 's'} ordered by law, at ${moneyExact(cost)}. `
-        + `They muster and drill; expect them in the field in ${DEP.FORMATION_TICKS} ticks.`, { weight: 2 });
+        + `They muster and drill; in the field in ${DEP.FORMATION_TICKS} ticks.`, { weight: 2 });
     },
   },
   // The air force, as a law.
@@ -895,7 +895,7 @@ export const CLAUSES = {
       const seat = R.seatOf(w, p.id);
       if (seat) { vacate(w, seat, 'detained'); }
       nudgeMoodAll(w, -2.5);
-      log(w, 'court', `${p.name} is detained on the charge of ${c.charge || 'unspecified'}. The character is imprisoned; the player is not.`, { actors: [p.id], weight: 3 });
+      log(w, 'court', `${p.name} is detained on the charge of ${c.charge || 'unspecified'}. The character is imprisoned, not the player.`, { actors: [p.id], weight: 3 });
     },
   },
   EXILE: {
@@ -908,7 +908,7 @@ export const CLAUSES = {
       p.exiled = true;
       const seat = R.seatOf(w, p.id);
       if (seat) vacate(w, seat, 'exiled');
-      log(w, 'death', `${p.name} is exiled. Exile is a game state, not a ban — the player may return under another name.`, { actors: [p.id], weight: 3 });
+      log(w, 'death', `${p.name} is exiled. Exile is a game state, not a ban — they may return under another name.`, { actors: [p.id], weight: 3 });
     },
   },
   REMOVE: {
@@ -1050,7 +1050,7 @@ export function castVote(world, docId, personaId, ballot) {
   // is recorded but counted only if the chamber splits evenly.
   const tb = R.tieBreaker(world, doc);
   if (!roll.some((v) => v.personaId === personaId) && tb?.personaId !== personaId) {
-    return fail('You do not hold a seat in the chamber trying this measure.');
+    return fail('You hold no seat in the chamber trying this measure.');
   }
   doc.votes[personaId] = ballot;
   return ok(doc);
@@ -1078,7 +1078,7 @@ export function closeFloor(world, docId, { auto = false } = {}) {
   const author = world.personas[doc.authorId];
   const admin = R.isAdministrationBill(world, doc);
   const provenance = doc.type === 'bill'
-    ? (admin ? ' An administration bill.' : author ? ` A bill from ${author.name}, introduced on the floor.` : '')
+    ? (admin ? ' An administration bill.' : author ? ` A bill from ${author.name}, from the floor.` : '')
     : '';
   if (!t.passes) {
     doc.status = 'failed';
@@ -1160,7 +1160,7 @@ export function closeFloor(world, docId, { auto = false } = {}) {
       world.notices = world.notices || [];
       world.notices.push({
         id: 'nt_sig_' + doc.id + '_' + h.id, playerId: h.playerId,
-        text: `“${doc.title}” has passed the ${chamber} and is on your desk. Sign or veto it in the Oval Office.`,
+        text: `“${doc.title}” has passed the ${chamber}. Sign or veto it in the Oval Office.`,
         tone: 'ok', ts: Date.now(),
       });
     }
@@ -1233,10 +1233,10 @@ export function closeOverride(world, docId) {
       doc.floorOpened = world.clock.tick;
       doc.floorCloses = world.clock.tick + dur;
       doc.requirement = { ...R.voteRequirement(world, doc), fraction: world.constitution.legislature.overrideFraction, label: 'Veto override' };
-      log(world, 'vote', `The ${room} votes to override, ${yea}–${nay}. It goes to the ${R.office(world, next)?.name || next}, which must do the same.`, { docId: doc.id, weight: 2 });
+      log(world, 'vote', `The ${room} votes to override, ${yea}–${nay}. The ${R.office(world, next)?.name || next} must do the same.`, { docId: doc.id, weight: 2 });
       return ok(doc);
     }
-    log(world, 'vote', `Veto overridden, ${yea}–${nay}. “${doc.title}” becomes law over the objection of the executive.`, { docId: doc.id, weight: 3 });
+    log(world, 'vote', `Veto overridden, ${yea}–${nay}. “${doc.title}” becomes law over the executive's objection.`, { docId: doc.id, weight: 3 });
     promulgate(world, doc, null);
   } else {
     doc.status = 'failed';
@@ -1280,7 +1280,7 @@ export function promulgate(world, doc, byPersona) {
     }
     const author = world.personas[doc.authorId];
     if (author) { nudgeApproval(author, -18); author.reputation = (author.reputation || 0) - 4; }
-    log(world, 'law', `“${doc.title}” is on the statute book of ${world.nation}: ${doc.disrepute[0]}. It will be remembered by name, and so will everyone who voted for it.`,
+    log(world, 'law', `“${doc.title}” is on the statute book of ${world.nation}: ${doc.disrepute[0]}. It and everyone who voted for it will be remembered by name.`,
       { actors: [doc.authorId, ...yeas].filter(Boolean), docId: doc.id, weight: 5 });
   }
   // If this measure was drafted to answer a crisis, answering it is what it
@@ -1295,7 +1295,7 @@ export function promulgate(world, doc, byPersona) {
       ev.resolvedBy = byPersona || doc.authorId || null;
       ev.choice = doc.answers.option ?? -1;
       ev.byLaw = doc.id;
-      log(world, 'crisis', `${ev.title} is answered by the chamber rather than by the executive: `
+      log(world, 'crisis', `${ev.title} is answered by the chamber, not the executive: `
         + `“${doc.title}” carries it.`, { docId: doc.id, weight: 2 });
     }
   }
@@ -1335,7 +1335,7 @@ function signOrder(world, doc, personaId) {
   recomputeEconomy(world);
   // Signed in private, in force at once — so the record of it is public
   // immediately. That publication is the only check on an instrument this fast.
-  log(world, 'law', `Executive Order: “${doc.title}”, signed by ${world.personas[personaId]?.name} and in force at once, without a vote.`, { actors: [personaId], docId: doc.id, weight: 3 });
+  log(world, 'law', `Executive Order: “${doc.title}”, signed by ${world.personas[personaId]?.name}. In force at once, no vote.`, { actors: [personaId], docId: doc.id, weight: 3 });
   return ok(doc);
 }
 
@@ -1419,7 +1419,7 @@ export function disburseGate(world, personaId, amount) {
   if (!Number.isFinite(amt) || amt <= 0) {
     return {
       ok: false,
-      reasons: ['A disbursement is an amount of money greater than nothing.'],
+      reasons: ['A disbursement is an amount greater than nothing.'],
       rule: R.spendRule(world, 0), emergency: false,
       allowance: R.discretionUsed(world), viaEmergency: false,
     };
@@ -1479,7 +1479,7 @@ export function disburse(world, personaId, amount, purpose) {
   const left = R.discretionUsed(world);
   log(world, 'money', `${moneyExact(amount)} disbursed by ${world.personas[personaId]?.name} for ${purpose || 'unspecified purposes'}${gate.viaEmergency ? ' under emergency powers' : ''}.`
     + (effect ? ' ' + effect : '')
-    + (Number.isFinite(left.cap) && !gate.rule.requires ? ` ${moneyExact(left.remaining)} of discretionary allowance remains.` : ''),
+    + (Number.isFinite(left.cap) && !gate.rule.requires ? ` ${moneyExact(left.remaining)} of the allowance remains.` : ''),
     { actors: [personaId], weight: 2 });
   // Deliberately no full recompute here: a jobs or relief disbursement lowers
   // district structural unemployment directly, and recomputeEconomy would
@@ -1586,7 +1586,7 @@ export function bailout(world, personaId, companyId, amount) {
   if (!co) return fail('No such company.');
   const amt = Math.round(+amount);
   if (!Number.isFinite(amt) || amt < 1) return fail('Name an amount.');
-  if (!CO.distressOf(world, co)) return fail(`${co.name} is not in trouble. The treasury does not hand money to businesses that are doing fine.`);
+  if (!CO.distressOf(world, co)) return fail(`${co.name} is not in trouble. The treasury does not pay businesses that are doing fine.`);
   const gate = disburseGate(world, personaId, amt);
   if (!gate.ok) return fail(gate.reasons.join(' '));
   noteDiscretion(world, amt, gate, personaId, `rescue of ${co.name}`);
@@ -1627,9 +1627,8 @@ export function payBailout(world, co, amt, personaId = null) {
   const who = world.personas[personaId]?.name;
   log(world, 'money', `${moneyExact(amt)} of public money goes into ${co.name}`
     + `${res.value.staff ? `, where ${res.value.staff} ${res.value.staff === 1 ? 'person works' : 'people work'}` : ''}. `
-    + (res.value.cured
-      ? 'It is out of danger, and the republic is a creditor of it now.'
-      : 'It is still in trouble, and the republic is a creditor of it now.')
+    + (res.value.cured ? 'It is out of danger. ' : 'It is still in trouble. ')
+    + 'The republic is a creditor of it now.'
     + (who ? ` ${who} signed for it.` : '')
     // Said out loud, in the same line, where nobody has to go looking for it.
     + (interest.conflicted ? ` It is not a disinterested rescue: ${interest.grounds.join('; ')}.` : ''),
@@ -1667,6 +1666,16 @@ export const COST_PER_JOB = CONSTRUCTION_COST_PER_WORKER;
 const LABOR_SHARE = 0.48;
 
 /**
+ * What it costs the public purse to get one person off the street and keep them
+ * off it for a year — the capital and the case work together.
+ *
+ * The same kind of figure as COST_PER_JOB above, and it does the same job: it
+ * turns a sum of money into a number of people, so that the size of an
+ * appropriation is what decides how much good it does.
+ */
+export const COST_PER_REHOUSING = 60000;
+
+/**
  * What a disbursement's stated purpose is read as.
  *
  * This is a keyword parser, and for a long time it was a *hidden* keyword
@@ -1680,9 +1689,22 @@ const LABOR_SHARE = 0.48;
 export const SPEND_EFFECTS = [
   {
     re: /hous|homeless|shelter|tenan|rent|encampment/i, name: 'housing', label: 'Housing', example: 'housing for the encampment',
-    apply: (w, s) => {
+    apply: (w, s, amount) => {
       const d = worstBy(w, 'homeless');
-      const rehoused = Math.round(d.homeless * clamp(0.2 * s, 0, 0.6));
+      // Out of the money, like the jobs programme beside it, and for the same
+      // reason. It was a *share* of the district's homeless — 20% at full
+      // strength — which meant the sum disbursed decided nothing and the same
+      // cheque did twenty times as much in New York as in Virginia. Worse, once
+      // the country was the real one, "full strength" was ten billion dollars
+      // and every sum a president could actually authorise rounded the share to
+      // zero: a $10M disbursal housed nobody and said so.
+      //
+      // A place costs about what a place costs. The cheque buys as many as it
+      // buys, and it cannot house people who are not there.
+      const rehoused = Math.min(d.homeless, Math.floor(amount / COST_PER_REHOUSING));
+      if (!rehoused) {
+        return `${moneyExact(amount)} houses nobody: a place costs about ${money(COST_PER_REHOUSING)}.`;
+      }
       d.homeless = Math.max(0, d.homeless - rehoused);
       // Banked so the reduction survives the next distributePopulation recompute
       // rather than being erased by it — the relief houses people for real, not
@@ -1713,8 +1735,8 @@ export const SPEND_EFFECTS = [
       w.economy.reliefBoost = clamp((w.economy.reliefBoost || 0) + drop, 0, 0.25);
       for (const d of w.districts) { d.unemployment = clamp(d.unemployment - drop, 0.008, 0.7); nudgeMood(d, 2 * s); }
       return hired === 1
-        ? 'One person finds work while the programme runs.'
-        : `About ${hired.toLocaleString()} people find work while the programme runs.`;
+        ? 'One person finds work while it runs.'
+        : `About ${hired.toLocaleString()} people find work while it runs.`;
     },
   },
   {
@@ -1758,7 +1780,7 @@ export const SPEND_EFFECTS = [
       // walk around by typing "army" into the purpose field.
       const added = Math.floor(amount / DEP.DIVISION_COST);
       w.military.exhaustion = clamp(w.military.exhaustion - 0.05 * s, 0, 1);
-      if (!added) return `Not enough to raise a division — one costs ${money(DEP.DIVISION_COST)} — but it goes to the barracks and the men are rested.`;
+      if (!added) return `Not enough to raise a division — one costs ${money(DEP.DIVISION_COST)} — but it rests the men in barracks.`;
       w.military.units += added;
       return `${added} new division${added === 1 ? '' : 's'} raised.`;
     },
@@ -1790,13 +1812,13 @@ export function applySpendingImpact(world, amount, purpose) {
   // programmes. There is no floor now: a small sum does a small thing, and
   // where the effect is a headcount rather than a mood, the money buys it
   // outright at a stated price (see COST_PER_JOB, DEP.DIVISION_COST).
-  const s = clamp(amount / 1e7, 0, 2.5);
+  const s = clamp(amount / 1e10, 0, 2.5);
   const text = String(purpose || '');
   const hits = SPEND_EFFECTS.filter((e) => e.re.test(text));
   if (!hits.length) {
     // Unmarked money still circulates — a small, honest, fading bump.
     bumpAll(world, 1.2 * s);
-    return amount >= 1e6 ? 'The money circulates; little of lasting note.' : null;
+    return amount >= 1e9 ? 'The money circulates; little of lasting note.' : null;
   }
   return hits.map((e) => e.apply(world, s, amount)).join(' ');
 }
@@ -1811,7 +1833,7 @@ export function startProject(world, parcelIndex, buildingKey) {
   // The picker only offers vacant land, but a bill is drafted weeks before it
   // is law — the ground can be taken in between, and a law does not demolish
   // what it finds standing there.
-  if (p.building) return fail(`A ${BUILDINGS[p.building]?.name || 'structure'} already stands on the parcel.`);
+  if (p.building) return fail(`A ${BUILDINGS[p.building]?.name || 'structure'} already stands there.`);
   world.economy.treasury -= b.cost;
   p.project = {
     building: buildingKey, started: world.clock.tick,
@@ -1827,7 +1849,7 @@ export function startProject(world, parcelIndex, buildingKey) {
   const crew = constructionCrew(p.project);
   recomputeEconomy(world);
   log(world, 'build', `Ground broken on a ${b.name} in ${d?.name} — ${money(b.cost)}, ${b.years} years, `
-    + `${crew} at work on the site.`, { district: p.district });
+    + `${num(crew)} on the site.`, { district: p.district });
   return ok(p);
 }
 
@@ -1868,7 +1890,7 @@ export function appointGate(world, byPersonaId, seatId, personaId) {
   const appointer = R.office(world, o.appointedBy);
   const holds = R.officesOf(world, byPersonaId).some((x) => x.id === o.appointedBy);
   if (!holds || !R.hasPower(world, byPersonaId, 'appoint')) {
-    return fail(`Only the ${appointer?.name || o.appointedBy}, holding the power of appointment, may fill the ${o.name}.`);
+    return fail(`Only the ${appointer?.name || o.appointedBy} holds the power of appointment for the ${o.name}.`);
   }
   // Nobody appoints themselves. The power of appointment is a power over other
   // people; turned on its holder it is just a second office taken without an
@@ -1877,7 +1899,7 @@ export function appointGate(world, byPersonaId, seatId, personaId) {
   // plurality of office, in which case the constitution has already had this
   // argument and settled it the other way.
   if (personaId === byPersonaId && !R.allowsPlurality(world)) {
-    return fail(`The power of appointment does not reach your own person; ${o.name} must go to somebody else.`);
+    return fail(`The power of appointment does not reach you; ${o.name} must go to somebody else.`);
   }
   // The Vice President and the bench are not available for departments: one is
   // the successor auditing the administration they would inherit, the other
@@ -1887,14 +1909,14 @@ export function appointGate(world, byPersonaId, seatId, personaId) {
   // A post is filled before it is refilled.
   if (seat.personaId) {
     return fail(o.atWill
-      ? `${o.name} is held by ${world.personas[seat.personaId]?.name}. Dismiss them before naming a successor.`
+      ? `${o.name} is held by ${world.personas[seat.personaId]?.name}. Dismiss them first.`
       : `${o.name} is held by ${world.personas[seat.personaId]?.name} for a fixed term and cannot be reassigned.`);
   }
   // One offer at a time: an outstanding nomination has to be answered or
   // withdrawn before another goes out.
   const outstanding = (world.nominations || []).find((n) => n.seatId === seat.id);
   if (outstanding) {
-    return fail(`${world.personas[outstanding.personaId]?.name} has already been offered the ${o.name} and has not answered. Withdraw that offer first.`);
+    return fail(`${world.personas[outstanding.personaId]?.name} was offered the ${o.name} and has not answered. Withdraw it first.`);
   }
   const nominee = world.personas[personaId];
   if (!nominee || !nominee.alive) return fail('There is nobody by that name to appoint.');
@@ -1923,7 +1945,7 @@ export function appoint(world, byPersonaId, seatId, personaId) {
   seatInOffice(world, seat, o, personaId);
   // The choosing happens behind the Oval Office door; the appointment itself is
   // public the moment it is made.
-  log(world, 'office', `${nominee.name} is appointed ${o.name} by ${world.personas[byPersonaId]?.name}, and takes up the office.`,
+  log(world, 'office', `${nominee.name} is appointed ${o.name} by ${world.personas[byPersonaId]?.name}.`,
     { actors: [byPersonaId, personaId], weight: 3 });
   return ok({ nominated: false, nominee, office: o });
 }
@@ -1975,7 +1997,7 @@ export function tickDivestOfficeholders(world) {
       log(world, 'money',
         liq
           ? `${world.personas[ownerId]?.name || 'The officeholder'} cannot sell ${res.value.name} on taking office — `
-            + `it owes more than it is worth — so it is wound up, ${moneyExact(liq.shortfall)} of it unpaid. `
+            + `it owes more than it is worth, so it is wound up, ${moneyExact(liq.shortfall)} unpaid. `
             + `No officeholder of ${world.nation} may run a company.`
           : `${world.personas[ownerId]?.name || 'The officeholder'} divests ${res.value.name} on taking office, `
             + `for ${moneyExact(res.value.net)}. No officeholder of ${world.nation} may run a company.`,
@@ -2071,8 +2093,8 @@ export function succeed(world, officeId) {
   heirSeat.why = 'succeeded to the ' + o.name;
   log(world, 'office', `${world.personas[heirId]?.name} succeeds from ${from} to the ${o.name}.`
     + (R.termLimitOf(o)
-      ? counts ? ' Enough of the term remains that it counts as a term of their own.'
-        : ' Under half the term remains, so it does not count against the limit.'
+      ? counts ? ' Enough of the term remains that it counts as one of their own.'
+        : ' Under half remains, so it does not count against the limit.'
       : ''),
     { actors: [heirId], weight: 4 });
   return true;
@@ -2108,7 +2130,7 @@ export function declareWar(world, foreignId) {
   if (f.atWar) return fail('Already at war.');
   // There is nobody to declare it on. See applyPeaceTerms, where the last acre
   // of a country goes.
-  if (f.absorbed) return fail(`${f.name} no longer exists. There is nothing there to declare war on.`);
+  if (f.absorbed) return fail(`${f.name} no longer exists. There is nothing to declare war on.`);
   f.atWar = true;
   world.military.wars.push({ id: uid('war'), foreign: foreignId, started: world.clock.tick, front: 0, exhaustion: 0 });
   nudgeMoodAll(world, -6);
@@ -2121,7 +2143,7 @@ export function declareWar(world, foreignId) {
       if (other.id !== foreignId && !other.allied) other.hostility = Math.min(100, other.hostility + 8);
     }
     nudgeMoodAll(world, -4);
-    log(world, 'war', `The non-aggression pact with ${f.name} is torn up to do it. Every other capital has read the same lesson.`, { weight: 4 });
+    log(world, 'war', `The non-aggression pact with ${f.name} is torn up to do it. Every other capital read the lesson.`, { weight: 4 });
   }
   // Alliance obligations fire automatically. That is the point of a treaty.
   callAllies(world, world.military.wars[world.military.wars.length - 1], foreignId);
@@ -2166,14 +2188,13 @@ export function callAllies(world, war, againstId) {
   }
   const target = byId(world.foreign, againstId);
   if (called.length) {
-    log(world, 'war', `${called.join(' and ')} ${called.length === 1 ? 'is' : 'are'} called to `
-      + `${called.length === 1 ? 'its' : 'their'} obligations under the mutual-defense pact and `
-      + `${called.length === 1 ? 'enters' : 'enter'} the war against ${target?.name || 'the aggressor'}.`,
+    log(world, 'war', `${called.join(' and ')} ${called.length === 1 ? 'enters' : 'enter'} the war `
+      + `against ${target?.name || 'the aggressor'}, under the mutual-defense pact.`,
       { weight: 3 });
   } else if (world.foreign.some((a) => a.allied && a.id !== againstId)) {
     // A pact that could not answer is worth saying out loud. It is the whole
     // argument for keeping more than one.
-    log(world, 'war', 'The mutual-defense pacts are called on, and no signatory is in a position to answer.',
+    log(world, 'war', 'The mutual-defense pacts are called on; no signatory can answer.',
       { weight: 3 });
   }
   return called;

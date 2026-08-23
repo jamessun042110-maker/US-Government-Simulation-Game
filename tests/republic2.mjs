@@ -57,7 +57,7 @@ const mk = () => {
   ok('breaking ground puts people to work at once', site.economy.structural < before,
     `${pct(before)} -> ${pct(site.economy.structural)}`);
   ok('the crew is counted', site.economy.constructionJobs > 0, String(site.economy.constructionJobs));
-  ok('and the record says how many', site.chronicle.some((e) => /at work on the site/.test(e.text)),
+  ok('and the record says how many', site.chronicle.some((e) => /[\d,]+ on the site/.test(e.text)),
     site.chronicle.slice(-1)[0]?.text || '');
 
   for (let i = 0; i < 80; i++) { S.tick(control); S.tick(site); }

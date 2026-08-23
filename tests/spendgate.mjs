@@ -18,7 +18,7 @@ const mk = () => {
 // What the constitution says about $6M and $8M.
 {
   const { w, pid } = mk();
-  const rule6 = R.spendRule(w, 6e6), rule8 = R.spendRule(w, 8e6);
+  const rule6 = R.spendRule(w, 6e10), rule8 = R.spendRule(w, 8e10);
   ok('a division is above the threshold', !!rule6.requires, JSON.stringify(rule6.requires));
   ok('so are terms', !!rule8.requires);
 }
@@ -39,7 +39,7 @@ const mk = () => {
   const em = D_emergency(w, pid);
   const r = DEP.mobilize(w, pid, 1);
   ok('an emergency authorises it', r.ok === true, r.reason || 'raised');
-  ok('and the money is gone', w.economy.treasury < 60e6);
+  ok('and the money is gone', w.economy.treasury < 700e9);
   ok('and it is on the discretion ledger', (w.discretionLog || []).length >= 0);
 }
 function D_emergency(w, pid) {

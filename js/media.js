@@ -16,7 +16,7 @@ import * as CONDUCT from './conduct.js';
 export const ANGLES = [
   { id: 'praise', label: 'Praise', dir: +1, blurb: 'Raises approval of the target.' },
   { id: 'attack', label: 'Attack', dir: -1, blurb: 'Lowers approval of the target.' },
-  { id: 'alarm', label: 'Raise alarm', dir: -1, issue: true, blurb: 'Raises the salience of an issue in a district. Makes the numbers hurt more.' },
+  { id: 'alarm', label: 'Raise alarm', dir: -1, issue: true, blurb: 'Raises an issue\u2019s salience in a state. Makes the numbers hurt more.' },
   { id: 'reassure', label: 'Reassure', dir: +1, issue: true, blurb: 'Lowers salience of an issue. Buys the incumbent room.' },
 ];
 
@@ -28,12 +28,12 @@ export function foundOutlet(world, { name, ownerPersonaId, districtId = null, ca
   // person own the whole press — which is a thing to do with a law, not a thing
   // to do with a button.
   if (ownerPersonaId && outletsOf(world, ownerPersonaId).length)
-    return { ok: false, reason: 'You already own a paper. One press each — buy or seize another by law for a second.' };
+    return { ok: false, reason: 'One press each. Buy or seize another by law for a second.' };
   if (R.rightBlocking(world, 'SEIZE_PRESS') === null && world.pressLicensed) {
     // Press law can require a licence; if one exists and no right protects the
     // press, founding can be refused by the state.
     if (!world.pressLicences?.includes(ownerPersonaId))
-      return { ok: false, reason: 'Press law requires a licence, and no right protects the press.' };
+      return { ok: false, reason: 'Press law requires a licence, and no right protects it.' };
   }
   const o = {
     id: uid('out'), name: name || 'The Daily', ownerPersonaId, districtId,
@@ -211,7 +211,7 @@ export function publish(world, { outletId, authorId, headline, body, angle, targ
     if (writer && writer !== owner) nudgeApproval(writer, -12);
     // Whatever the story was aimed at, it lands on the paper instead.
     world.media.pressure = world.media.pressure.filter((p) => p.artId !== art.id);
-    log(world, 'press', `${outlet.name} prints “${art.headline}” — ${conduct.grounds[0]}. The paper, not its target, is the scandal by morning.`,
+    log(world, 'press', `${outlet.name} prints “${art.headline}” — ${conduct.grounds[0]}. The paper, not its target, is the scandal.`,
       { actors: [authorId, outlet.ownerPersonaId].filter(Boolean), weight: 4 });
   }
   return { ok: true, value: art };
@@ -260,7 +260,7 @@ export function publishMemoir(world, { authorId, title, chapters = 6 }) {
     return { ok: false, reason: 'A memoir is written after office, not from it. Leave the chair first.' };
   }
   if (!R.heldHeadOffice(world, authorId)) {
-    return { ok: false, reason: 'Only somebody who has held the chair has a memoir anybody would print.' };
+    return { ok: false, reason: 'Only somebody who held the chair has a memoir anybody would print.' };
   }
   if (hasMemoir(world, authorId)) return { ok: false, reason: 'You have written it once. That is how many memoirs there are.' };
 

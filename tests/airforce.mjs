@@ -15,7 +15,7 @@ const mk = () => {
   return { w, pid: w.players.p1.personaId };
 };
 
-ok('an air wing costs $8M', DEP.AIRWING_COST === 8e6);
+ok('an air wing costs $80B', DEP.AIRWING_COST === 8e10);
 
 // Commissioning is a proper-army expense: past the discretionary line, it needs a vote.
 {

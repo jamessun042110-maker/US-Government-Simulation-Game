@@ -23,7 +23,7 @@ const goToWar = (w) => {
   return w;
 };
 
-ok('a volunteer division costs $900k', DEP.VOLUNTEER_COST === 9e5, String(DEP.VOLUNTEER_COST));
+ok('a volunteer division costs $900M', DEP.VOLUNTEER_COST === 9e8, String(DEP.VOLUNTEER_COST));
 ok('and fights at a tenth of a regular division', DEP.VOLUNTEER_STRENGTH === 0.1, String(DEP.VOLUNTEER_STRENGTH));
 
 // Volunteers may only be called up in wartime — no war, no levy.
@@ -41,7 +41,7 @@ ok('and fights at a tenth of a regular division', DEP.VOLUNTEER_STRENGTH === 0.1
   const r = DEP.mobilizeVolunteers(w, pid, 1);
   ok('a president raises a volunteer division out of discretionary money', r.ok, r.reason || '');
   ok('a volunteer division appears', w.military.volunteers === 1, String(w.military.volunteers));
-  ok('and the Treasury pays $900k for it', before - w.economy.treasury === DEP.VOLUNTEER_COST,
+  ok('and the Treasury pays $900M for it', before - w.economy.treasury === DEP.VOLUNTEER_COST,
     `${((before - w.economy.treasury) / 1e3).toFixed(0)}k`);
   ok('the regular line is untouched', w.military.units === 4, String(w.military.units));
 }

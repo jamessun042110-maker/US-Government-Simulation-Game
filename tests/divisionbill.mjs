@@ -17,13 +17,13 @@ seat.personaId = pid;
 // It shows up in the clause catalogue for a bill.
 ok('a bill may raise divisions', A.clausesFor('bill').includes('RAISE_DIVISIONS'));
 ok('and it is priced per division at the Defense-side rate',
-  A.CLAUSES.RAISE_DIVISIONS && DEP.DIVISION_COST === 6e6, String(DEP.DIVISION_COST));
+  A.CLAUSES.RAISE_DIVISIONS && DEP.DIVISION_COST === 6e10, String(DEP.DIVISION_COST));
 
 // The clause text says what the bill would do, in the units the chamber reads.
 const text1 = A.CLAUSES.RAISE_DIVISIONS.text(w, { count: 1 });
-ok('the text names one division at $6M', /1 division/.test(text1) && /\$6,000,000/.test(text1), text1);
+ok('the text names one division at $60B', /1 division/.test(text1) && /\$60,000,000,000/.test(text1), text1);
 const text3 = A.CLAUSES.RAISE_DIVISIONS.text(w, { count: 3 });
-ok('and three at $18M', /3 divisions/.test(text3) && /\$18,000,000/.test(text3), text3);
+ok('and three at $180B', /3 divisions/.test(text3) && /\$180,000,000,000/.test(text3), text3);
 
 // Applied, it adds divisions and takes the money.
 const bootUnits = w.military.units || 0;
@@ -33,4 +33,4 @@ A.CLAUSES.RAISE_DIVISIONS.apply(w, { count: 2 });
 // money goes now, the divisions muster and arrive DEP.FORMATION_TICKS later.
 ok('two divisions are put to muster', DEP.formingCount(w) === 2, String(DEP.formingCount(w)));
 ok('and are not in the line yet', w.military.units === bootUnits, String(w.military.units));
-ok('and $12M leaves the treasury', bootTreasury - w.economy.treasury === 12e6, String(bootTreasury - w.economy.treasury));
+ok('and $120B leaves the treasury', bootTreasury - w.economy.treasury === 12e10, String(bootTreasury - w.economy.treasury));

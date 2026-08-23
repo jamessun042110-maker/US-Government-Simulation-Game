@@ -65,7 +65,7 @@ function inviteToRoom(world, room, byPersonaId, personaId, byPlayerId) {
   if (target.playerId) {
     notice(world, target.playerId,
       `${world.personas[byPersonaId]?.name || 'The chair'} invites you into ${roomName(world, room)}. `
-      + `Answer within ${R.INVITE_ANSWER_MONTHS} month or the offer lapses; accepting opens the room for ${R.OVAL_INVITE_MONTHS} months.`,
+      + `Answer within ${R.INVITE_ANSWER_MONTHS} month or it lapses; accepting opens the room for ${R.OVAL_INVITE_MONTHS}.`,
       'ok');
   }
 }
@@ -73,7 +73,7 @@ function inviteToRoom(world, room, byPersonaId, personaId, byPlayerId) {
 // How long between national surveys. The map is the one picture everybody at
 // the table has been reading all Season; redrawing it on a whim is disorienting
 // rather than interesting.
-const MAP_REDRAW_YEARS = 2;
+export const MAP_REDRAW_YEARS = 2;
 
 // The fastest the solo clock will run. 8x was in here briefly and it was too
 // much: a term went by while you were reading one crisis card.
@@ -185,11 +185,11 @@ function sayingIt(world, a, personaId, channel, grounds) {
 
   if (open) {
     nudgeMoodAll(world, -3);
-    log(world, 'press', `${regnal(p)} says it on the floor, in the record, in front of everyone: ${grounds[0]}. It will be quoted back.`,
+    log(world, 'press', `${regnal(p)} says it on the floor, in the record, in front of everyone: ${grounds[0]}.`,
       { actors: [personaId], weight: 3 });
-    notice(world, a.playerId, `Said, and on the record. ${grounds[0]}. The districts heard it, your standing is down, and it is now evidence anyone may bring against you.`, 'error');
+    notice(world, a.playerId, `On the record. ${grounds[0]}. The states heard it, your standing is down, and anyone may use it.`, 'error');
   } else {
-    notice(world, a.playerId, `Said in a closed room — so it is not printed, but it is on the record of this room. ${grounds[0]}. It is evidence, and a closed room is not a private one.`, 'error');
+    notice(world, a.playerId, `Not printed, but on this room's record. ${grounds[0]}. A closed room is not a private one.`, 'error');
   }
 }
 
@@ -369,7 +369,7 @@ export const HANDLERS = {
     if (!seat) return;
     const holder = seat.personaId ? world.personas[seat.personaId] : null;
     if (holder && holder.playerId && holder.playerId !== a.playerId)
-      return notice(world, a.playerId, `The ${R.office(world, seat.office)?.name || 'chair'} is already taken by ${holder.name}. Seats are first come, first served.`);
+      return notice(world, a.playerId, `The ${R.office(world, seat.office)?.name || 'chair'} is taken by ${holder.name}. First come, first served.`);
     // Old enough for it. The convention is the one route into a chair that did
     // not pass through mayHoldAgain — every other one goes through a nomination
     // or a ballot — so a founder who set their age to 26 could simply take the
@@ -458,8 +458,8 @@ export const HANDLERS = {
   CLOSE_FLOOR(world, a) {
     const doc = world.documents[a.docId];
     if (!doc) return;
-    if (!R.hasPower(world, meP(world, a), 'call_election') && doc.authorId !== meP(world, a))
-      return notice(world, a.playerId, 'Only the author or an office with the power to call may close the floor early.');
+    const may = R.mayCloseFloor(world, meP(world, a), doc);
+    if (!may.ok) return notice(world, a.playerId, may.reason);
     need(world, a, doc.status === 'override' ? A.closeOverride(world, a.docId) : A.closeFloor(world, a.docId));
   },
   SIGN(world, a) { need(world, a, A.sign(world, a.docId, meP(world, a))); },
@@ -477,14 +477,14 @@ export const HANDLERS = {
   // A justice puts a law before the full bench rather than striking it alone.
   COURT_TAKE_UP(world, a) {
     const res = CT.takeUp(world, a.docId, meP(world, a), a.reason);
-    need(world, a, res) && notice(world, a.playerId, 'The case is on the docket. The court will hear it.', 'ok');
+    need(world, a, res) && notice(world, a.playerId, 'The case is on the docket.', 'ok');
   },
   // One person brings an action against another, and the other answers it.
   // Named SUE_PERSON, not SUE: SUE is already the libel action against an
   // outlet, and a duplicate key in this object silently replaces the earlier one.
   SUE_PERSON(world, a) {
     const res = CT.fileSuit(world, meP(world, a), a.personaId, a.claim, a.pleading);
-    need(world, a, res) && notice(world, a.playerId, 'Your action is filed. The court will hear it.', 'ok');
+    need(world, a, res) && notice(world, a.playerId, 'Your action is filed.', 'ok');
   },
   COURT_ANSWER(world, a) {
     const res = CT.answerSuit(world, a.caseId, meP(world, a), a.text);
@@ -525,7 +525,7 @@ export const HANDLERS = {
     const res = M.publish(world, { ...a.article, authorId: meP(world, a) });
     if (!need(world, a, res)) return;
     if (res.value.disrepute) {
-      notice(world, a.playerId, `Printed — and the paper is the story now. ${res.value.disrepute[0]}. Its credibility is gone and the districts will remember.`, 'error');
+      notice(world, a.playerId, `Printed — and the paper is the story. ${res.value.disrepute[0]}. Its credibility is gone and the states will remember.`, 'error');
     } else {
       notice(world, a.playerId, res.value.supported ? 'Published, and cited. It will land harder.' : 'Published without a citation. Risky.', 'ok');
     }
@@ -597,7 +597,7 @@ export const HANDLERS = {
     if (!need(world, a, res)) return;
     const sec = CO.sectorOf(res.company);
     log(world, 'money', `${world.personas[pid]?.name} founds ${res.company.name} — ${sec.short} — `
-      + 'out of a basement and their own savings.', { actors: [pid], weight: 2 });
+      + 'out of a basement and their savings.', { actors: [pid], weight: 2 });
   },
 
   /** Sell the company and walk away with what it is worth. */
@@ -695,7 +695,7 @@ export const HANDLERS = {
       if (!need(world, a, bidRes)) return;
       const bid = bidRes.value.bid;
       notice(world, a.playerId, `${moneyExact(bid.toSeller)} offered for ${target.name}. It is not yours until they say so.`, 'ok');
-      notice(world, theirPlayer, `${buyer.name} offers ${moneyExact(bid.toSeller)} for ${target.name}. You have ${CO.BID_DEADLINE} ticks to answer.`, 'ok');
+      notice(world, theirPlayer, `${buyer.name} offers ${moneyExact(bid.toSeller)} for ${target.name}. ${CO.BID_DEADLINE} ticks to answer.`, 'ok');
       return log(world, 'money', `${buyer.name} offers ${moneyExact(bid.toSeller)} for ${target.name}. `
         + `${world.personas[target.founderId]?.name} has not said yes.`,
       { actors: [pid, target.founderId].filter(Boolean), weight: 3 });
@@ -744,7 +744,7 @@ export const HANDLERS = {
     if (!co) return notice(world, a.playerId, 'You do not run a company.');
     const res = CO.buyBuilding(world, co);
     if (!res.ok) return notice(world, a.playerId, res.reason);
-    log(world, 'company', `${co.name} takes on a new building — room for ${CO.capacityOf(co)} now, and a manager to run it at four times a wage.`, { actors: [pid], weight: 2 });
+    log(world, 'company', `${co.name} takes on a new building — room for ${CO.capacityOf(co)} now, and a manager at four times a wage.`, { actors: [pid], weight: 2 });
   },
   /**
    * Sell one of them again — the move a company in trouble actually has.
@@ -806,7 +806,7 @@ export const HANDLERS = {
     // the Chronicle prints it, the member's file carries it, and the court can
     // read both. Money that moves a vote quietly is a different game.
     log(world, 'money', `${co.name} pays ${moneyExact(a.amount)} to ${target?.name} over “${doc?.title}”. `
-      + `It is minuted, and it is on their file.`, { actors: [pid, a.personaId], docId: a.docId, weight: 4 });
+      + 'It is minuted, and on their file.', { actors: [pid, a.personaId], docId: a.docId, weight: 4 });
     if (target?.playerId) {
       notice(world, target.playerId, `${co.name} has put ${moneyExact(a.amount)} behind your vote on “${doc?.title}”. It is on the record.`, 'ok');
     }
@@ -847,7 +847,7 @@ export const HANDLERS = {
     const pid = meP(world, a);
     if (!R.mayMoveRates(world, pid)) {
       return notice(world, a.playerId, R.bankIsIndependent(world)
-        ? 'The bank is independent of this government. It sets the rate; you may say what you think of it.'
+        ? 'The bank is independent of this government. It sets the rate; you may say what you think.'
         : 'Only the Secretary of the Treasury and the President may instruct the bank.');
     }
     const e = world.economy;
@@ -863,10 +863,10 @@ export const HANDLERS = {
     if (a.tool === 'rate') {
       const dir = e.policyRate > before.policy ? 'raises' : e.policyRate < before.policy ? 'cuts' : 'holds';
       log(world, 'money', `${who} ${dir} the policy rate to ${(e.policyRate * 100).toFixed(2)}%. `
-        + `The bank will buy or sell until the money market clears there.`, { actors: [pid], weight: 2 });
+        + `The bank buys or sells until the money market clears there.`, { actors: [pid], weight: 2 });
     } else if (a.tool === 'reserve') {
       log(world, 'money', `${who} sets the reserve requirement at ${(e.reserveRatio * 100).toFixed(1)}%. `
-        + `Every dollar of reserves in the republic is now worth ${MACRO.moneyMultiplier(world).toFixed(1)} in deposits.`,
+        + `Every dollar of reserves is now worth ${MACRO.moneyMultiplier(world).toFixed(1)} in deposits.`,
       { actors: [pid], weight: 2 });
     } else {
       const amt = +a.value || 0;
@@ -912,6 +912,11 @@ export const HANDLERS = {
     const from = p.party;
     if (from === target) return;
     p.party = target;
+    // At the convention this is the first answer, not a defection: the founder
+    // is choosing the side they will stand on before the republic exists. The
+    // Chronicle opens on the founding, so a founder trying the two buttons
+    // would otherwise write the history of a career spent crossing the floor.
+    if (world.phase === 'convention') return;
     const nm = (id) => (PARTIES.find((x) => x.id === id)?.name);
     log(world, 'election', `${p.name} ${target ? `joins the ${nm(target)} party` : 'leaves party politics to sit as an independent'}`
       + `${from && target ? `, crossing from the ${nm(from)} party` : ''}.`, { actors: [pid], weight: 2 });
@@ -919,7 +924,7 @@ export const HANDLERS = {
   // Finalise the ballot ahead of the count: the vote is fixed from here.
   SEAL_BALLOT(world, a) {
     const res = sealBallot(world, a.electionId, meP(world, a));
-    need(world, a, res) && notice(world, a.playerId, 'Your ballot is submitted. It is counted when the polls close.', 'ok');
+    need(world, a, res) && notice(world, a.playerId, 'Your ballot is submitted. It counts when the polls close.', 'ok');
   },
   // The rules live in acts.appoint — the same door npc.js uses to fill a
   // cabinet. This is only the part that talks to the person clicking.
@@ -957,7 +962,7 @@ export const HANDLERS = {
     }
     seatInOffice(world, seat, o, pid);
     world.nominations = world.nominations.filter((n) => n !== nom);
-    log(world, 'office', `${world.personas[pid]?.name} accepts appointment as ${o.name} from ${world.personas[nom.by]?.name}, and takes up the office.`, { actors: [pid, nom.by].filter(Boolean), weight: 3 });
+    log(world, 'office', `${world.personas[pid]?.name} accepts appointment as ${o.name} from ${world.personas[nom.by]?.name}.`, { actors: [pid, nom.by].filter(Boolean), weight: 3 });
   },
   DECLINE_POST(world, a) {
     const pid = meP(world, a);
@@ -1100,7 +1105,7 @@ export const HANDLERS = {
     const seat = world.seats.find((s) => s.id === a.seatId);
     if (!seat) return;
     const o = R.office(world, seat.office);
-    if (!o?.atWill) return notice(world, a.playerId, `${o?.name || 'That office'} does not serve at will and cannot simply be dismissed.`);
+    if (!o?.atWill) return notice(world, a.playerId, `${o?.name || 'That office'} does not serve at will and cannot be dismissed.`);
     if (!R.officesOf(world, pid).some((x) => x.id === o.appointedBy) || !R.hasPower(world, pid, 'appoint'))
       return notice(world, a.playerId, `Only the ${R.office(world, o.appointedBy)?.name || o.appointedBy} may dismiss the ${o.name}.`);
     if (!seat.personaId) return;
@@ -1170,19 +1175,27 @@ export const HANDLERS = {
   // country, not the country — but it is the picture everyone at the table has
   // been reading for hours, so it is the executive's call and it is rationed:
   // once every two canon years.
+  //
+  // The gate is the power, not the key to the room. Standing in the Oval Office
+  // was the test once, and five people hold a key to it — so the Vice President
+  // and three secretaries could each redraw the country over the President's
+  // head. `spend` is the President's alone under this constitution, which is the
+  // right shape for a survey somebody has to pay for.
   REDRAW_MAP(world, a) {
     const pid = meP(world, a);
     if (!pid || !R.mayEnterOval(world, pid))
       return notice(world, a.playerId, 'The survey is ordered from the Oval Office.');
+    if (!R.hasPower(world, pid, 'spend'))
+      return notice(world, a.playerId, 'Only an office that can commit money may commission the survey.');
     const wait = MAP_REDRAW_YEARS * world.clock.ticksPerYear;
     const last = world.mapRedrawnAt;
     if (last != null && world.clock.tick - last < wait) {
       const left = wait - (world.clock.tick - last);
-      return notice(world, a.playerId, `The survey was last ordered ${canonDate(world, last)}. Another may be commissioned in ${canonSpan(world, left)}.`);
+      return notice(world, a.playerId, `Last ordered ${canonDate(world, last)}. Another may be commissioned in ${canonSpan(world, left)}.`);
     }
     world.mapSeed = (world.mapSeed || 0) + 1;
     world.mapRedrawnAt = world.clock.tick;
-    log(world, 'build', `${world.personas[pid]?.name} orders the national survey redrawn. The coast, the border and the interior are set down afresh.`,
+    log(world, 'build', `${world.personas[pid]?.name} orders the survey redrawn — coast, border and interior set down afresh.`,
       { actors: [pid], weight: 2 });
     notice(world, a.playerId, 'The survey is redrawn. See the World and City maps.', 'ok');
   },
@@ -1192,7 +1205,7 @@ export const HANDLERS = {
   // under everyone else's turn.
   SET_TIMESCALE(world, a) {
     if (activePlayers(world).length > 1)
-      return notice(world, a.playerId, 'Time runs at one tick a second while anyone else is at the table.');
+      return notice(world, a.playerId, 'Time runs at one tick a second while anyone else is here.');
     world.timeScale = clamp(Math.round(+a.scale || 1), 1, MAX_TIMESCALE);
   },
 
@@ -1504,7 +1517,7 @@ function beginSeason(world) {
   if (districted) {
     const changed = reshapeDistricts(world, districted.seats);
     assignDistrictSeats(world);
-    if (changed) log(world, 'founding', `${world.nation} is divided into ${world.districts.length} states, one for each seat of the ${districted.name}.`);
+    if (changed) log(world, 'founding', `${world.nation} is cut into ${world.districts.length} states, one per seat of the ${districted.name}.`);
   }
 
   // Everyone lives somewhere. A district seat is filled by the people who live
@@ -1520,7 +1533,7 @@ function beginSeason(world) {
   const c = world.constitution;
   const readied = Object.values(world.players).filter((p) => p.ready).length
     || Object.keys(world.players).length;
-  if (dropped.length) log(world, 'founding', `Established without ${dropped.join(' or ')}: the convention gave the office no seats.`);
+  if (dropped.length) log(world, 'founding', `Established without ${dropped.join(' or ')}: the convention gave it no seats.`);
   log(world, 'founding', `${c.name} is ratified by ${readied} founder(s). ${world.nation} exists.`, { weight: 6 });
   log(world, 'founding', c.preamble, { weight: 2 });
   // Anything still empty gets a seated citizen; a state cannot wait.
@@ -1589,7 +1602,7 @@ export function removePlayer(world, playerId, why = 'leaves the table') {
   delete world.players[playerId];
   delete (world.drafting || {})[playerId];
   delete (world.deliberating || {})[playerId];
-  log(world, 'system', `${pl.name} ${why}. Their persona remains, in the hands of the republic.`, { weight: 1 });
+  log(world, 'system', `${pl.name} ${why}. Their persona passes to the republic.`, { weight: 1 });
   // Hand moderation to someone still present, so the table is never leaderless.
   if (pl.moderator) {
     const heir = Object.values(world.players)[0];
@@ -1721,7 +1734,7 @@ function refusedForState(world, action) {
   if (action.type === 'CHAT' && state !== 'dead') return null;
   return state === 'dead'
     ? `${p.name} is dead. Roll a new persona to carry on — you keep your reputation.`
-    : `${p.name} is ${state}, and cannot act in the republic from there.`;
+    : `${p.name} is ${state}, and cannot act from there.`;
 }
 
 export function apply(world, action) {

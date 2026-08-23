@@ -231,6 +231,29 @@ function flag(C, P, x, y, h, color) {
 }
 
 /**
+ * A party's colours, flown beside the national flag.
+ *
+ * The Stars and Stripes is not repainted for whoever won — it is the country's,
+ * not the administration's, and an inauguration that recolours it reads as a
+ * different flag rather than as a different president. What an inauguration
+ * actually does is dress the building: the party that took the office hangs its
+ * own colours either side of the national one. So this is a plain banner in one
+ * colour, with a paler band through it so it has cloth in it, and it takes the
+ * room's light the way `nationalFlag` does.
+ */
+function partyFlag(C, P, x, y, h, color) {
+  const d = P.dim * 0.5;
+  const body = mix(color, '#14161f', d);
+  const band = lite(body, 0.22);
+  const fold = dark(body, 0.3);
+  C.rect(x, y, 1, h, dark(P.stone, 0.5));        // the staff
+  const W = 9, ROWS = 6;
+  C.rect(x + 1, y + 1, W, ROWS, body);
+  C.rect(x + 1, y + 3, W, 1, band);              // the band, a third of the way down
+  C.rect(x + W, y + 1, 1, ROWS, fold);           // a fold down the fly
+}
+
+/**
  * The national flag: purple at the hoist, gold at the fly, a black disc on the
  * seam. Colours from util.FLAG so the pixel scenes, the inauguration tableau
  * and the title screen fly the same one.
@@ -618,9 +641,100 @@ function capitol(C, P, cx, baseY) {
   }
 }
 
-function balcony(world) {
+/**
+ * A courthouse front: plinth, colonnade, pediment.
+ *
+ * The Supreme Court, seen from the Senate side of the Capitol — which is where
+ * it actually is, across First Street. It is drawn as a temple front rather than
+ * as a dome because that is the whole difference between it and everything else
+ * on this side of the river: no dome, no wings, one flight of steps and a
+ * triangle on top.
+ *
+ * The pediment is what does the work. Without it the building is a low box with
+ * stripes on it and reads as a warehouse; with it, sixteen pixels of triangle,
+ * it reads as a courthouse at any size.
+ */
+function courthouse(C, P, cx, baseY, w, h) {
+  const st = mix(P.stone, '#2b2b33', 0.06 + P.dim * 0.4);
+  const face = dark(st, 0.05), sh = dark(st, 0.3), hi = lite(st, 0.2);
+
+  // The flight of steps, splaying toward us. Deep — the real one is famously so,
+  // and it is the only part of the building most people ever stand on.
+  for (let i = 0; i < 5; i++) {
+    const sw = w + 6 + i * 5;
+    C.rect(cx - sw / 2, baseY + i, sw, 1, mix(hi, sh, i / 6));
+  }
+
+  const bodyY = baseY - h;
+  C.rect(cx - w / 2, bodyY, w, h, face);
+  C.rect(cx - w / 2, bodyY, w, 1, hi);
+
+  // Eight columns. Even, so the eye finds the doorway between the middle two
+  // instead of a shaft standing in it.
+  const step = Math.max(3, Math.floor((w - 6) / 8));
+  for (let i = 0; i < 8; i++) {
+    const x = cx - w / 2 + 3 + i * step;
+    C.rect(x, bodyY + 3, 1, h - 4, hi);
+    C.rect(x + 1, bodyY + 3, 1, h - 4, sh);
+  }
+  C.rect(cx - w / 2, bodyY + 2, w, 1, sh);            // the architrave over them
+  C.rect(cx - w / 2, baseY - 1, w, 1, sh);            // and the shadow under
+
+  // The pediment: rows narrowing to a point, on a cornice a little wider than
+  // the colonnade, the way an entablature oversails what holds it up.
+  //
+  // Its face is lit and the row under it is dark, because the whole triangle is
+  // the same stone as the wall below and at seven rows of it, unshaded, the two
+  // merged and the building read as a flat-topped box with stripes. A pediment
+  // is only a pediment if you can see where it starts.
+  const PED = 9;
+  C.rect(cx - w / 2 - 3, bodyY - 2, w + 6, 2, mix(face, hi, 0.55));
+  C.rect(cx - w / 2 - 3, bodyY - 1, w + 6, 1, dark(face, 0.4));
+  for (let r = 0; r < PED; r++) {
+    const pw = Math.max(3, w - 4 - Math.round((r / PED) * (w - 6)));
+    const y = bodyY - 3 - r;
+    C.rect(cx - pw / 2, y, pw, 1, mix(face, hi, 0.5));
+    // The raking cornice: one lit pixel on each slope, which is what an eye
+    // reads as the edge of a roof rather than as a stack of narrowing bars.
+    C.set(cx - pw / 2, y, hi);
+    C.set(cx + pw / 2 - 1, y, dark(face, 0.25));
+    if (r > 1 && r < PED - 1) C.rect(cx - pw / 2 + 2, y, pw - 4, 1, mix(face, sh, 0.35));
+  }
+  C.set(cx, bodyY - 3 - PED, hi);
+
+  if (P.lampsLit) {
+    // Two lamps at the foot of the steps, and the light they throw up the stone.
+    for (const lx of [cx - w / 2 - 6, cx + w / 2 + 6]) {
+      C.rect(lx, baseY - 5, 1, 5, sh);
+      C.rect(lx - 1, baseY - 7, 3, 2, P.warm);
+      C.glow(lx, baseY - 6, 3, P.warm, 0.75);
+    }
+    C.wash(cx, baseY - 2, 26, P.warm, 0.55, 0.22);
+  }
+}
+
+/**
+ * The view off a Capitol balcony.
+ *
+ * Two of them, because there are two chambers and they are on opposite ends of
+ * the building. A cloakroom is the one room in the game that exists twice, and
+ * rendering the same picture in both made them read as one room with two doors —
+ * which is exactly the thing the second chamber is not.
+ *
+ * - **`house`** looks west, down the Mall: the pool, the paved axis, the long
+ *   view. It is the ceremonial front and the one everybody has seen.
+ * - **`senate`** looks east, across First Street at the Court, over a street
+ *   rather than a lawn. Closer, harder, more built-up — no water, no axis, and
+ *   a city that starts at the kerb instead of half a mile away.
+ *
+ * Everything above the horizon and everything below the coping is shared: it is
+ * the same building, the same evening and the same balustrade, seen from the
+ * other end.
+ */
+function balcony(world, wing = 'house') {
   const P = palette(world);
   const C = Canvas(BALC.w, BALC.h);
+  const senate = wing === 'senate';
   const stone = mix('#e4dac2', '#332f28', P.dim * 0.68);
   const rail = mix('#ded3b6', '#312d26', P.dim * 0.62);
   const railHi = lite(rail, 0.22), railLo = dark(rail, 0.38);
@@ -632,12 +746,17 @@ function balcony(world) {
   clouds(C, P, 17, 3, 5, BALC.w);
   birds(C, P, 23, 7, BALC.w);
 
-  // The far side of the city, small because it is far.
+  // The far side of the city, small because it is far. The Senate looks into
+  // town rather than down a lawn, so its skyline is taller, closer together, and
+  // does not part in the middle to let a view through.
   C.rect(0, B_HZ - 2, BALC.w, 3, P.hill);
-  block(C, P, 8, B_HZ - 6, 20, 7, 3, 2);
-  block(C, P, 40, B_HZ - 4, 14, 5, 2, 1);
-  block(C, P, 196, B_HZ - 7, 22, 8, 3, 2);
-  block(C, P, 226, B_HZ - 4, 14, 5, 2, 1);
+  const SKY_LINE = senate
+    ? [[4, B_HZ - 8, 26, 9, 4, 3], [34, B_HZ - 5, 18, 6, 3, 2], [56, B_HZ - 9, 22, 10, 3, 3],
+      [82, B_HZ - 4, 16, 5, 2, 1], [148, B_HZ - 6, 20, 7, 3, 2], [172, B_HZ - 10, 24, 11, 4, 3],
+      [200, B_HZ - 5, 18, 6, 3, 2], [222, B_HZ - 8, 20, 9, 3, 3]]
+    : [[8, B_HZ - 6, 20, 7, 3, 2], [40, B_HZ - 4, 14, 5, 2, 1],
+      [196, B_HZ - 7, 22, 8, 3, 2], [226, B_HZ - 4, 14, 5, 2, 1]];
+  for (const b of SKY_LINE) block(C, P, b[0], b[1], b[2], b[3], b[4], b[5]);
 
   // The ground below, all the way down to the railing. It lightens toward us,
   // because near ground is out from under the haze the distance is sitting in.
@@ -645,32 +764,61 @@ function balcony(world) {
     [mix(P.ground, P.far, 0.5), P.ground, lite(P.ground, 0.06)], 2);
   C.rect(0, B_RY - 4, BALC.w, 4, P.groundLo);
 
-  capitol(C, P, 120, 37);
-
-  // The mall in front of it: a plaza, then water, then the near lawn. Everything
-  // widens as it comes down the frame.
   const paveA = mix(P.stone, P.ground, 0.45), paveB = dark(paveA, 0.12);
-  for (let i = 0; i < 5; i++) {
-    const w = 74 + i * 22;
-    C.rect(120 - w / 2, 41 + i, w, 1, i % 2 ? paveB : paveA);
-  }
-  const pool = mix(P.sky[1], '#10323f', 0.36);
-  C.rect(74, 38, 92, 3, pool);
-  C.rect(74, 38, 92, 1, lite(pool, 0.22));
-  for (let x = 78; x < 166; x += 11) C.set(x, 39, lite(pool, 0.3));
 
-  // Trees: small and dim at the horizon, bigger and nearer down the frame.
-  for (const [i, t] of [[16, 20, 3], [206, 20, 3], [44, 26, 4], [190, 26, 4],
-    [30, 36, 6], [212, 36, 6], [58, 41, 7], [180, 41, 7]].entries()) {
-    tree(C, P, 41 + i, t[0], t[1], t[2]);
-  }
+  if (senate) {
+    courthouse(C, P, 120, 34, 62, 13);
 
-  if (P.lampsLit) {
-    for (const lx of [34, 96, 146, 206]) {
-      C.rect(lx, 34, 1, 6, dark(stone, 0.5));
-      C.rect(lx - 1, 32, 3, 2, P.warm);
-      C.glow(lx, 33, 3, P.warm, 0.8);
-      C.wash(lx, 34, 14, P.warm, 0.8, 0.35);
+    // First Street between us and it: a kerb, a carriageway with a centre line,
+    // and the far kerb. A street is what makes this side of the building feel
+    // like a city rather than a park, and the lane markings are what make the
+    // grey band read as a street at all.
+    const road = mix(P.groundLo, '#22242c', 0.45);
+    C.rect(0, 39, BALC.w, 1, dark(paveA, 0.2));
+    C.rect(0, 40, BALC.w, 4, road);
+    C.rect(0, 40, BALC.w, 1, lite(road, 0.1));
+    for (let x = 4; x < BALC.w; x += 12) C.rect(x, 42, 5, 1, mix(P.warm, road, 0.55));
+
+    // Street trees in a row along the far kerb, evenly spaced, all one size —
+    // planted, not landscaped. The Mall's are staged for depth; these are civic
+    // furniture and look it.
+    for (let i = 0; i < 8; i++) tree(C, P, 61 + i, 12 + i * 31, 39, 5);
+
+    if (P.lampsLit) {
+      for (const lx of [22, 74, 166, 218]) {
+        C.rect(lx, 33, 1, 6, dark(stone, 0.5));
+        C.rect(lx - 1, 31, 3, 2, P.warm);
+        C.glow(lx, 32, 3, P.warm, 0.8);
+        C.wash(lx, 34, 12, P.warm, 0.7, 0.3);
+      }
+    }
+  } else {
+    capitol(C, P, 120, 37);
+
+    // The mall in front of it: a plaza, then water, then the near lawn. Everything
+    // widens as it comes down the frame.
+    for (let i = 0; i < 5; i++) {
+      const w = 74 + i * 22;
+      C.rect(120 - w / 2, 41 + i, w, 1, i % 2 ? paveB : paveA);
+    }
+    const pool = mix(P.sky[1], '#10323f', 0.36);
+    C.rect(74, 38, 92, 3, pool);
+    C.rect(74, 38, 92, 1, lite(pool, 0.22));
+    for (let x = 78; x < 166; x += 11) C.set(x, 39, lite(pool, 0.3));
+
+    // Trees: small and dim at the horizon, bigger and nearer down the frame.
+    for (const [i, t] of [[16, 20, 3], [206, 20, 3], [44, 26, 4], [190, 26, 4],
+      [30, 36, 6], [212, 36, 6], [58, 41, 7], [180, 41, 7]].entries()) {
+      tree(C, P, 41 + i, t[0], t[1], t[2]);
+    }
+
+    if (P.lampsLit) {
+      for (const lx of [34, 96, 146, 206]) {
+        C.rect(lx, 34, 1, 6, dark(stone, 0.5));
+        C.rect(lx - 1, 32, 3, 2, P.warm);
+        C.glow(lx, 33, 3, P.warm, 0.8);
+        C.wash(lx, 34, 14, P.warm, 0.8, 0.35);
+      }
     }
   }
 
@@ -2054,6 +2202,9 @@ const ROOMS = {
   },
   court: { draw: court, size: COURT, vents: [{ x: 26, y: 8, w: 188, h: 52 }] },
   balcony: { draw: balcony, size: BALC, vents: [{ x: 0, y: 0, w: BALC.w, h: 48 }] },
+  // The other end of the same building. Same balustrade, same weather, a
+  // different city over it — see `balcony`.
+  balcony_upper: { draw: (world) => balcony(world, 'senate'), size: BALC, vents: [{ x: 0, y: 0, w: BALC.w, h: 48 }] },
   // The Mansion's weather is behind the glass, plus the slid-open panel — which
   // is the one place in that wall a flake can actually come through.
   // The Mansion's whole outside wall is glass, so the weather is most of the
@@ -2264,7 +2415,12 @@ export function officeScene(world, which) {
  * use, and heights vary by a few pixels: without both, the heads tile and the
  * whole thing reads as a checkerboard rather than as people.
  */
-function crowd(C, P, x0, x1, topY, ranks, bottomY) {
+// `flagCol` is what the few of them holding something up are holding: red by
+// default, the administration's colour at its own inauguration. It used to read
+// `FLAG.hoist`, a key from Silver's two-colour flag that the Stars and Stripes
+// does not have — so the cloth was mixed from `undefined` and the crowd waved
+// green.
+function crowd(C, P, x0, x1, topY, ranks, bottomY, flagCol = FLAG.red) {
   for (let r = 0; r < ranks; r++) {
     const y = topY + r * 8;
     const hw = 3 + r;                       // the head, wider as it comes nearer
@@ -2304,8 +2460,8 @@ function crowd(C, P, x0, x1, topY, ranks, bottomY) {
       // A few of them holding something up, which is what a crowd does.
       if (h2(r * 13 + 5, x) < 0.14) {
         C.rect(px + bw, hy - 5, 1, 6, dark(P.trunk, 0.1));
-        C.rect(px + bw + 1, hy - 5, 4, 3, mix(FLAG.hoist, '#ffffff', 0.34));
-        C.rect(px + bw + 1, hy - 5, 4, 1, mix(FLAG.fly, '#ffffff', 0.3));
+        C.rect(px + bw + 1, hy - 5, 4, 3, mix(flagCol, '#ffffff', 0.34));
+        C.rect(px + bw + 1, hy - 5, 4, 1, mix(flagCol, '#ffffff', 0.3));
       }
     }
   }
@@ -2563,7 +2719,7 @@ const IN_GY = 100;        // where the lawn begins, and the residence stands
  * a pale winter light and a president inaugurated three years later stands in
  * whatever weather that day happens to be.
  */
-function inaugural(world, gender) {
+function inaugural(world, gender, party) {
   const P = palette(world);
   const C = Canvas(INAUG.w, INAUG.h);
   const st = mix(P.stone, '#2a2822', P.dim * 0.42);      // the residence's stone
@@ -2693,8 +2849,16 @@ function inaugural(world, gender) {
   }
   C.rect(78, 91, 84, 1, dark(rail, 0.34));                  // the base moulding
 
-  // -- The flag, and the light on the building -----------------------------
+  // -- The flags, and the light on the building ----------------------------
+  // The national flag over the pediment, the new administration's colours over
+  // the wings either side of it. `party` is null when nobody in the chair keeps
+  // a party — an independent president is sworn in under the one flag, which is
+  // the picture that fact deserves.
   nationalFlag(C, P, 120, 6, 20);
+  if (party) {
+    partyFlag(C, P, 28, 62 - 15, 15, party);
+    partyFlag(C, P, 211, 62 - 15, 15, party);
+  }
   if (P.lampsLit) {
     for (const lx of [66, 174]) {
       C.rect(lx, IN_GY - 12, 1, 12, dark(st, 0.5));
@@ -2708,7 +2872,7 @@ function inaugural(world, gender) {
   }
 
   // -- The crowd -----------------------------------------------------------
-  crowd(C, P, 0, INAUG.w, IN_GY + 14, 5, INAUG.h);
+  crowd(C, P, 0, INAUG.w, IN_GY + 14, 5, INAUG.h, party || FLAG.red);
   return C;
 }
 
@@ -2724,10 +2888,17 @@ let INAUG_BG = { key: null, svg: '' };
  * takes a negative `animation-delay` off the wall clock and carries on falling
  * from wherever it had got to.
  */
-export function inaugurationScene(world, gender = 'x') {
-  const key = `${gender}|${seasonAt(world).step}`;
-  if (INAUG_BG.key !== key) INAUG_BG = { key, svg: inaugural(world, gender).toSVG() };
-  const cols = [FLAG.hoist, FLAG.fly, '#e8582d', '#2f9e44', '#ffffff'];
+export function inaugurationScene(world, gender = 'x', party = null) {
+  // The party is part of the picture now, so it is part of what the cache is
+  // keyed on — otherwise a second administration of the other side is sworn in
+  // under the first one's flags for as long as the season does not turn.
+  const key = `${gender}|${seasonAt(world).step}|${party || '-'}`;
+  if (INAUG_BG.key !== key) INAUG_BG = { key, svg: inaugural(world, gender, party).toSVG() };
+  // The confetti takes the administration's colour where it had a second flag
+  // colour, so the air over the lawn agrees with the cloth on the building.
+  const cols = party
+    ? [party, FLAG.white, party, '#e8582d', '#ffffff']
+    : [FLAG.red, FLAG.blue, '#e8582d', '#2f9e44', '#ffffff'];
   const now = Date.now() / 1000;
   let conf = '';
   for (let i = 0; i < 22; i++) {
@@ -2810,7 +2981,8 @@ function monument(C, P, cx, baseY, h) {
   for (let i = 0; i < shaftH; i++) {
     // Six wide at the foot, four at the shoulder.
     const w = i < shaftH * 0.55 ? 6 : 5;
-    const y = baseY - i - capH;
+    // Row 0 is the foot itself: the shaft stands on baseY, not capH above it.
+    const y = baseY - i;
     const x = cx - Math.floor(w / 2);
     C.rect(x, y, w, 1, face);
     C.rect(x, y, 1, 1, lit);
@@ -2820,7 +2992,8 @@ function monument(C, P, cx, baseY, h) {
     const w = 5 - i;
     if (w <= 0) break;
     const x = cx - Math.floor(w / 2);
-    C.rect(x, baseY - h + i, w, 1, i < 2 ? lit : face);
+    // +1 so the pyramidion sits on the shaft's top row rather than over it.
+    C.rect(x, baseY - h + 1 + i, w, 1, i < 2 ? lit : face);
   }
   C.set(cx - 1, baseY - h + capH + 1, P.warm);
   C.set(cx + 1, baseY - h + capH + 1, P.warm);

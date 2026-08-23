@@ -122,8 +122,8 @@ export const withThe = (name) => {
  * the preamble came out "We the people of The United States", and the
  * constitution was titled "Constitution of the Republic of The United States".
  *
- * Only the leading article is touched. "The Antilles League" becomes "the
- * Antilles League" and nothing else about it moves.
+ * Only the leading article is touched. "The Caribbean League" becomes "the
+ * Caribbean League" and nothing else about it moves.
  */
 export const midThe = (name) => String(name == null ? '' : name).replace(/^The\s/, 'the ');
 
@@ -271,10 +271,19 @@ export const flagSvg = (x, y, w, h, ink = '#141414') => {
     + `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${ink}" stroke-width="1"/>`;
 };
 
+/**
+ * Money, at the scale a reader can hold in their head.
+ *
+ * The trillion tier is not decoration. National output is about twenty-two of
+ * them and the treasury holds hundreds of billions, and without it the header
+ * read "$22400.00B" — a number nobody parses at a glance, and the one figure on
+ * the screen that is supposed to be readable at a glance.
+ */
 export function money(n) {
   const neg = n < 0; n = Math.abs(n);
   let s;
-  if (n >= 1e9) s = '$' + (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e12) s = '$' + (n / 1e12).toFixed(2) + 'T';
+  else if (n >= 1e9) s = '$' + (n / 1e9).toFixed(2) + 'B';
   else if (n >= 1e6) s = '$' + (n / 1e6).toFixed(2) + 'M';
   else if (n >= 1e3) s = '$' + (n / 1e3).toFixed(0) + 'K';
   else s = '$' + n.toFixed(0);

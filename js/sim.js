@@ -152,7 +152,7 @@ export function tick(world) {
       notice(world, `An offer for ${item.co.name}`,
         `${item.bidOpened.buyerName} offers ${moneyExact(item.bidOpened.toSeller)} for ${item.co.name}`
         + `${item.bidOpened.debt ? `, and to take on the ${moneyExact(item.bidOpened.debt)} it owes` : ''}. `
-        + `There are ${item.bidOpened.deadline - world.clock.tick} ticks to answer it, and not answering is answering.`);
+        + `${item.bidOpened.deadline - world.clock.tick} ticks to answer it, and not answering is answering.`);
     }
     if (item.distressOpened && (item.co.employees || []).length >= BAILOUT_HEARD_AT) {
       const head = world.seats.find((s) => s.office === R.headOffice(world)?.id && s.personaId);
@@ -161,7 +161,7 @@ export function tick(world) {
         // id as the title, so the government's one warning that an employer was
         // failing arrived headed "p1".
         notice(world, `${item.co.name} is in trouble`,
-          `${(item.co.employees || []).length} people work there, and it has ${CO.graceMonths(world)} months. `
+          `${(item.co.employees || []).length} people work there. It has ${CO.graceMonths(world)} months. `
           + 'The treasury can catch it, if you think that is the government\'s job.');
       }
     }
@@ -245,7 +245,7 @@ function tickEconomy(world) {
     const financed = MACRO.financeDeficit(world);
     if (financed > 0) e.credit = clamp(e.credit - 0.15, 5, 100);
     log(world, 'money', `Fiscal year closes. Treasury ${moneyExact(closing)}`
-      + (financed > 0 ? ` — a ${moneyExact(financed)} deficit, financed by borrowing` : '')
+      + (financed > 0 ? ` — a ${moneyExact(financed)} deficit, borrowed` : '')
       + `; revenue ${money(e.revenueYr)}, spending ${money(e.spendYr)}; unemployment ${(e.unemployment * 100).toFixed(1)}%.`, { weight: 1 });
     log(world, 'money', MACRO.annualReport(world), { weight: 1 });
   }
@@ -339,7 +339,7 @@ function sweepRoom(world, room) {
       world.notices.push({
         id: 'nt_' + room + '_' + g.id + '_' + world.clock.tick, playerId: p.playerId,
         text: unanswered
-          ? `You never answered the invitation into ${roomName(world, room)}. It has lapsed.`
+          ? `Your invitation into ${roomName(world, room)} lapsed unanswered.`
           : `Your invitation into ${roomName(world, room)} has lapsed.`,
         tone: 'error', ts: Date.now(),
       });
@@ -702,7 +702,7 @@ function tickFloor(world) {
       if (world.clock.tick - doc.passedAt >= window) {
         doc.status = 'vetoed';
         doc.pocketVetoed = world.clock.tick || 1;
-        log(world, 'vote', `“${doc.title}” dies unsigned — two months passed with neither a signature nor a veto. A pocket veto.`, { docId: id, weight: 2 });
+        log(world, 'vote', `“${doc.title}” dies unsigned — two months, no signature, no veto. A pocket veto.`, { docId: id, weight: 2 });
       }
     }
   }
@@ -900,75 +900,75 @@ export function syntheticBallot(world, persona, doc) {
  */
 const VOICES = {
   blunt: {
-    for: ['It helps my people. That is the whole of my reasoning. Aye.', 'I know what this is. I am voting for it anyway.', 'Yes. Next.'],
-    against: ['No. I have read it and I do not want it.', 'Somebody wins from this and it is not {d}. No.', 'Against, and I will say why in the corridor.'],
-    abstain: ['I am not putting my name on this either way.', 'Not my fight. Stood aside.', 'Ask me again when it is honest. Abstained.'],
+    for: ['It helps my people. That is the whole of it. Aye.', 'I know what this is. I am for it anyway.', 'Yes. Next.'],
+    against: ['No. I have read it and I do not want it.', 'Somebody wins from this and it is not {d}. No.', 'Against — I will say why in the corridor.'],
+    abstain: ['Not putting my name on this either way.', 'Not my fight. Stood aside.', 'Ask me again when it is honest. Abstained.'],
   },
   lawyerly: {
-    for: ['The drafting is sound and the power is there. I vote aye.', 'On the clause as written — and only as written — yes.', 'It survives the obvious objection. For.'],
-    against: ['The clause reaches further than the grant. I must vote no.', 'This will be struck within the year. Against.', 'Show me the authority for it. Until then, no.'],
-    abstain: ['The instrument is wrong even where the aim is right. Abstained.', 'I reserve my position on the drafting.', 'I would want this pleaded better. Stood aside.'],
+    for: ['The drafting is sound and the power is there. Aye.', 'On the clause as written — and only as written — yes.', 'It survives the obvious objection. For.'],
+    against: ['The clause reaches further than the grant. No.', 'This will be struck within the year. No.', 'Show me the authority for it. Until then, no.'],
+    abstain: ['The instrument is wrong where the aim is right. Abstained.', 'I reserve my position on the drafting.', 'This wants pleading better. Stood aside.'],
   },
   folksy: {
-    for: ['I put this to people in {d} and they told me to vote for it. So I did.', 'It is a plain good thing for plain people. Aye.', 'My neighbours will notice this one. Yes.'],
-    against: ['Nobody in {d} asked for this. No.', 'I cannot go home and defend it. Against.', 'We were promised this before. I am voting no.'],
-    abstain: ['{d} is split and so am I, honestly. Abstained.', 'I will not guess at what my people want. Stood aside.', 'I would rather say nothing than say the wrong thing.'],
+    for: ['I put this to {d} and they told me to vote for it. So I did.', 'A plain good thing for plain people. Aye.', 'My neighbours will notice this one. Yes.'],
+    against: ['Nobody in {d} asked for this. No.', 'I cannot go home and defend it. No.', 'We were promised this before. No.'],
+    abstain: ['{d} is split and so am I, honestly. Abstained.', 'I will not guess what my people want. Stood aside.', 'I would rather say nothing than the wrong thing.'],
   },
   firebrand: {
-    for: ['At last. Aye, and about time.', 'Anyone voting against this should explain themselves to {d}. For.', 'Yes — and I want the vote recorded.'],
-    against: ['This is an insult dressed as a bill. No.', 'They will not do this to {d} while I have a vote. Against.', 'Absolutely not, and I will say so outside.'],
+    for: ['At last. Aye, and about time.', 'Anyone against this should explain themselves to {d}. For.', 'Yes — and I want the vote recorded.'],
+    against: ['An insult dressed as a bill. No.', 'They will not do this to {d} while I have a vote. No.', 'Absolutely not, and I will say so outside.'],
     abstain: ['I refuse to dignify it with a vote.', 'A pox on the lot of it. Abstained.', 'I will not be counted on this farce.'],
   },
   wonk: {
-    for: ['The numbers hold at the stated rate. Aye.', 'Costed, funded, and it clears its own threshold. Yes.', 'It does what it says it does. For.'],
-    against: ['The arithmetic does not close. No.', 'This is a rounding error pretending to be a policy. Against.', 'The projection assumes a growth rate we have never had. No.'],
-    abstain: ['I want the figures before I want an opinion. Abstained.', 'Insufficient data. Stood aside.', 'Bring me the model and I will bring you a vote.'],
+    for: ['The numbers hold at the stated rate. Aye.', 'Costed, funded, clears its own threshold. Yes.', 'It does what it says it does. For.'],
+    against: ['The arithmetic does not close. No.', 'A rounding error pretending to be a policy. Against.', 'It assumes a growth rate we have never had. No.'],
+    abstain: ['I want the figures before the opinion. Abstained.', 'Insufficient data. Stood aside.', 'Bring me the model and I will bring you a vote.'],
   },
   weary: {
-    for: ['We have argued this for years. Fine. Aye.', 'It is not what I wanted, but it is something. Yes.', 'For — and let us not do this again.'],
-    against: ['I voted against this the last time it had another name. No.', 'It will not work. It did not work before. Against.', 'No. I have run out of ways to say it.'],
-    abstain: ['I have nothing left to say about this. Abstained.', 'Wake me when it changes. Stood aside.', 'Neither. Genuinely, neither.'],
+    for: ['We have argued this for years. Fine. Aye.', 'Not what I wanted, but it is something. Yes.', 'For — and let us not do this again.'],
+    against: ['I voted against this when it had another name. No.', 'It will not work. It did not work before. No.', 'No. I have run out of ways to say it.'],
+    abstain: ['I have nothing left to say. Abstained.', 'Wake me when it changes. Stood aside.', 'Neither. Genuinely, neither.'],
   },
 };
 
 const STATEMENTS = {
   tax: {
-    for: ['The bills come due whether we like them or not. Aye.', 'You cannot run a republic on good wishes. Yes from me.', 'Someone has to pay for the roads {d} keeps asking for. Aye.'],
-    against: ['Another reach into the pockets of {d}. Not with my vote.', 'We tax and tax, then wonder why the streets are angry. No.', 'Raise this and the money simply leaves. I voted no.'],
-    abstain: ['The rate is wrong in both directions. I stood aside.', 'I could not in conscience vote either way on this one.', '{d} is split down the middle, and so am I. Abstained.'],
+    for: ['The bills come due whether we like them or not. Aye.', 'You cannot run a republic on good wishes. Aye.', 'Someone has to pay for the roads {d} asks for. Aye.'],
+    against: ['Another reach into the pockets of {d}. Not with my vote.', 'We tax and tax, then wonder why the streets are angry. No.', 'Raise this and the money simply leaves. No.'],
+    abstain: ['The rate is wrong in both directions. Stood aside.', 'I could not in conscience vote either way.', '{d} is split down the middle, and so am I. Abstained.'],
   },
   spend: {
-    for: ['This is money {d} will actually see. I backed it.', 'Idle treasuries help no one. Aye.', 'Build it — my people have waited long enough. Yes.'],
-    against: ['We do not have the money for this, whatever the sponsor says. No.', 'Grand projects, empty coffers. I voted against.', 'This buys headlines, not results. No from {d}.'],
-    abstain: ['Worthy aim, reckless price. I abstained.', 'Fund it properly or not at all — I stood aside.', 'I want this built, just not like this. Abstained.'],
+    for: ['Money {d} will actually see. I backed it.', 'Idle treasuries help no one. Aye.', 'Build it — my people have waited long enough. Yes.'],
+    against: ['We do not have the money, whatever the sponsor says. No.', 'Grand projects, empty coffers. Against.', 'This buys headlines, not results. No from {d}.'],
+    abstain: ['Worthy aim, reckless price. Abstained.', 'Fund it properly or not at all. Stood aside.', 'I want this built, not like this. Abstained.'],
   },
   war: {
-    for: ['Weakness invites what strength deters. Aye.', 'There is a time to stand, and this is it. Yes.', '{d} will not be safe if we flinch now. For.'],
-    against: ['War is easy to start and murder to end. No.', 'We are already exhausted. I will not send them again. No.', 'Show me the plan to win before you ask for the war. Against.'],
+    for: ['Weakness invites what strength deters. Aye.', 'There is a time to stand. This is it. Yes.', '{d} will not be safe if we flinch now. For.'],
+    against: ['War is easy to start and murder to end. No.', 'We are exhausted. I will not send them again. No.', 'Show me the plan to win before you ask for the war. No.'],
     abstain: ["I will not cheer a war, nor tie the government's hands. Abstained.", 'Not yet. I stood aside.', 'The case is not made either way. Abstained.'],
   },
   rights: {
-    for: ['A right on paper is worth having when the arrests begin. Aye.', 'Better to bind our own hands than trust our own tempers. Yes.', 'This protects {d} from us as much as from anyone. For.'],
-    against: ['Fine words that will tie the state in a crisis. No.', 'Rights without order are a suggestion. Against.', 'We cannot govern {d} with our wrists cuffed. No.'],
-    abstain: ['Good in spirit, loose in wording. I abstained.', 'I support the idea and distrust the draft. Stood aside.', 'Bring it back tighter and I am with you. Abstained.'],
+    for: ['A right on paper is worth having when the arrests begin. Aye.', 'Better to bind our own hands than trust our tempers. Yes.', 'This protects {d} from us as much as from anyone. For.'],
+    against: ['Fine words that will tie the state in a crisis. No.', 'Rights without order are a suggestion. No.', 'We cannot govern {d} with our wrists cuffed. No.'],
+    abstain: ['Good in spirit, loose in wording. Abstained.', 'I like the idea and distrust the draft. Stood aside.', 'Bring it back tighter and I am with you. Abstained.'],
   },
   power: {
     for: ['The office needs the tools to do the job. Aye.', 'Someone must be able to act. Yes.', 'Better a clear hand than a paralysed one. For.'],
-    against: ['Every power we grant is one we cannot easily take back. No.', 'This is how republics quietly stop being republics. Against.', '{d} did not send me to hand away its say. No.'],
+    against: ['Every power we grant is one we cannot take back. No.', 'This is how republics quietly stop being republics. No.', '{d} did not send me to hand away its say. No.'],
     abstain: ['Necessary and dangerous in equal measure. Abstained.', 'I would grant it to some hands, not these. Stood aside.', 'Ask me again when I trust the holder. Abstained.'],
   },
   rules: {
     for: ['The rules should fit the country we actually are. Aye.', 'Overdue housekeeping. Yes.', 'This makes the machine run truer for {d}. For.'],
-    against: ['You do not rewrite the rulebook mid-game to suit yourself. No.', 'This redraws the lines to the sponsor’s advantage. Against.', 'Institutional caution — I voted no.'],
-    abstain: ['A change worth making, made carelessly. Abstained.', 'Not against the aim, only the hurry. Stood aside.', 'I withheld my vote on principle. Abstained.'],
+    against: ['You do not rewrite the rulebook to suit yourself. No.', 'This redraws the lines to the sponsor’s advantage. No.', 'Institutional caution. No.'],
+    abstain: ['A change worth making, made carelessly. Abstained.', 'Not against the aim, only the hurry. Stood aside.', 'Withheld on principle. Abstained.'],
   },
   person: {
     for: ['The office is bigger than the person in it. Aye.', 'The evidence left me no honest choice. Yes.', 'No one is above the seat they hold. For removal.'],
-    against: ['Remove them for this and no chair is ever safe again. No.', 'A vote to settle scores, not to do justice. Against.', '{d} elected them; a chamber should not simply undo that. No.'],
-    abstain: ['Grave charge, thin proof. I stood aside.', 'I will not convict on a mood. Abstained.', 'Let the voters judge this, not us. Abstained.'],
+    against: ['Remove them for this and no chair is safe again. No.', 'A vote to settle scores, not to do justice. No.', '{d} elected them; a chamber should not undo that. No.'],
+    abstain: ['Grave charge, thin proof. Stood aside.', 'I will not convict on a mood. Abstained.', 'Let the voters judge this, not us. Abstained.'],
   },
   generic: {
-    for: ['On balance, this does more good than harm. Aye.', 'I read it, weighed it, backed it. Yes.', 'Good enough to pass, and {d} needs the win. For.'],
+    for: ['This does more good than harm. Aye.', 'I read it, weighed it, backed it. Yes.', 'Good enough to pass, and {d} needs the win. For.'],
     against: ['More cost than sense in this one. No.', 'Not persuaded. Against.', 'This does not serve {d}. No.'],
     abstain: ['Not convinced either way. Abstained.', 'I stood aside on this one.', 'Neither yes nor no in good conscience. Abstained.'],
   },
@@ -987,9 +987,9 @@ function topicOf(doc) {
 // When a member changes their vote because the bill or the conditions moved,
 // they say so — the words a principled member would use for a genuine rethink.
 const CHANGED = {
-  for: ['I said no, but the bill has changed — and so has my vote. Aye now.', 'Credit where due: they fixed what I objected to. I switched to yes.', '{d} sees something here now it did not before. I moved to aye.'],
-  against: ['I was with this, but no longer — what changed lost me. No now.', 'The terms turned, and my vote turned with them. Against.', 'I gave my word on the old bill, not this one. No.'],
-  abstain: ['I can no longer take a side on this. I have withdrawn to abstain.', 'The ground shifted under this vote; I am stepping back.', 'On reflection, {d} and I both had better sit this one out.'],
+  for: ['I said no, but the bill changed — and so has my vote. Aye now.', 'Credit where due: they fixed what I objected to. Yes now.', '{d} sees something here it did not before. I moved to aye.'],
+  against: ['I was with this, but no longer — what changed lost me. No now.', 'The terms turned, and my vote turned with them. No.', 'I gave my word on the old bill, not this one. No.'],
+  abstain: ['I can no longer take a side. I have withdrawn to abstain.', 'The ground shifted under this vote; I step back.', '{d} and I had both better sit this one out.'],
 };
 export function voteStatement(world, persona, doc, ballot, reconsidered = false) {
   const dir = ballot === 'yea' ? 'for' : ballot === 'nay' ? 'against' : 'abstain';
@@ -1055,13 +1055,13 @@ function tickMemberBills(world) {
   if (!top || top.score < 0.55) return;    // nothing worth a bill
 
   const ASKS = {
-    housing: { amount: 6e6, purpose: `housing in ${d.name}`, title: `${d.name} Housing Act`,
-      pre: `Whereas ${d.homeless.toLocaleString()} people in ${d.name} have nowhere to sleep, and the district has waited long enough for a building rather than a promise.` },
-    jobs: { amount: 5e6, purpose: `jobs and relief in ${d.name}`, title: `${d.name} Employment Act`,
-      pre: `Whereas ${(d.unemployment * 100).toFixed(1)} percent of ${d.name} is out of work, and a member who says nothing about it should not be returned.` },
-    order: { amount: 4e6, purpose: `policing in ${d.name}`, title: `${d.name} Public Order Act`,
+    housing: { amount: 6e9, purpose: `housing in ${d.name}`, title: `${d.name} Housing Act`,
+      pre: `Whereas ${d.homeless.toLocaleString()} people in ${d.name} have nowhere to sleep, and it has waited long enough for a building, not a promise.` },
+    jobs: { amount: 5e9, purpose: `jobs and relief in ${d.name}`, title: `${d.name} Employment Act`,
+      pre: `Whereas ${(d.unemployment * 100).toFixed(1)} percent of ${d.name} is out of work, and a member who says nothing should not be returned.` },
+    order: { amount: 4e9, purpose: `policing in ${d.name}`, title: `${d.name} Public Order Act`,
       pre: `Whereas order in ${d.name} has broken down to a degree its people can measure by walking home.` },
-    amenity: { amount: 5e6, purpose: `schools and clinics in ${d.name}`, title: `${d.name} Amenities Act`,
+    amenity: { amount: 5e9, purpose: `schools and clinics in ${d.name}`, title: `${d.name} Amenities Act`,
       pre: `Whereas ${d.name} has neither the schools nor the clinics its numbers entitle it to.` },
   };
   const ask = ASKS[top.key];
@@ -1104,7 +1104,7 @@ function tickPendingTerms(world) {
     if (!p || !p.alive || p.exiled || p.imprisoned) {
       if (p) {
         log(world, 'election', `${p.name} won the ${o.name} and cannot take it: `
-          + `${p.exiled ? 'they are in exile' : p.imprisoned ? 'they are in a cell' : 'they did not live to be sworn in'}. `
+          + `${p.exiled ? 'in exile' : p.imprisoned ? 'in a cell' : 'not alive to be sworn in'}. `
           + 'The chair stays empty until the republic fills it.', { actors: [p.id], weight: 3 });
       }
       continue;
@@ -1219,7 +1219,7 @@ function tickTerms(world) {
           if (!world.elections.some((e) => e.office === o.id && e.status === 'open')
             && !(world.pendingTerms || []).some((pt) => pt.seatId === seat.id)) {
             scheduleElection(world, o.id, 60);
-            log(world, 'election', `The term of the ${o.name} expires with no successor chosen. Nominations open.`, { weight: 2 });
+            log(world, 'election', `The term of the ${o.name} expires with no successor. Nominations open.`, { weight: 2 });
           }
           seat.termEnds = world.clock.tick + 60; // caretaker until the count
         } else {
@@ -1250,7 +1250,7 @@ function tickTerms(world) {
         if (seat.vacantSince == null) seat.vacantSince = world.clock.tick;
         if (world.clock.tick - seat.vacantSince > (neverFilled ? CARETAKER_GRACE_NEW : 50)) {
           const p = makePersona(world, { synthetic: true, district: seat.district });
-          p.bio = `Caretaker ${o.name}, seated when the appointment was not made.`;
+          p.bio = `Caretaker ${o.name}, seated when no appointment was made.`;
           seat.personaId = p.id; seat.since = world.clock.tick;
           seat.termEnds = R.termEndTick(world, o, world.clock.tick);
           log(world, 'office', `${p.name} is seated as ${o.name} in default of an appointment.`, { actors: [p.id] });
@@ -1504,7 +1504,7 @@ export function castBallot(world, electionId, voterPersonaId, candidatePersonaId
   // `!= null`, not truthiness: the seal records the tick it happened on, and
   // tick 0 is a real tick. Testing it as a boolean silently unsealed every
   // ballot submitted at the founding.
-  if (e.sealed?.[voterPersonaId] != null) return { ok: false, reason: 'Your ballot is submitted. It cannot be changed before the count.' };
+  if (e.sealed?.[voterPersonaId] != null) return { ok: false, reason: 'Your ballot is submitted. It cannot change before the count.' };
   // A district office is not one election. It is one contest per seat, run at
   // the same moment — closeElection has always counted it that way, filtering
   // the field to the seat's own district — but the ballot let anybody vote for
@@ -1515,10 +1515,10 @@ export function castBallot(world, electionId, voterPersonaId, candidatePersonaId
   if (o?.electorate === 'district') {
     const voter = world.personas[voterPersonaId];
     const cand = e.candidates.find((c) => c.personaId === candidatePersonaId);
-    if (!voter?.district) return { ok: false, reason: 'You are from no district, so you have no seat to vote for.' };
+    if (!voter?.district) return { ok: false, reason: 'You are from no district, and have no seat to vote for.' };
     if (cand && cand.district !== voter.district) {
       const home = world.districts.find((d) => d.id === voter.district);
-      return { ok: false, reason: `That candidate stands in another district. You vote for ${home?.name || 'your own district'}'s seat.` };
+      return { ok: false, reason: `That candidate stands in another district. You vote for ${home?.name || 'your own district'}.` };
     }
   }
   e.ballots[voterPersonaId] = candidatePersonaId;
@@ -1536,7 +1536,7 @@ export function sealBallot(world, electionId, voterPersonaId) {
   const e = world.elections.find((x) => x.id === electionId);
   if (!e || e.status !== 'open') return { ok: false, reason: 'The polls are closed.' };
   if (!voterPersonaId) return { ok: false, reason: 'No persona to vote with.' };
-  if (!e.ballots[voterPersonaId]) return { ok: false, reason: 'Choose a candidate before you submit your ballot.' };
+  if (!e.ballots[voterPersonaId]) return { ok: false, reason: 'Choose a candidate before you submit.' };
   e.sealed = e.sealed || {};
   if (e.sealed[voterPersonaId] != null) return { ok: false, reason: 'Your ballot is already submitted.' };
   e.sealed[voterPersonaId] = world.clock.tick;
@@ -1800,7 +1800,7 @@ export function closeElection(world, e) {
       log(world, 'election', `${world.personas[winner.personaId]?.name} is `
         + `${returned ? 're-elected' : 'elected'} ${asOffice} with ${shareOf}% of ${castOf} votes`
         + `${!returned && prev ? `, defeating ${world.personas[prev]?.name}` : ''}. `
-        + `They are sworn in on ${canonDate(world, e.takesOfficeAt)}.`,
+        + `Sworn in on ${canonDate(world, e.takesOfficeAt)}.`,
       { actors: [winner.personaId, prev].filter(Boolean), weight: 3 });
       e.status = 'closed';
       e.closedAt = world.clock.tick;
@@ -2022,8 +2022,8 @@ function offerDictate(world, f, total = false) {
   world.dictate = (world.dictate || []).filter((d) => d.foreignId !== f.id);
   world.dictate.push({ foreignId: f.id, since: world.clock.tick, until: world.clock.tick + DICTATE_TICKS, total });
   log(world, 'war', total
-    ? `${f.name} capitulates without terms. There is no government left to argue for one, and ${world.nation} `
-      + 'may take as much of it as it cares to hold — including all of it.'
+    ? `${f.name} capitulates without terms. No government is left to argue for any, and ${world.nation} `
+      + 'may take as much of it as it likes — including all of it.'
     : `${f.name} awaits the terms of its surrender. `
       + `${world.nation} may dictate them, or let the guns simply stop.`, { weight: total ? 5 : 3 });
 }
@@ -2096,7 +2096,7 @@ function tickWar(world) {
       if (f.exhaustion) f.exhaustion = clamp(f.exhaustion - PEACE_EXHAUSTION_DECAY, 0, 1);
       if (f.pact && world.clock.tick >= f.pact.ends) {
         f.pact = null;
-        log(world, 'war', `The non-aggression pact with ${f.name} expires by its own terms. Nothing now stands between the two states but their intentions.`, { weight: 2 });
+        log(world, 'war', `The non-aggression pact with ${f.name} expires by its own terms. Nothing stands between them now but their intentions.`, { weight: 2 });
       }
       // And the mutual-defence pact, which had no term at all.
       //
@@ -2110,7 +2110,7 @@ function tickWar(world) {
         f.allied = false;
         f.alliance = null;
         log(world, 'war', `The mutual-defence pact with ${f.name} runs out. `
-          + 'Neither state is now obliged to the other, and both are free to say so.', { weight: 3 });
+          + 'Neither is obliged to the other now, and both are free to say so.', { weight: 3 });
       }
     } else {
       // At war, and building for it. A power's strength was frozen the moment
@@ -2158,9 +2158,9 @@ function tickWar(world) {
       // it went to the Chronicle and the World tab and nowhere you were looking.
       // A notice, not a crisis: the decision is not whether it happened.
       notice(world, `${f.name} declares war`,
-        `${f.name} has declared a state of war with ${world.nation}. Hostility stood at ${Math.round(f.hostility)} when it moved; there was warning.`
-        + (broke ? ' The non-aggression pact they signed is torn up in the same breath.' : '')
-        + ' The front opens against us and the districts have heard.');
+        `${f.name} declares war on ${world.nation}. Hostility stood at ${Math.round(f.hostility)}; there was warning.`
+        + (broke ? ' The non-aggression pact they signed is torn up with it.' : '')
+        + ' The front opens and the districts have heard.');
     }
   }
   for (const war of world.military.wars) {
@@ -2259,7 +2259,7 @@ function tickWar(world) {
       nudgeMoodAll(world, WIN_MOOD * (1 - world.military.exhaustion));
       world.military.exhaustion = clamp(world.military.exhaustion - 0.25, 0, 1);
       log(world, 'war', enemyDone
-        ? `${f.name} capitulates — its army is spent and it can fight no longer. The war ends in our favour.`
+        ? `${f.name} capitulates — its army is spent. The war ends in our favour.`
         : `${f.name} sues for terms — its people will not fight on. The war ends in our favour.`, { weight: 4 });
       continue;
     }
@@ -2374,7 +2374,7 @@ function tickWar(world) {
     world.military.volunteers = 0;
     world.military.volunteerFront = {};   // nobody is at a front that no longer exists
     recomputeEconomy(world);
-    log(world, 'war', `The ${sent} volunteer division${sent === 1 ? '' : 's'} raised for the war ${sent === 1 ? 'is' : 'are'} stood down and sent home.`, { weight: 2 });
+    log(world, 'war', `The ${sent} volunteer division${sent === 1 ? '' : 's'} ${sent === 1 ? 'is' : 'are'} stood down and sent home.`, { weight: 2 });
   }
 }
 

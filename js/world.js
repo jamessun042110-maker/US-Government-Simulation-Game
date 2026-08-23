@@ -3,7 +3,7 @@
 import { rng, range, pick, clamp, uid, sum, mulberry32, hashSeed, PALETTE, youthOf, YOUTH_APPROVAL } from './util.js';
 import { templateById, termEndTick, apportion } from './rules.js';
 import { initMacro } from './macro.js';
-import { STATE_NAMES, isCoastal, LAKES, STATES, codeOf, peopleOf } from './atlas.js';
+import { STATE_NAMES, isCoastal, LAKES, STATES, codeOf, peopleOf, liberalOf, joblessOf, roughOf, homeValueOf, incomeOf } from './atlas.js';
 import { cityGeometry, inPoly, bounds } from './geo.js';
 
 export const ZONES = {
@@ -19,18 +19,18 @@ export const ZONES = {
 // land prices vary by district, parking earns, low-income housing measurably
 // reduces the homeless, and the jail lowers property values next to the bank.
 export const BUILDINGS = {
-  housing_low: { name: 'Low-Income Housing', zone: 'residential', cost: 8e6, years: 1.2, jobs: 60, homes: 900, upkeep: 4e5, land: -6, mood: 2, tag: 'housing' },
-  housing_mid: { name: 'Apartments', zone: 'residential', cost: 12e6, years: 1.0, jobs: 40, homes: 620, upkeep: 2e5, land: 4, mood: 1, tag: 'housing' },
-  factory: { name: 'Factory', zone: 'industrial', cost: 15e6, years: 1.6, jobs: 900, homes: 0, upkeep: 6e5, land: -9, mood: -2, output: 26e6, tag: 'jobs' },
-  offices: { name: 'Office Block', zone: 'commercial', cost: 18e6, years: 1.4, jobs: 700, homes: 0, upkeep: 5e5, land: 7, mood: 0, output: 34e6, tag: 'jobs' },
-  market: { name: 'Market Row', zone: 'commercial', cost: 6e6, years: 0.7, jobs: 240, homes: 0, upkeep: 2e5, land: 3, mood: 2, output: 9e6, tag: 'jobs' },
-  park: { name: 'Public Park', zone: 'park', cost: 2e6, years: 0.4, jobs: 12, homes: 0, upkeep: 1.5e5, land: 11, mood: 5, tag: 'amenity' },
-  school: { name: 'School', zone: 'civic', cost: 9e6, years: 1.1, jobs: 130, homes: 0, upkeep: 9e5, land: 6, mood: 5, tag: 'amenity' },
-  hospital: { name: 'Hospital', zone: 'civic', cost: 20e6, years: 1.8, jobs: 420, homes: 0, upkeep: 1.6e6, land: 5, mood: 6, tag: 'amenity' },
-  sewer: { name: 'Sewer Works', zone: 'civic', cost: 6e6, years: 0.9, jobs: 70, homes: 0, upkeep: 3e5, land: 2, mood: 3, tag: 'infra' },
-  parking: { name: 'Parking Structure', zone: 'commercial', cost: 1.5e6, years: 0.3, jobs: 18, homes: 0, upkeep: 6e4, land: -2, mood: -1, revenue: 4.2e5, tag: 'revenue' },
-  jail: { name: 'Jail', zone: 'civic', cost: 12e6, years: 1.3, jobs: 180, homes: 0, upkeep: 1.2e6, land: -16, mood: -3, order: 8, tag: 'order' },
-  barracks: { name: 'Barracks', zone: 'civic', cost: 10e6, years: 1.2, jobs: 300, homes: 0, upkeep: 1.4e6, land: -6, mood: -1, units: 2, tag: 'military' },
+  housing_low: { name: 'Public Housing', zone: 'residential', cost: 8e9, years: 1.2, jobs: 60000, homes: 900000, upkeep: 4e8, land: -6, mood: 2, tag: 'housing' },
+  housing_mid: { name: 'Housing Development', zone: 'residential', cost: 1.2e10, years: 1.0, jobs: 40000, homes: 620000, upkeep: 2e8, land: 4, mood: 1, tag: 'housing' },
+  factory: { name: 'Industrial Works', zone: 'industrial', cost: 1.5e10, years: 1.6, jobs: 900000, homes: 0, upkeep: 6e8, land: -9, mood: -2, output: 2.6e10, tag: 'jobs' },
+  offices: { name: 'Commercial District', zone: 'commercial', cost: 1.8e10, years: 1.4, jobs: 700000, homes: 0, upkeep: 5e8, land: 7, mood: 0, output: 3.4e10, tag: 'jobs' },
+  market: { name: 'Retail District', zone: 'commercial', cost: 6e9, years: 0.7, jobs: 240000, homes: 0, upkeep: 2e8, land: 3, mood: 2, output: 9e9, tag: 'jobs' },
+  park: { name: 'Parkland', zone: 'park', cost: 2e9, years: 0.4, jobs: 12000, homes: 0, upkeep: 1.5e8, land: 11, mood: 5, tag: 'amenity' },
+  school: { name: 'Schools', zone: 'civic', cost: 9e9, years: 1.1, jobs: 130000, homes: 0, upkeep: 9e8, land: 6, mood: 5, tag: 'amenity' },
+  hospital: { name: 'Hospitals', zone: 'civic', cost: 2e10, years: 1.8, jobs: 420000, homes: 0, upkeep: 1.6e9, land: 5, mood: 6, tag: 'amenity' },
+  sewer: { name: 'Water and Sewer', zone: 'civic', cost: 6e9, years: 0.9, jobs: 70000, homes: 0, upkeep: 3e8, land: 2, mood: 3, tag: 'infra' },
+  parking: { name: 'Roads and Transit', zone: 'commercial', cost: 1.5e9, years: 0.3, jobs: 18000, homes: 0, upkeep: 6e7, land: -2, mood: -1, revenue: 4.2e8, tag: 'revenue' },
+  jail: { name: 'Corrections', zone: 'civic', cost: 1.2e10, years: 1.3, jobs: 180000, homes: 0, upkeep: 1.2e9, land: -16, mood: -3, order: 8, tag: 'order' },
+  barracks: { name: 'Garrison', zone: 'civic', cost: 1e10, years: 1.2, jobs: 300000, homes: 0, upkeep: 1.4e9, land: -6, mood: -1, units: 2, tag: 'military' },
 };
 
 export const MAX_DISTRICTS = 20;
@@ -89,9 +89,15 @@ const LAST = ['Sun', 'Whitfield', 'Okonkwo', 'Reyes', 'Calloway', 'Nakamura', 'B
 // reads these on every relevant clause, so a member votes their party's line as
 // a matter of course, and the opposition whips against the government's bills on
 // top of it. Keep the two rows opposed and roughly balanced.
+//
+// The colours are blue and red, the way the country reads them, rather than
+// Silver's gold and indigo — a chip nobody has to be taught, and the two the
+// inauguration's bunting is dyed with. Both are dark enough to want light type
+// on them, which is what `ink` is: it used to be a literal '#111' beside every
+// use of `color`, and that pairing only held while the palette was pale.
 export const PARTIES = [
-  { id: 'liberal', name: 'Liberal', color: '#e0c020', lean: { spend: 0.6, order: -0.35, tax: 0.5, rights: 0.5 } },
-  { id: 'conservative', name: 'Conservative', color: '#7d5ba6', lean: { spend: -0.5, order: 0.45, tax: -0.5, rights: -0.4 } },
+  { id: 'liberal', name: 'Liberal', color: '#2f6fdb', ink: '#ffffff', lean: { spend: 0.6, order: -0.35, tax: 0.5, rights: 0.5 } },
+  { id: 'conservative', name: 'Conservative', color: '#b22234', ink: '#ffffff', lean: { spend: -0.5, order: 0.45, tax: -0.5, rights: -0.4 } },
 ];
 
 /**
@@ -110,9 +116,37 @@ export function seedPartisan(world, leanId) {
   return { partisan, undecided: Math.max(0.02, 1 - home - away) };
 }
 
+/** The share of a district's voters who are not with either party at the founding. */
+const UNDECIDED_AT_FOUNDING = 0.26;
+
+/**
+ * The same thing, but for a state that is a real place — seeded off how that
+ * place actually votes rather than off a coin.
+ *
+ * `atlas.liberalOf` is the Liberal share of the two-party vote; the committed
+ * two-thirds-odd of the electorate is split in that proportion and the rest is
+ * left undecided. So the Deep South opens conservative, New England opens
+ * liberal, and Virginia opens on a knife edge — which is what those places are.
+ *
+ * The jitter is small and deliberate. Without it every Season deals the same
+ * twenty splits to the tenth of a point and the map becomes a table to memorise;
+ * with it, the three states that really are within a point of even can break
+ * either way, and nothing else moves enough to matter. It draws on `world.rngState`
+ * like everything else here, so Seasons still differ — see the handoff.
+ */
+export function seedPartisanFor(world, stateName) {
+  const st = STATES.find((x) => x.name === stateName);
+  if (!st) return null;
+  const lib = clamp(liberalOf(st) + range(world, -0.025, 0.025), 0.05, 0.95);
+  const committed = 1 - UNDECIDED_AT_FOUNDING;
+  const partisan = { liberal: committed * lib, conservative: committed * (1 - lib) };
+  const leanId = partisan.liberal >= partisan.conservative ? 'liberal' : 'conservative';
+  return { partisan, undecided: UNDECIDED_AT_FOUNDING, lean: leanId };
+}
+
 export const FOREIGN = [
   { id: 'canada', name: 'Canada', ideology: 'fascist', hostility: 34, strength: 120, blurb: 'A rearming neighbour that reads restraint as invitation.' },
-  { id: 'sab', name: 'The Antilles League', ideology: 'mercantile league', hostility: 12, strength: 70, blurb: 'An island trading bloc off the keys. Three ports and a tariff schedule with opinions.' },
+  { id: 'sab', name: 'The Caribbean League', ideology: 'mercantile league', hostility: 12, strength: 70, blurb: 'The islands south of Florida, self-governing as one trading bloc. No army to speak of, and a tariff schedule with opinions.' },
   { id: 'mexico', name: 'Mexico', ideology: 'republic', hostility: 4, strength: 85, blurb: 'Sister republic. Signs things. Means about half of them.' },
 ];
 
@@ -178,7 +212,7 @@ export const COLLEGES = [
   // this list, and renaming an id to match a label would have broken a
   // measurement for a cosmetic reason.
   { id: 'argent', name: 'Harvard University', prestige: 4, share: 0.07,
-    blurb: 'Older than the country. Opens doors, and invites resentment through every one of them.' },
+    blurb: 'Older than the country. Opens doors, and invites resentment through each.' },
   { id: 'meridian', name: 'Georgetown University', prestige: 3, share: 0.15,
     blurb: 'Where the foreign service is trained, and where it recruits.' },
   { id: 'harborlight', name: 'Rutgers University', prestige: 2, share: 0.28,
@@ -187,7 +221,7 @@ export const COLLEGES = [
   // resolves it against the player's home state, so a founder from Ohio Valley
   // went to Ohio Valley State University and one from Texas did not.
   { id: 'northgate', name: 'State University', prestige: 1, share: 0.50,
-    blurb: 'The one most people actually went to. No cachet, and a classmate in every room.' },
+    blurb: 'The one most people went to. No cachet, and a classmate in every room.' },
 ];
 
 export const collegeById = (id) => COLLEGES.find((c) => c.id === id) || null;
@@ -243,7 +277,7 @@ export const TEMPERAMENTS = [
   { id: 'lawyerly', label: 'Lawyerly', merit: 0.25, interest: -0.1,
     blurb: 'Reads the clause before the room. Moved by the argument, slowly.' },
   { id: 'folksy', label: 'Folksy', merit: 0.1, interest: 0.05,
-    blurb: 'Talks about their district because that is genuinely what they think about.' },
+    blurb: 'Talks about their state because it is genuinely what they think about.' },
   { id: 'firebrand', label: 'Firebrand', merit: -0.15, interest: 0.3,
     blurb: 'Loud, partisan, and reliable in exactly one direction.' },
   { id: 'wonk', label: 'Wonk', merit: 0.35, interest: -0.2,
@@ -314,7 +348,7 @@ export function makePersona(world, { name, playerId = null, synthetic = false, p
 export function newWorld(opts) {
   const {
     nation = 'The United States', templateId = 'federal-republic', canon = 'cold',
-    ticksPerYear = 240, districtCount = 6, seedPop = 24000, treasury = 60e6,
+    ticksPerYear = 240, districtCount = 6, seedPop = 331e6, treasury = 700e9,
     seasonName = 'Season I',
   } = opts || {};
 
@@ -398,17 +432,32 @@ export function newWorld(opts) {
 
   // --- districts + parcels -------------------------------------------------
   for (let i = 0; i < nDistricts; i++) {
-    const leanId = pick(world, PARTIES).id;
-    const part = seedPartisan(world, leanId);
+    const name = DISTRICT_NAMES[i] || `District ${i + 1}`;
+    // Real politics where the state is a real place, a coin only where it is
+    // not — which under this atlas means never, but a constitution with more
+    // district chambers than the atlas has states would run off the end of
+    // DISTRICT_NAMES and land here.
+    const st = STATES.find((x) => x.name === name) || null;
+    const part = seedPartisanFor(world, name) || (() => {
+      const leanId = pick(world, PARTIES).id;
+      return { ...seedPartisan(world, leanId), lean: leanId };
+    })();
+    const leanId = part.lean;
     world.districts.push({
       id: 'd' + (i + 1), n: i + 1,
-      name: DISTRICT_NAMES[i] || `District ${i + 1}`,
+      name,
       color: PALETTE[i % PALETTE.length],
       pop: 0, homes: 0, jobs: 0, homeless: 0,
-      income: Math.round(range(world, 21000, 52000)),
+      // The census baseline — what the republic inherits on day one. Filled by
+      // seedCensus below, once the districts exist to be filled.
+      basePop: 0, baseHomes: 0, baseJobs: 0,
+      income: st ? incomeOf(st) : Math.round(range(world, 21000, 52000)),
       mood: Math.round(range(world, 44, 62)),
       unemployment: null,
-      landValue: Math.round(range(world, 40, 140)),
+      // The median home, in thousands of dollars — a real figure per state, not
+      // a roll. `recomputeEconomy` re-derives this as the mean of the district's
+      // parcels, so the parcels are seeded off it too and the two agree.
+      landValue: st ? homeValueOf(st) : Math.round(range(world, 40, 140)),
       order: Math.round(range(world, 45, 70)),
       health: Math.round(range(world, 45, 70)),
       lean: leanId,
@@ -429,6 +478,10 @@ export function newWorld(opts) {
   const { w, h } = world.city;
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
+      // Districted below by partitionParcels, so there is no district to ask
+      // yet. Land value is seeded in seedCensus once there is — it used to be
+      // rolled off `districts[0]` here, which gave every parcel in the country
+      // New England's prices and then averaged them back into every state.
       const d = world.districts[0];
       const seeded = rng(world);
       const zone = seeded < 0.42 ? 'residential' : seeded < 0.62 ? 'commercial' : seeded < 0.74 ? 'industrial' : seeded < 0.8 ? 'civic' : 'unzoned';
@@ -451,10 +504,17 @@ export function newWorld(opts) {
   // Lay the lakes before anything is built on the land.
   carveWater(world);
 
+  // Land is priced off the state it is in, which needs partitionParcels to have
+  // said which state that is.
+  priceParcels(world);
+
   // Seed the existing stock deliberately, so the nation opens with problems
   // worth governing: housing a little short of the population, and rather
   // fewer jobs than there are people who want one.
   seedStock(world, seedPop);
+  // And the census last, because it is the remainder: whatever the country has
+  // that is not standing on the grid.
+  seedCensus(world, seedPop);
   distributePopulation(world, seedPop);
 
   // --- seats ---------------------------------------------------------------
@@ -477,15 +537,111 @@ export function newWorld(opts) {
   return world;
 }
 
+/** The share of a population that is in the labour force, looking for work or in it. */
+export const LABOUR_SHARE = 0.48;
+
 /**
- * Lay down the founding building stock. Targets, not dice: housing for about
- * 92% of the population and work for about 94% of the labour force. The gap is
- * the opening position — roughly 8% homeless and 6% unemployed — and it is the
- * first thing anyone will argue about.
+ * What the ordinary business of government costs, per person, per year.
+ *
+ * Set so a founding republic under the default constitution opens at close to
+ * break-even: about $1.25T of revenue against about $1.25T of spending. That is
+ * the position the game wants — solvent, and unable to do anything new without
+ * deciding where the money comes from.
+ */
+export const ADMINISTRATION_PER_HEAD = 1150;
+
+/**
+ * The country the republic inherits, before it has built anything.
+ *
+ * This is the change that let the numbers on the Nation tab be real ones.
+ * Population used to be a *consequence of the map*: `distributePopulation` set
+ * a district's people to its share of the housing standing on its parcels, and
+ * the parcels are ninety-six squares for the whole United States, so a state
+ * held four or five of them. One building either way was a third of a state's
+ * population. California could not be seven times Montana because it did not
+ * have seven times the parcels, and every derived figure — unemployment, the
+ * homeless count, apportionment — inherited that error.
+ *
+ * So the stock the country already has is seeded from the census directly, per
+ * state, and the parcel grid carries what gets *built on top of it*. That is
+ * also the honest reading of what the grid is: nobody founding a republic in
+ * 2029 is deciding where three hundred million people live. They are deciding
+ * what to add.
+ *
+ * Four real facts, one per line, and every one of them checkable:
+ *
+ * - **people** — `atlas.peopleOf`, the 2020 census. A state's share of the
+ *   country is its share of the population, exactly, and it does not move with
+ *   the map.
+ * - **jobless** — the state's real unemployment rate, turned into a number of
+ *   jobs. Great Plains 2.8%, California 5.3%.
+ * - **rough** — people sleeping rough or sheltered, per ten thousand. This is
+ *   the widest real spread in the country and the flat 8%-of-everybody the
+ *   seeder used before hid all of it.
+ * - **homeValue** — the median home, which every parcel in the state is then
+ *   priced against.
+ *
+ * The building system is untouched and means more than it did: housing built in
+ * Michigan now comes off Michigan's homeless count instead of moving Michigan's
+ * population, which is what building housing actually does.
+ */
+function seedCensus(world, pop) {
+  const ds = world.districts;
+  const st = ds.map((d) => STATES.find((x) => x.name === d.name) || null);
+  const weight = st.map((x) => (x ? peopleOf(x) : 1));
+  const wTotal = weight.reduce((a, b) => a + b, 0) || 1;
+
+  for (let i = 0; i < ds.length; i++) {
+    const d = ds[i];
+    const mine = world.city.parcels.filter((p) => p.district === d.id);
+    const built = (key) => sum(mine, (p) => (p.building ? BUILDINGS[p.building][key] : 0));
+    const people = pop * (weight[i] / wTotal);
+    const rough = st[i] ? roughOf(st[i]) : 20;
+    const jobless = st[i] ? joblessOf(st[i]) : 0.04;
+    d.basePop = Math.round(people);
+    // Housing for everyone the state does not leave on the street, and work for
+    // everyone in the labour force who is not out of it — **less whatever is
+    // already standing on the grid**. The stock seedStock laid down is part of
+    // the country, not an addition to it: counted twice, every state opened with
+    // a housing surplus and nobody sleeping rough, which is the one number on
+    // the Nation tab that has to be true on day one.
+    d.baseHomes = Math.max(0, Math.round(people * (1 - rough / 10000)) - built('homes'));
+    d.baseJobs = Math.max(0, Math.round(people * LABOUR_SHARE * (1 - jobless)) - built('jobs'));
+  }
+}
+
+/**
+ * Every parcel priced off the state it is actually in.
+ *
+ * This ran inside the parcel loop, before `partitionParcels` had assigned any of
+ * them, so the whole country was priced off `districts[0]` — and then
+ * `recomputeEconomy` averaged those parcels back into each district's landValue
+ * and overwrote every state's own figure with New England's on the first tick.
+ */
+function priceParcels(world) {
+  for (const p of world.city.parcels) {
+    const d = world.districts.find((x) => x.id === p.district) || world.districts[0];
+    p.landValue = Math.round(d.landValue * range(world, 0.7, 1.35));
+  }
+}
+
+/**
+ * Lay down the founding building stock — what stands on the grid on day one.
+ *
+ * Not the country's housing any more: `seedCensus` carries that. This is the
+ * visible development, so that the map opens with something on it and every
+ * state has ground that is doing something. Targets are a share of what the
+ * census already provides rather than of the population, because chasing the
+ * population here is what used to make one building worth a third of a state.
  */
 function seedStock(world, pop) {
-  const homeTarget = pop * 0.92;
-  const jobTarget = pop * 0.48 * 0.94;
+  // A couple of per cent of the country, so the grid opens with something on it
+  // and a state's parcels differ from each other — and no more, because the
+  // seeder is not deciding where three hundred million people live. `seedCensus`
+  // runs afterwards and takes this off the baseline, so what is laid here is
+  // part of the country rather than a surplus on top of it.
+  const homeTarget = pop * 0.02;
+  const jobTarget = pop * LABOUR_SHARE * 0.02;
   const byDistrict = world.districts.map((d) => world.city.parcels.filter((p) => p.district === d.id));
   let homes = 0, jobs = 0, guard = 0;
 
@@ -757,30 +913,57 @@ export function ensureEveryDistrictHasLand(world) {
   return fixed;
 }
 
+/**
+ * Where the country's people are, and how many of them have a roof.
+ *
+ * **A state's population is its census share and does not move with the map.**
+ * It used to be its share of the housing standing on its parcels, which made
+ * one building worth a third of a state — see seedCensus for why that had to go.
+ *
+ * What building housing does now is take people off the street in the state it
+ * was built in, which is what building housing actually does. A district's
+ * homeless is its own people minus its own roofs: local, so a shelter programme
+ * in Michigan is felt in Michigan and nowhere else, and so the six-to-one spread
+ * between New York and Virginia that the atlas records survives into the game
+ * instead of being averaged into one national rate and dealt back out.
+ */
 export function distributePopulation(world, total) {
   const parcels = world.city.parcels;
-  let capacity = 0;
-  for (const p of parcels) {
-    const b = p.building ? BUILDINGS[p.building] : null;
-    capacity += b ? b.homes : 0;
-  }
-  const target = total ?? sum(world.districts, (d) => d.pop);
-  // Nobody lives in a home that does not exist. Everyone else is on the street.
-  const housed = Math.min(target, capacity);
-  for (const d of world.districts) { d.pop = 0; d.homes = 0; d.jobs = 0; }
-  for (const p of parcels) {
-    const b = p.building ? BUILDINGS[p.building] : null;
-    if (!b) { p.pop = 0; continue; }
-    const d = world.districts.find((x) => x.id === p.district);
-    const share = capacity ? b.homes / capacity : 0;
-    p.pop = Math.round(housed * share);
-    d.pop += p.pop; d.homes += b.homes; d.jobs += b.jobs;
-  }
-  const overflow = Math.max(0, target - housed);
-  for (const d of world.districts) {
-    const share = housed ? d.pop / housed : 1 / world.districts.length;
-    d.homeless = Math.round(overflow * share);
-    d.pop += d.homeless;
+  const ds = world.districts;
+  // A Season founded before the census existed has no `basePop` on any district,
+  // and the share below would then be 1/20 for every one of them — the country
+  // dealt out in twenty equal heaps, which is worse than the parcel-count
+  // guess it replaced. Take a census off the atlas and the population the save
+  // already carries.
+  //
+  // It will still be a strange republic: its treasury was denominated before
+  // the thousandfold rescale and will not cover a year of administration. An
+  // old save is worth loading to read, not to keep playing.
+  if (!ds.some((d) => d.basePop)) seedCensus(world, sum(ds, (d) => d.pop) || 331e6);
+  const byD = new Map(ds.map((d) => [d.id, []]));
+  for (const p of parcels) byD.get(p.district)?.push(p);
+
+  const censusTotal = sum(ds, (d) => d.basePop || 0);
+  const target = total ?? (censusTotal || sum(ds, (d) => d.pop));
+
+  for (const d of ds) {
+    const mine = byD.get(d.id) || [];
+    const built = sum(mine, (p) => (p.building ? BUILDINGS[p.building].homes : 0));
+    const share = censusTotal ? (d.basePop || 0) / censusTotal : 1 / ds.length;
+    d.pop = Math.round(target * share);
+    d.homes = (d.baseHomes || 0) + built;
+    d.jobs = (d.baseJobs || 0) + sum(mine, (p) => (p.building ? BUILDINGS[p.building].jobs : 0));
+    d.homeless = Math.max(0, d.pop - d.homes);
+
+    // The people are spread over the district's ground, and a parcel with
+    // housing on it holds more of them than one without. This is the picture on
+    // the city map, not an input to anything: a parcel's population used to be
+    // its share of the national housing stock, so once the census carried the
+    // country every unbuilt parcel read as empty ground with nobody on it.
+    const weightOf = (p) => (p.water ? 0 : 1 + (p.building ? BUILDINGS[p.building].homes : 0) / 4e6);
+    const wTotal = sum(mine, weightOf) || 1;
+    for (const p of mine) p.pop = Math.round(d.pop * (weightOf(p) / wTotal));
+
     // Relief housing disbursed from the treasury persists across this recompute —
     // people a shelter programme took off the street stay off it until the
     // structural deficit is itself cleared. Without this, homelessness snapped
@@ -818,7 +1001,7 @@ export function distributePopulation(world, total) {
 export function assignDistrictSeats(world) {
   const ds = world.districts || [];
   if (!ds.length) return;
-  const codeFor = (d) => codeOf(STATES.find((x) => x.name === d.name)) || (d.name || '?').slice(0, 3).toUpperCase();
+  const codeFor = (d) => codeOf(STATES.find((x) => x.name === d.name)) || (d.name || '?').slice(0, 2).toUpperCase();
 
   for (const o of world.constitution.offices) {
     if (o.electorate !== 'district') continue;
@@ -898,7 +1081,7 @@ export function totalPop(world) { return sum(world.districts, (d) => d.pop); }
  */
 export function reshapeDistricts(world, count) {
   const target = Math.max(1, Math.min(MAX_DISTRICTS, Math.round(count)));
-  const pop = totalPop(world) || 24000;
+  const pop = totalPop(world) || 331e6;
   if (world.districts.length === target) return false;
 
   const old = world.districts;
@@ -911,10 +1094,16 @@ export function reshapeDistricts(world, count) {
       name: DISTRICT_NAMES[i] || `District ${i + 1}`,
       color: PALETTE[i % PALETTE.length],
       pop: 0, homes: 0, jobs: 0, homeless: 0,
-      income: Math.round(range(world, 21000, 52000)),
+      basePop: 0, baseHomes: 0, baseJobs: 0,
+      // A district drawn here is still one of the atlas's states, so it takes
+      // that state's real figures like every other one. It used to take a random
+      // income and a flat land value of 90, which made a redrawn map a different
+      // country from the one it replaced.
+      income: incomeOf(STATES.find((x) => x.name === (DISTRICT_NAMES[i] || ''))) || 70000,
       mood: Math.round(range(world, 44, 62)),
       unemployment: null, structural: null,
-      landValue: 90, order: 55, health: 55,
+      landValue: homeValueOf(STATES.find((x) => x.name === (DISTRICT_NAMES[i] || ''))) || 300,
+      order: 55, health: 55,
       lean: pick(world, PARTIES).id,
       salience: { jobs: range(world, .5, 1), housing: range(world, .3, 1), taxes: range(world, .3, 1), order: range(world, .3, 1), amenity: range(world, .2, .8) },
       history: [],
@@ -924,13 +1113,25 @@ export function reshapeDistricts(world, count) {
   // Every district carries a partisan split, including a reused one from an old
   // save that predates the party system and any freshly-drawn one above.
   for (const d of world.districts) {
-    if (!d.partisan) { const part = seedPartisan(world, d.lean || PARTIES[0].id); d.partisan = part.partisan; d.undecided = part.undecided; }
+    if (d.partisan) continue;
+    const part = seedPartisanFor(world, d.name)
+      || seedPartisan(world, d.lean || PARTIES[0].id);
+    d.partisan = part.partisan; d.undecided = part.undecided;
+    if (part.lean) d.lean = part.lean;
   }
 
   // Re-partition the map into `target` contiguous blocks so districts stay
   // geographically coherent — which is what makes gerrymandering meaningful.
   partitionParcels(world, target);
   ensureEveryDistrictHasLand(world);
+  // The map has moved, so the census has to be taken again: parcels have changed
+  // hands, a district may be new, and the baseline is defined as whatever a state
+  // has that is not standing on the grid. Without this a freshly drawn district
+  // carries no basePop, `distributePopulation` gives it none of the country, and
+  // the republic acquires an electorate with no electors — the exact fault the
+  // twenty-state split was made to fix.
+  priceParcels(world);
+  seedCensus(world, pop);
   distributePopulation(world, pop);
   recomputeEconomy(world);
   return true;
@@ -990,6 +1191,16 @@ export function recomputeEconomy(world) {
   for (const p of world.city.parcels) {
     // A site under construction is a payroll before it is a building.
     if (p.project) { const crew = constructionCrew(p.project); jobs += crew; building += crew; }
+    // Every parcel is taxable ground whether or not anything stands on it. This
+    // sat below the `continue` and so counted only the built ones, which put the
+    // whole country's land base at about a twentieth of what it is and made the
+    // property rate a dial connected to nothing.
+    //
+    // A parcel is a ninety-sixth of the United States, and `landValue` is the
+    // median home there in thousands of dollars — so the multiplier is what
+    // turns one into the other, and it is set so the national land base comes
+    // out around twenty-three trillion, which is roughly what it is.
+    land += p.landValue * 7e8;
     const b = p.building ? BUILDINGS[p.building] : null;
     if (!b) continue;
     gdp += b.output || 0;
@@ -997,7 +1208,6 @@ export function recomputeEconomy(world) {
     extra += b.revenue || 0;
     jobs += b.jobs; homes += b.homes;
     units += b.units || 0;
-    land += p.landValue * 1e5;
   }
   e.constructionJobs = building;
   // The private sector employs people, and until now the labour market did not
@@ -1008,15 +1218,21 @@ export function recomputeEconomy(world) {
   const staff = sum(world.companies || [], (c) => (c.closed ? 0 : (c.employees || []).length));
   e.privateJobs = staff;
   jobs += staff;
+  // The work the country already had. Without it the whole United States is
+  // employed by whatever the seeder dropped on ninety-six squares, and national
+  // unemployment pins to the 60% ceiling on the first tick — see seedCensus.
+  const inherited = sum(world.districts, (d) => d.baseJobs || 0);
+  jobs += inherited;
+  homes += sum(world.districts, (d) => d.baseHomes || 0);
   const pop = totalPop(world);
-  const labor = pop * 0.48;
+  const labor = pop * LABOUR_SHARE;
   // Structural unemployment is what the map dictates: people who want work,
   // minus jobs that exist. The headline figure drifts toward it, and a slump
   // pushes the headline above it until the slump passes.
   e.structural = clamp(1 - jobs / Math.max(labor, 1), 0.012, 0.6);
   if (e.unemployment == null) e.unemployment = e.structural;
   for (const d of world.districts) {
-    const dl = d.pop * 0.48;
+    const dl = d.pop * LABOUR_SHARE;
     // The crew on a site in this district counts here too, so a public works
     // programme is felt where the ground is broken and not only nationally.
     //
@@ -1028,35 +1244,60 @@ export function recomputeEconomy(world) {
     // those forty people live and work saw almost none of it, which is the same
     // complaint the national fix answered one level up: payroll is payroll, and
     // it happens somewhere.
-    const dj = sum(world.city.parcels.filter((p) => p.district === d.id),
-      (p) => (p.building ? BUILDINGS[p.building].jobs : 0) + constructionCrew(p.project))
+    const dj = (d.baseJobs || 0)
+      + sum(world.city.parcels.filter((p) => p.district === d.id),
+        (p) => (p.building ? BUILDINGS[p.building].jobs : 0) + constructionCrew(p.project))
       + sum(world.companies || [], (c) => (!c.closed && c.district === d.id ? (c.employees || []).length : 0));
     // People commute. A district with no factories is not 70% unemployed; it
     // is somewhat worse off than the city it sits in.
     const local = clamp(1 - dj / Math.max(dl, 1), 0.01, 0.7);
-    d.structural = clamp(e.structural * 0.6 + local * 0.4, 0.008, 0.55);
+    // Weighted toward the local figure rather than the national one. At 60/40
+    // the blend flattened the country: the atlas records a real spread from the
+    // Great Plains' 2.8% to California's 5.3%, and what came out the other side
+    // was 3.6 to 4.6 — every state within a point of the average, which is the
+    // opposite of what a map of American unemployment looks like. People commute,
+    // so the national term stays; it just does not get to be the bigger half.
+    d.structural = clamp(e.structural * 0.4 + local * 0.6, 0.008, 0.55);
     if (d.unemployment == null) d.unemployment = d.structural;
     d.landValue = Math.round(
       sum(world.city.parcels.filter((p) => p.district === d.id), (p) => p.landValue) /
       Math.max(1, world.city.parcels.filter((p) => p.district === d.id).length));
   }
-  wages = sum(world.districts, (d) => d.pop * 0.48 * (1 - d.unemployment) * d.income);
-  gdp += wages * 0.9;
+  wages = sum(world.districts, (d) => d.pop * LABOUR_SHARE * (1 - d.unemployment) * d.income);
+  // Output is about twice the wage bill: labour's share of it is a little over
+  // half, and the rest is profit, rent and the state. It was `wages * 0.9`, which
+  // put national output *below* national pay — survivable while the whole economy
+  // was twenty-four thousand people and plainly wrong once it is the real one.
+  gdp += wages * 1.9;
   e.gdp = gdp;
   const income = wages * t.income * 0.93;
   const sales = wages * 0.62 * t.sales;
   const property = land * t.property;
-  const tariff = 34e6 * t.tariff;
+  const tariff = 8e11 * t.tariff;
   e.revenueYr = income + sales + property + tariff + extra;
   e.breakdown = { income, sales, property, tariff, other: extra };
-  const payroll = world.seats.length * 1.1e5;
+  const payroll = world.seats.length * 3e7;
+  // The bill that arrives whether or not the chamber votes: the schools, the
+  // courts, the roads, the pensions and the administration the republic
+  // inherits along with the country. Nothing in the game builds it and nothing
+  // can strike it — it is what governing three hundred million people costs.
+  //
+  // Without it the founding budget ran a $385B surplus against a $1.25T revenue
+  // and the treasury reached $2.9T inside six canon years, which takes money
+  // out of the game as a constraint: every programme is affordable, so no
+  // programme is a decision. With it the republic opens at roughly break-even
+  // and any new spending has to come from somewhere.
+  //
+  // It scales with population, so annexing a country costs money to govern as
+  // well as to take — which is the correct incentive and was free to get.
+  const administration = totalPop(world) * ADMINISTRATION_PER_HEAD;
   const programs = sum(world.programs || [], (p) => p.cost || 0);
   // Upkeep scales with every formation under arms, not just the regular line:
   // a volunteer division is cheap (a third of a regular's keep) and an air wing
   // dear (three times it). Raise more and the standing bill rises with it.
   const milit = (world.military.units
     + (world.military.volunteers || 0) * 0.3
-    + (world.military.airforce || 0) * 3) * 9e5 * world.military.funding;
+    + (world.military.airforce || 0) * 3) * 2.1e11 * world.military.funding;
   // Debt is priced at what the market actually charges this state: the short
   // rate the money market clears at, plus the credit spread, plus the premium
   // for crowding out. macro.tickMacro computes it and leaves it on marketRate;
@@ -1066,8 +1307,8 @@ export function recomputeEconomy(world) {
     ?? (0.03 + (1 - Math.min(1, Math.max(0, (e.credit ?? 72) / 100))) * 0.09);
   const interest = (e.debt || 0) * rate;
   e.interestRate = rate;
-  e.spendYr = upkeep + payroll + programs + milit + interest;
-  e.spendBreakdown = { upkeep, payroll, programs, military: milit, interest };
+  e.spendYr = upkeep + payroll + programs + milit + interest + administration;
+  e.spendBreakdown = { upkeep, payroll, programs, military: milit, interest, administration };
   world.stock = { jobs, homes, units };
   return e;
 }

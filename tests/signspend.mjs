@@ -61,7 +61,7 @@ const passAndSign = (w, pid, doc) => {
   ok('nothing leaves at signing', w.economy.treasury === before, String(before - w.economy.treasury));
   ok('the program is on the books at the annual price', (w.programs || []).some((p) => p.cost === 5e6), JSON.stringify(w.programs));
   const line = [...w.chronicle].reverse().find((e) => /funded at/.test(e.text || ''))?.text || '';
-  ok('and the record says the year pays it, not the signing', /a year, drawn as the year runs/.test(line), line);
+  ok('and the record says the year pays it, not the signing', /a year, drawn as it runs/.test(line), line);
 }
 
 // Raising divisions by law is priced — the same price the department pays —

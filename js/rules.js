@@ -105,7 +105,7 @@ const RIGHTS = {
   // harder argument than a right it can point at.
   unenumerated: {
     id: 'unenumerated', name: 'Rights Retained', open: true, blocks: [],
-    text: 'The rights written here are not all the rights there are. Where this constitution is silent, its silence denies nothing, and the court shall say what the people kept.',
+    text: 'The rights written here are not all there are. Where this constitution is silent, its silence denies nothing, and the court shall say what the people kept.',
   },
 };
 
@@ -133,7 +133,7 @@ export const TEMPLATES = [
       ],
       legislature: { chamber: 'minister', proposalRights: ['president', 'minister'], passFraction: 0.5, quorum: 0.34, vetoOffice: 'president', overrideFraction: 1.01 },
       spending: [{ above: 0, requires: null }],
-      discretion: { cap: 4e7, years: 1 },
+      discretion: { cap: 4e10, years: 1 },
       elections: { citizenWeight: 1, playerWeight: 3 },
       rights: [RIGHTS.property],
       impeachment: { proposalRights: ['minister'], fraction: 1.0, tries: 'minister', appliesTo: ['president'] },
@@ -170,8 +170,8 @@ export const TEMPLATES = [
           powers: ['strike_law', 'pardon', 'arrest'] },
       ],
       legislature: { chamber: 'council', proposalRights: ['council', 'premier'], passFraction: 0.5, quorum: 0.5, vetoOffice: null, overrideFraction: 0.5 },
-      spending: [{ above: 0, requires: null }, { above: 5e6, requires: { body: 'council', fraction: 0.5 } }],
-      discretion: { cap: 1.2e7, years: 1 },
+      spending: [{ above: 0, requires: null }, { above: 5e9, requires: { body: 'council', fraction: 0.5 } }],
+      discretion: { cap: 1.2e10, years: 1 },
       elections: { citizenWeight: 1, playerWeight: 2 },
       rights: [RIGHTS.press, RIGHTS.speech, RIGHTS.assembly, RIGHTS.equalProtection],
       impeachment: { proposalRights: ['council'], fraction: 0.5, tries: 'council', appliesTo: ['premier', 'magistrate'] },
@@ -264,9 +264,9 @@ export const TEMPLATES = [
       legislature: { chamber: 'assembly', upperChamber: 'senate', proposalRights: ['assembly', 'senate', 'president'], passFraction: 0.5, quorum: 0.5, vetoOffice: 'president', overrideFraction: 0.667 },
       spending: [
         { above: 0, requires: null },
-        { above: 1e6, requires: { body: 'assembly', fraction: 0.5 } },
+        { above: 1e9, requires: { body: 'assembly', fraction: 0.5 } },
       ],
-      discretion: { cap: 5e6, years: 1 },
+      discretion: { cap: 5e9, years: 1 },
       elections: { citizenWeight: 1, playerWeight: 1.5 },
       rights: [RIGHTS.press, RIGHTS.speech, RIGHTS.dueProcess, RIGHTS.property, RIGHTS.assembly, RIGHTS.equalProtection],
       // Two stages, and now two rooms: the House adopts articles at 1/2, which
@@ -915,6 +915,36 @@ export function mayPropose(world, personaId, type) {
   return ok ? { ok: true } : { ok: false, reason: `Only the ${rights.map((r) => office(world, r)?.name || r).join(' or ')} may propose legislation.` };
 }
 
+/**
+ * Who may call the question — close the floor before its clock runs out.
+ *
+ * Three ways in, and the third is the Vice President's:
+ *
+ * - the author, who can withdraw their own measure from debate;
+ * - an office holding the power to call, which is the executive's gavel;
+ * - **the presiding officer of the room the measure is standing in.** The Vice
+ *   President is President of the Senate, and a presiding officer who cannot
+ *   move to a vote is not presiding over anything. It is deliberately narrow:
+ *   `presidedChamber` is the Senate alone, so a VP cannot gavel the House, and
+ *   a measure that has moved on to the second chamber is tested against where
+ *   it is *now* rather than where it started.
+ *
+ * The room is read off `voteRequirement`, like everything else that votes — so
+ * a new kind of measure gets this rule for free, and a treaty (Senate only)
+ * lands in the VP's hands without a special case.
+ */
+export function mayCloseFloor(world, personaId, doc) {
+  if (!personaId || !doc) return { ok: false, reason: 'No measure.' };
+  if (doc.authorId === personaId) return { ok: true };
+  if (hasPower(world, personaId, 'call_election')) return { ok: true };
+  const req = voteRequirement(world, doc);
+  if (req && presides(world, personaId) && req.body === presidedChamber(world)) return { ok: true };
+  return {
+    ok: false,
+    reason: 'Only the author, the chamber\u2019s presiding officer, or an office with the power to call may close the floor early.',
+  };
+}
+
 /** Eligible voters on a document, and their weights. */
 export function electorateFor(world, doc) {
   const req = voteRequirement(world, doc);
@@ -1075,6 +1105,12 @@ export function repairConstitution(c) {
     // another player's tab, and only one of those routes goes through the
     // number field.
     o.seats = Math.max(0, Math.min(seatCap(o.id), Math.floor(+o.seats || 0)));
+    // The age floor, for the same reason. Above 90 is an office nobody living
+    // qualifies for, which is a way of striking it that leaves it on the page.
+    if (o.minAge != null) {
+      const n = Math.floor(+o.minAge);
+      o.minAge = Number.isFinite(n) ? clamp(n, POLITICAL_BASE_AGE, 90) : POLITICAL_BASE_AGE;
+    }
     if (o.selection === 'appointment' && !has(o.appointedBy)) {
       const appointer = firstWith('appoint');
       if (appointer && appointer !== o.id) o.appointedBy = appointer;
@@ -1274,9 +1310,9 @@ export function mayAlsoHold(world, personaId, officeId) {
   const name = world.personas[personaId]?.name || 'They';
   // A judge in the cabinet is the sharpest case, so it is named as itself.
   if (judicialOffice(world, clash.id)) {
-    return { ok: false, reason: `${name} sits on the ${clash.name}, which reviews the government's acts, and cannot serve in it. Amend the constitution to allow plurality of office if this republic means to.` };
+    return { ok: false, reason: `${name} sits on the ${clash.name}, which reviews the government's acts, and cannot serve in it. Amend the constitution for plurality of office.` };
   }
-  return { ok: false, reason: `${name} already holds the ${clash.name}, and no person may hold two offices at once. Amend the constitution for plurality of office if this republic means to.` };
+  return { ok: false, reason: `${name} already holds the ${clash.name}, and no person may hold two. Amend the constitution for plurality of office.` };
 }
 
 /** Is this office the bench, or a seat on it? */

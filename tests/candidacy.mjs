@@ -60,6 +60,14 @@ const ok = (l, c, x = '') => console.log((c ? 'PASS ' : 'FAIL ') + l + (x ? ' | 
   seat.personaId = pid;
   const p = w.personas[pid];
   p.terms = {};                       // no limit in the way
+  // And no age in the way either. `makePersona` rolls from 34 and the
+  // presidency asks 35, so about one founder in thirty was refused by
+  // `nominate` here — a flake, and a flake of exactly the documented kind: this
+  // block is asserting a *guarantee* about consent (a player is not entered
+  // against their will, and may enter themselves), and the candidate's age is
+  // incidental setup that has to be made to satisfy the qualification the way
+  // `fillVacantSeats` does. See the handoff, "Ages, water, cloakrooms".
+  p.age = Math.max(p.age ?? 0, R.minAgeFor(w, 'president') + 5);
   ok('the incumbent is a player', p.everPlayer === true);
   A.scheduleElection(w, 'president', 30);
   const e = w.elections.find((x) => x.office === 'president');

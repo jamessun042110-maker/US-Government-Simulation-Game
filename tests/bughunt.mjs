@@ -99,20 +99,18 @@ const freeSoul = (w) => Object.values(w.personas).find((x) => x.alive && !x.play
   w.constitution.discretion = { cap: 5e8, years: 1 };
   const who = freeSoul(w);
   w.seats.find((s) => s.office === 'president').personaId = who.id;
-  // Two homeless and a full-strength disbursement rounds to exactly one rehoused,
-  // which is the case that used to read "Roughly 1 people ... are housed".
-  // Relief goes to the worst district, whichever that is, so set them all.
-  // $10M is a full-strength disbursement (0.2 of the homeless rehoused), so
-  // five on the street is exactly one rehoused — the case that used to read
-  // "Roughly 1 people ... are housed".
+  // Relief is bought by the cheque now, not taken as a share of the district —
+  // see acts.COST_PER_REHOUSING. One place and a bit buys exactly one person off
+  // the street, which is the case that used to read "Roughly 1 people ... are
+  // housed". Relief goes to the worst district, whichever that is, so set them all.
   for (const d of w.districts) d.homeless = 5;
-  A.disburse(w, who.id, 1e7, 'housing for the encampment');
+  A.disburse(w, who.id, Math.round(A.COST_PER_REHOUSING * 1.5), 'housing for the encampment');
   const one = (w.chronicle || []).slice(-1)[0]?.text || '';
   ok('one person rehoused is one person', /Roughly 1 person in .* is housed/.test(one), one.slice(0, 150));
   ok('and never "1 people"', !/\b1 people\b/.test(one), one.slice(0, 150));
 
   for (const d of w.districts) d.homeless = 400;
-  A.disburse(w, who.id, 1e7, 'housing for the encampment');
+  A.disburse(w, who.id, A.COST_PER_REHOUSING * 300, 'housing for the encampment');
   const many = (w.chronicle || []).slice(-1)[0]?.text || '';
   ok('and more than one is still people', /people in .* are housed/.test(many), many.slice(0, 150));
 }

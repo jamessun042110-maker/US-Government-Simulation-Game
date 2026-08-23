@@ -65,8 +65,12 @@
      render (orange until then — the game's own colour). The default accent
      follows it, so Nation/Elections, the wordmark and the host pill wear the
      government; per-view accent scopes below still override per tab. */
-  --brand: var(--purple);
-  --brand-hi: #8257f2;
+  /* Federal blue, not Silver's indigo. The title screen and the founding page
+     already wore this blue — it is federal-republic's own template colour — so
+     the wordmark, the host pill and the default accent now agree with the two
+     screens a player sees before there is a republic to look at. */
+  --brand: #2f6fdb;
+  --brand-hi: #4680e4;
   --accent: var(--brand);
   --accent-hi: var(--brand-hi);
   --accent-text: #fff;
@@ -131,7 +135,8 @@
   --wine: #c4453c;
   --brown: #b08b46;
   --slate: #7590ad;
-  --brand-hi: #a688f7;
+  --brand: #5b8ff0;
+  --brand-hi: #7ba6f5;
   --shadow: #05070b;
   --surface: #272c35;
   --rule: #333a45;
@@ -196,6 +201,12 @@ body[data-view="offices"] { --accent: var(--ink); --accent-hi: #2e2e2e; }
 body[data-view="intrigue"] { --accent: var(--wine); --accent-hi: #a3251f; }
 body[data-view="chronicle"] { --accent: var(--brown); --accent-hi: #8d6b36; }
 body[data-view="season"] { --accent: var(--slate); --accent-hi: #52687f; }
+/* The cloakrooms, one per chamber. Brown for the House and wine for the Senate
+   — the same split the sidebar icons make, carried onto the buttons and rules
+   inside the room so the whole page agrees about which end of the building you
+   are standing in. */
+body[data-view="cloakroom"] { --accent: var(--brown); --accent-hi: #8d6b36; }
+body[data-view="cloakroom_upper"] { --accent: var(--wine); --accent-hi: #a3251f; }
 
 /* The per-view accents above that are written as literals were picked against
    parchment, and Offices takes the ink itself — which after dark is nearly
@@ -282,6 +293,10 @@ header.top .pausevote b { font: 800 11px/1 var(--mono); white-space: nowrap; }
    is sized as a box and takes its ink from `currentColor`. */
 .brand { width: 88px; flex-shrink: 0; color: var(--brand); }
 .brand svg { image-rendering: pixelated; }
+/* The long line sets the width, "UNION" takes a fraction of it and so comes out
+   the larger letter — the same hierarchy the title screen's mark has. */
+.brand-top { width: 100%; }
+.brand > div + div { width: 58%; margin-top: 2px; }
 header.top > span { white-space: nowrap; }
 
 .ticker { display: flex; gap: 18px; margin-left: auto; align-items: center; }
@@ -844,8 +859,13 @@ table.t tr:hover td { background: var(--panel2); }
 /* The wordmark is an SVG of 5x7 letters now, so it is sized by width and the
    grid does the rest. `image-rendering: pixelated` is what keeps a font pixel
    square when the box lands on a fractional scale. */
-.intro-mark { width: clamp(210px, 40vw, 430px); margin: 0 auto; }
+/* Two lines. The long one sets the width of the mark; "UNION" is given a
+   fraction of it and so comes out the larger letter — the kicker-over-word
+   shape a title card of unequal words wants. Both are sized by width, so the
+   grid still does the scaling. */
+.intro-mark { width: clamp(200px, 38vw, 380px); margin: 0 auto; }
 .intro-mark svg { image-rendering: pixelated; }
+.intro-mark-main { width: 58%; margin: 7px auto 0; }
 .intro-tag { font: 700 clamp(12px, 2.3vw, 16px)/1 var(--sans); letter-spacing: .42em; text-transform: uppercase; color: #eadfce; margin: 10px 0 0; text-shadow: 0 2px 6px rgba(0,0,0,.5); }
 /* A drawn label, so the button is sized by the width of its picture rather
    than by a font-size. currentColor carries the accent through to the pixels. */
@@ -923,6 +943,23 @@ table.t tr:hover td { background: var(--panel2); }
 }
 .officewin svg { width: 100%; height: auto; display: block; image-rendering: pixelated; }
 nav.side button[data-tab="cloakroom"] .ico { color: var(--brown); }
+/* The two cloakrooms are the only pair of rooms in the game, and a sidebar that
+   colours them alike is the first place they stop reading as two places. The
+   House keeps the brown it already had; the Senate takes the wine, which is the
+   red half of the flag and is used nowhere else in the nav. */
+nav.side button[data-tab="cloakroom_upper"] .ico { color: var(--wine); }
+
+/* The Senate's room, set apart from the House's.
+
+   Same layout, deliberately — it is the same mechanic and re-teaching it would
+   be a cost with no return. What changes is the temperature: a red rule under
+   the heading instead of the default, and a heading in the chamber's own colour.
+   Small, but it is the first thing on the page and it lands before the copy
+   under it has been read. */
+.cloak h1.page { margin-bottom: 2px; }
+.cloak-upper h1.page { color: var(--wine); }
+.cloak-upper { border-bottom: 2px solid var(--wine); padding-bottom: 8px; margin-bottom: 4px; }
+.cloak-upper .sub { color: var(--dim); }
 
 /* The Oval Office and the switch on the wall beside it. The switch is drawn on
    the same pixel grid as the room and framed the same way, so it reads as part

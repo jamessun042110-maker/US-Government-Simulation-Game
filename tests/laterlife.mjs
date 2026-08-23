@@ -116,7 +116,7 @@ const final = (w, pid, leftAt) => flat(C.composeBio(w, pid, { final: true, leftA
   ok('actions they brought are counted', /brought 1 action before the court/.test(final(w, pid, leftAt)),
     final(w, pid, leftAt).slice(-110));
   w.cases.push({ id: 'c2', plaintiffId: null, respondentId: pid, opened: w.clock.tick + 20, status: 'argued', votes: {} });
-  ok('and being on both sides reads as that', /both sides of the table/.test(final(w, pid, leftAt)),
+  ok('and being on both sides reads as that', /on both sides/.test(final(w, pid, leftAt)),
     final(w, pid, leftAt).slice(-110));
 }
 {

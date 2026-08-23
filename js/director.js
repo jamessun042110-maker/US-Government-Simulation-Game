@@ -106,7 +106,7 @@ export function tickInquests(world) {
       nudgeApproval(p, -14);
       bump(world, -3);
       fileInquiry(world, q.byId, `Closed on ${p.name} with charges: ${why}.`, { subject: p.id, finding: 'charged' });
-      log(world, 'intrigue', `The file on ${p.name} closes with a charge of corruption — ${why}. It is the chamber's business now, and the court's.`,
+      log(world, 'intrigue', `The file on ${p.name} closes with a charge of corruption — ${why}. The chamber's business now, and the court's.`,
         { actors: [p.id], weight: 4 });
     } else if (score <= 0.34) {
       q.finding = 'cleared';
@@ -126,7 +126,7 @@ export function tickInquests(world) {
       q.finding = 'inconclusive';
       nudgeApproval(p, -3);
       fileInquiry(world, q.byId, `Closed on ${p.name} without a finding: ${why}.`, { subject: p.id, finding: 'inconclusive' });
-      log(world, 'intrigue', `The file on ${p.name} closes without a finding. ${why[0].toUpperCase()}${why.slice(1)} — and no charge either way. It will be remembered as unproven, which is not untrue.`,
+      log(world, 'intrigue', `The file on ${p.name} closes without a finding. ${why[0].toUpperCase()}${why.slice(1)} — and no charge either way. Remembered as unproven, which is not untrue.`,
         { actors: [p.id], weight: 2 });
     }
   }
@@ -139,9 +139,9 @@ export const openInquestOn = (world, personaId) =>
 export const EVENTS = [
   {
     id: 'recession', title: 'The bottom falls out', tag: null, weight: 3,
-    intro: (w) => `Receipts are down across ${pick(w, w.districts).name}. Two factories are on short shifts and the credit agency has called twice.`,
+    intro: (w) => `Receipts are down across ${pick(w, w.districts).name}. Two factories on short shifts, and the credit agency has called twice.`,
     options: [
-      { label: 'Stimulus: spend 12M on public works', cost: 12e6, apply: (w) => { w.economy.treasury -= 12e6; w.economy.slump = 0.4; bump(w, 3); } },
+      { label: 'Stimulus: spend $12B on public works', cost: 12e9, apply: (w) => { w.economy.treasury -= 12e9; w.economy.slump = 0.4; bump(w, 3); } },
       { label: 'Austerity: cut programs, hold the line', apply: (w) => { w.programs = []; w.economy.slump = 1.1; bump(w, -5); recomputeEconomy(w); } },
       { label: 'Do nothing and say it is cyclical', apply: (w) => { w.economy.slump = 1.5; bump(w, -3); } },
     ],
@@ -151,10 +151,10 @@ export const EVENTS = [
     id: 'housing', title: 'Encampment on the steps', tag: null, weight: 3,
     intro: (w) => {
       const d = w.districts.slice().sort((a, b) => b.homeless - a.homeless)[0];
-      return `${d.homeless.toLocaleString()} people in ${d.name} have nowhere to sleep, and about two hundred of them are now sleeping in front of the assembly building.`;
+      return `${d.homeless.toLocaleString()} people in ${d.name} have nowhere to sleep, and about two hundred are now on the steps of the assembly building.`;
     },
     options: [
-      { label: 'Emergency housing appropriation (8M)', cost: 8e6, apply: (w) => { w.economy.treasury -= 8e6; const d = worst(w, 'homeless'); d.homeless = Math.round(d.homeless * 0.6); nudgeMood(d, 7); } },
+      { label: 'Emergency housing appropriation ($8B)', cost: 8e9, apply: (w) => { w.economy.treasury -= 8e9; const d = worst(w, 'homeless'); d.homeless = Math.round(d.homeless * 0.6); nudgeMood(d, 7); } },
       { label: 'Clear the encampment', apply: (w) => { const d = worst(w, 'homeless'); nudgeMood(d, -9); d.order += 6; log(w, 'crisis', `The encampment in ${d.name} is cleared before dawn.`, { weight: 2 }); } },
       { label: 'Meet with them publicly', apply: (w) => { const d = worst(w, 'homeless'); nudgeMood(d, 3); d.salience.housing = clamp(d.salience.housing + 0.25, 0, 1.6); } },
     ],
@@ -164,7 +164,7 @@ export const EVENTS = [
     id: 'scandal', title: 'A document surfaces', tag: null, weight: 3,
     intro: (w) => {
       const t = randomOfficeholder(w);
-      return `An envelope has reached three newsrooms: a ledger page, initialled, appearing to put ${t ? t.name : 'a senior officeholder'} on both sides of a public contract.`;
+      return `An envelope has reached three newsrooms: a ledger page, initialled, putting ${t ? t.name : 'a senior officeholder'} on both sides of a public contract.`;
     },
     setup: (w, ev) => { const t = randomOfficeholder(w); ev.subject = t?.id || null; },
     options: [
@@ -175,7 +175,7 @@ export const EVENTS = [
           if (p) { nudgeApproval(p, -6); openInquest(w, { subjectId: p.id, byId, over: 'the ledger page' }); }
           bump(w, 2);
           fileInquiry(w, byId, p
-            ? `Opened into ${p.name} over the ledger page. The file is open, they know it, and it will report.`
+            ? `Opened into ${p.name} over the ledger page. They know, and it will report.`
             : 'Opened over the ledger page. No name is on the file yet.', { subject: ev.subject || null });
           log(w, 'intrigue', `An investigation is opened into ${p?.name || 'a senior officeholder'} over the ledger page.`,
             { actors: [ev.subject].filter(Boolean), weight: 3 });
@@ -190,7 +190,7 @@ export const EVENTS = [
     id: 'eruption', title: 'Kiln Hill is venting', tag: null, weight: 1,
     intro: (w) => `Ash on the washing lines in three districts. The geologists were asked in Year ${Math.max(1, (w.clock.foundingYear))} for a monitoring budget and did not get one.`,
     options: [
-      { label: 'Evacuate two districts (6M)', cost: 6e6, apply: (w) => { w.economy.treasury -= 6e6; bump(w, 4); } },
+      { label: 'Evacuate two states ($6B)', cost: 6e9, apply: (w) => { w.economy.treasury -= 6e9; bump(w, 4); } },
       { label: 'Issue advisories only', apply: (w) => { bump(w, -3); damage(w, 2); } },
     ],
     ignore: (w) => { bump(w, -9); damage(w, 5); log(w, 'crisis', 'The eruption takes a quarter of Kiln Hill with it.', { weight: 4 }); },
@@ -208,12 +208,12 @@ export const EVENTS = [
       if (f) f.hostility = Math.min(100, f.hostility + 18);
     },
     options: [
-      { label: 'Mobilize (10M)', cost: 10e6, apply: (w) => { w.economy.treasury -= 10e6; w.military.units += 3; const f = byId(w.foreign, 'canada'); f.hostility -= 8; bump(w, -2); } },
+      { label: 'Mobilize ($10B)', cost: 10e9, apply: (w) => { w.economy.treasury -= 10e9; w.military.units += 3; const f = byId(w.foreign, 'canada'); f.hostility -= 8; bump(w, -2); } },
       // Talking has to be worth doing. This used to take back 15 of the 18 the
       // crisis had just added, so the bar on the World tab still sat higher
       // after negotiating than before Canada moved, and the one response that
       // is supposed to defuse things read as having failed.
-      { label: 'Open negotiations', apply: (w) => { const f = byId(w.foreign, 'canada'); f.hostility = Math.max(0, f.hostility - 28); bump(w, 2); log(w, 'war', 'Talks open with Canada. The divisions stay put, but the radio changes its tone.', { weight: 2 }); } },
+      { label: 'Open negotiations', apply: (w) => { const f = byId(w.foreign, 'canada'); f.hostility = Math.max(0, f.hostility - 28); bump(w, 2); log(w, 'war', 'Talks open with Canada. The divisions stay, but the radio changes its tone.', { weight: 2 }); } },
       // Clamped, like every other write to this number. These two were not, and
       // a card answered badly twice put Canada's hostility at 112 — off the
       // end of a bar that runs to a hundred, and past the point where anything
@@ -233,11 +233,11 @@ export const EVENTS = [
           if (s) { s.exposure = clamp(s.exposure + 35, 0, 100); }
           bump(w, 1);
           fileInquiry(w, byId, s
-            ? `The courier talked. An agent in the field is now badly exposed.`
-            : 'The courier talked, and named nobody the state has heard of.');
+            ? `The courier talked. An agent in the field is badly exposed.`
+            : 'The courier talked, and named nobody the state knows.');
           fileIntel(w, s
             ? 'A courier broke under questioning. Anyone running an agent should assume they are burned.'
-            : 'A courier broke under questioning and gave up nothing that maps to a known name.');
+            : 'A courier broke under questioning and gave up no name the state knows.');
         },
       },
       { label: 'Release him and follow him', apply: (w) => { fileIntel(w, 'A courier was released under surveillance. Someone will meet him.'); } },
@@ -245,7 +245,7 @@ export const EVENTS = [
         label: 'Hang him',
         apply: (w) => {
           bump(w, -6);
-          fileIntel(w, 'The courier was hanged before questioning. Whatever he knew died on the tollgate road.');
+          fileIntel(w, 'Hanged before questioning. Whatever he knew died on the tollgate road.');
           log(w, 'death', 'The courier is executed on the tollgate road. He never gave a name.', { weight: 3 });
         },
       },
@@ -254,13 +254,13 @@ export const EVENTS = [
   },
   {
     id: 'nexus', title: 'The Nexus cell', tag: 'occult', weight: 1,
-    intro: (w) => `Four bodies in the Terraces, arranged. The mark is the one from the old file everyone agreed was a hoax.`,
+    intro: (w) => `Four bodies in the Terraces, arranged. The mark is from the old file everyone called a hoax.`,
     options: [
       {
         label: 'Raid the meeting house',
         apply: (w, ev, byId) => {
           bump(w, 3); damage(w, 1);
-          fileInquiry(w, byId, 'The meeting house was raided. Papers, robes, and initials nobody can match to a name.');
+          fileInquiry(w, byId, 'The meeting house was raided. Papers, robes, initials nobody can match to a name.');
           fileIntel(w, 'Seized at the Nexus meeting house: initials. Someone on the list sits in this government.');
         },
       },
@@ -277,7 +277,7 @@ export const EVENTS = [
   },
   {
     id: 'strike', title: 'The yards stop', tag: null, weight: 2,
-    intro: (w) => `Every crane in Ironside is stationary. The union wants income tax rolled back and a housing bill on the floor by Friday.`,
+    intro: (w) => `Every crane in Ironside is stopped. The union wants income tax rolled back and a housing bill on the floor by Friday.`,
     options: [
       // The tax the union wants rolled back is the chamber's to set, never the
       // executive's — so there is no unilateral cut on this card, whatever
@@ -287,7 +287,7 @@ export const EVENTS = [
       // that declaring on nothing is (see declareEmergency, emergencyCause).
       { label: 'Declare a state of emergency', power: 'emergency',
         apply: (w, ev, personaId) => {
-          declareEmergency(w, personaId, 'The yards are stopped and the republic\'s industry is at a standstill.');
+          declareEmergency(w, personaId, 'The yards are stopped and the republic\'s industry with them.');
         } },
       // For an executive that does not hold the tax power itself: the strike
       // becomes the reason the bill exists. A one-point cut is drafted on the
@@ -301,7 +301,7 @@ export const EVENTS = [
           const to = Math.max(0, cur - 1);
           const doc = A.createDoc(w, {
             type: 'bill', title: 'The Ironside Wage Relief Act', authorId: personaId,
-            preamble: 'The yards being stopped and the union having demanded relief, the chamber is asked to cut the rate of income tax by one point.',
+            preamble: 'The yards being stopped and relief demanded, the chamber is asked to cut the rate of income tax by one point.',
             clauses: [
               { kind: 'PROSE', text: 'Whereas Ironside is stopped and the strike spreads if left alone.' },
               { kind: 'SET_TAX', tax: 'income', rate: to },
@@ -324,7 +324,7 @@ export const EVENTS = [
     id: 'fire', title: 'Fire in the Fourth Ward', tag: null, weight: 2,
     intro: (w) => `Two blocks of the Fourth Ward went up before midnight. The sewer works that would have carried it was voted down.`,
     options: [
-      { label: 'Rebuild at public cost (5M)', cost: 5e6, apply: (w) => { w.economy.treasury -= 5e6; bump(w, 5); } },
+      { label: 'Rebuild at public cost ($5B)', cost: 5e9, apply: (w) => { w.economy.treasury -= 5e9; bump(w, 5); } },
       { label: 'Leave it to the insurers', apply: (w) => { bump(w, -5); damage(w, 2); } },
     ],
     ignore: (w) => { bump(w, -7); damage(w, 3); },
@@ -367,7 +367,7 @@ export function fire(world, eventId) {
   // Once lived through, a crisis is spent for the rest of the Season — however
   // it was fired, so a moderator cannot hand out the same one twice either.
   world.firedEvents = world.firedEvents || [];
-  if (world.firedEvents.includes(tpl.id)) return { ok: false, reason: `${tpl.title} has already happened this Season. A crisis does not repeat.` };
+  if (world.firedEvents.includes(tpl.id)) return { ok: false, reason: `${tpl.title} has already happened this Season. Crises do not repeat.` };
   world.firedEvents.push(tpl.id);
   const ev = {
     uid: uid('ev'), id: tpl.id, title: tpl.title,
@@ -386,13 +386,13 @@ export function fire(world, eventId) {
 export function respond(world, evUid, optionIndex, personaId) {
   const ev = world.events.find((e) => e.uid === evUid);
   if (!ev || ev.resolved) return { ok: false, reason: 'That crisis is closed.' };
-  if (ev.notice) return { ok: false, reason: 'That is a notice. It takes no response but acknowledgement.' };
+  if (ev.notice) return { ok: false, reason: 'A notice takes no response but acknowledgement.' };
   // The chair answers. See rules.mayAnswerCrisis — this is the door, and it is
   // here rather than in the UI because the card renders for the whole republic
   // and only one person in it is being asked the question.
   if (!R.mayAnswerCrisis(world, personaId)) {
     const head = R.headOffice(world);
-    return { ok: false, reason: `This is put to the ${head?.name || 'executive'}, and you do not hold that office.` };
+    return { ok: false, reason: `This is put to the ${head?.name || 'executive'} — you do not hold that office.` };
   }
   const tpl = EVENTS.find((e) => e.id === ev.id);
   // A card with no template behind it takes no options, and asking for one
@@ -404,11 +404,11 @@ export function respond(world, evUid, optionIndex, personaId) {
   // past it, so a President could cut a rate of taxation from a crisis card
   // that the constitution reserves to the chamber.
   if (opt.power && !R.hasPower(world, personaId, opt.power)) {
-    return { ok: false, reason: `That answer exercises ${R.powerLabel(opt.power).toLowerCase()}, and your office does not hold it. Put it to the chamber instead.` };
+    return { ok: false, reason: `Your office does not hold ${R.powerLabel(opt.power).toLowerCase()}. Put it to the chamber instead.` };
   }
   if (opt.cost) {
     if (!R.hasPower(world, personaId, 'spend'))
-      return { ok: false, reason: `That response costs ${moneyExact(opt.cost)} and your office does not hold the power to disburse.` };
+      return { ok: false, reason: `That response costs ${moneyExact(opt.cost)} and your office cannot disburse.` };
     const rule = R.spendRule(world, opt.cost);
     if (rule.requires && !(world.emergency && world.emergency.active))
       return { ok: false, reason: `${R.spendClauseText(world, opt.cost)} Declare an emergency or pass a bill.` };
@@ -558,7 +558,7 @@ export function emergencyFacts(world) {
 // in the UI are written to land on these; free text is matched the same way, so
 // a player who types their own reason is judged by what they actually said.
 const CLAIM_WORDS = [
-  ['foreign', /foreign power|invasion|invade|border|at war|canada|mexico|the sab|mobiliz|enemy|hostile power|abroad/i],
+  ['foreign', /foreign power|invasion|invade|border|at war|canada|mexico|caribbean league|mobiliz|enemy|hostile power|abroad/i],
   ['rising', /armed rising|insurrection|rebellion|uprising|coup|mutiny|sedition/i],
   ['order', /public order|disorder|riot|looting|unrest|breakdown|lawless|street/i],
   ['money', /treasury|spending rule|fiscal|budget|recession|credit|insolven|cannot pay|payroll/i],
@@ -613,11 +613,11 @@ export function declareEmergency(world, personaId, reason) {
   if (!R.hasPower(world, personaId, 'emergency')) return { ok: false, reason: 'Your office does not hold the emergency power.' };
   if (world.emergency?.active) return { ok: false, reason: 'A state of emergency is already in force.' };
   // The declaration is entered into the record; it may not be left blank.
-  if (!reason || !reason.trim()) return { ok: false, reason: 'State a reason for the emergency — it is entered into the Chronicle under your name.' };
+  if (!reason || !reason.trim()) return { ok: false, reason: 'State a reason — it goes into the Chronicle under your name.' };
   // The power recovers slowly: you cannot chain one emergency into the next.
   if (world.emergencyCooldownUntil && world.clock.tick < world.emergencyCooldownUntil) {
     const left = world.emergencyCooldownUntil - world.clock.tick;
-    return { ok: false, reason: `The last emergency is too recent — the power has not recovered. Try again in ${left} tick(s).` };
+    return { ok: false, reason: `The power has not recovered from the last emergency. Try again in ${left} tick(s).` };
   }
   // It need not answer a real crisis — a president may declare one on nothing at
   // all — but doing so is a naked grab, and it is dear. What it costs eases the
@@ -649,7 +649,7 @@ export function declareEmergency(world, personaId, reason) {
       p.saidDisrepute.push({ tick: world.clock.tick, channel: 'emergency', grounds: ['declared a state of emergency with no crisis to answer'] });
     }
     nudgeMoodAll(world, -6 * scale);
-    log(world, 'press', 'The emergency answers no crisis the country can see — the legislature sat, the streets were calm, and the powers were taken anyway. The papers have the declaration and the record side by side.', { actors: [personaId], weight: 4 });
+    log(world, 'press', 'The emergency answers no crisis the country can see: the legislature sat, the streets were calm, the powers were taken anyway. The papers have both, side by side.', { actors: [personaId], weight: 4 });
     if (chance(world, EMERGENCY_COURT_CHANCE * scale)) world.emergency.courtOrdered = world.clock.tick || 1;
   } else {
     // A real crisis is in force — but the *stated* ground may still be a lie. The
@@ -670,7 +670,7 @@ export function declareEmergency(world, personaId, reason) {
       nudgeMoodAll(world, -6);
       const said = PRETEXT_WORDS[pretext.claimed[0]] || 'the ground stated';
       log(world, 'press',
-        `The emergency was declared on ${said}. There is ${pretext.actual.length ? 'no such thing happening — what the country is actually facing is ' + (cause.why) : 'no such thing happening'}. The papers have the declaration and the record side by side.`,
+        `The emergency was declared on ${said}. There is ${pretext.actual.length ? 'no such thing happening — the country is actually facing ' + (cause.why) : 'no such thing happening'}. The papers have both, side by side.`,
         { actors: [personaId], weight: 4 });
     }
   }

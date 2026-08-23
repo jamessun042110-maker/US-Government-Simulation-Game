@@ -50,7 +50,7 @@ export function whisper(world, conId, personaId, text) {
 export function investigate(world, personaId, conIdOrNull) {
   const investigator = world.personas[personaId];
   const canInvestigate = R.hasPower(world, personaId, 'arrest') || R.hasPower(world, personaId, 'strike_law') || R.hasPower(world, personaId, 'impeach');
-  if (!canInvestigate) return { ok: false, reason: 'Investigations require an office with the power to arrest, to try, or to strike.' };
+  if (!canInvestigate) return { ok: false, reason: 'Investigations need an office with power to arrest, try, or strike.' };
 
   // Every investigation leaves a record with a plain-language outcome, so the
   // Intrigue tab always shows something happened — even a dead end is a result.
@@ -60,9 +60,9 @@ export function investigate(world, personaId, conIdOrNull) {
   const pool = conIdOrNull ? world.conspiracies.filter((c) => c.id === conIdOrNull) : world.conspiracies;
   const live = pool.filter((c) => !c.exposed);
   if (!live.length) {
-    file('Nothing turned up — which is not the same as nothing being there.');
+    file('Nothing turned up — not the same as nothing being there.');
     log(world, 'intrigue', `${investigator?.name} opens an investigation. Nothing surfaces.`, { actors: [personaId] });
-    return { ok: true, value: { found: false, note: 'Nothing turns up. That is not the same as nothing being there.' } };
+    return { ok: true, value: { found: false, note: 'Nothing turns up.' } };
   }
 
   const target = live.slice().sort((a, b) => b.exposure - a.exposure)[0];
@@ -70,8 +70,8 @@ export function investigate(world, personaId, conIdOrNull) {
 
   if (roll > target.exposure) {
     target.exposure = clamp(target.exposure + 3, 0, 100);
-    file('Nothing on the record yet. The trail is a little warmer.', { conId: target.id, roll, exposure: target.exposure });
-    log(world, 'intrigue', `${investigator?.name} opens an investigation. It finds nothing on the record.`, { actors: [personaId] });
+    file('Nothing on the record yet. The trail is warmer.', { conId: target.id, roll, exposure: target.exposure });
+    log(world, 'intrigue', `${investigator?.name} opens an investigation. Nothing on the record.`, { actors: [personaId] });
     return { ok: true, value: { found: false, note: 'Nothing on the record. Yet.' } };
   }
 
@@ -114,10 +114,10 @@ export function leak(world, conId, personaId, toOutletId) {
 
 export const MISSIONS = {
   observe: { label: 'Observe a chamber', risk: 6, blurb: 'Learn how a seated persona intends to vote.' },
-  copy: { label: 'Copy a document', risk: 14, blurb: 'Obtain the text of a draft not yet on the floor.' },
-  plant: { label: 'Plant evidence', risk: 26, blurb: 'Create a trace implicating someone else. It will be found.' },
+  copy: { label: 'Copy a document', risk: 14, blurb: 'Obtain a draft not yet on the floor.' },
+  plant: { label: 'Plant evidence', risk: 26, blurb: 'Leave a trace implicating someone else. It will be found.' },
   sabotage: { label: 'Sabotage a project', risk: 30, blurb: 'Halt a construction project and burn the money spent.' },
-  turn: { label: 'Turn an officeholder', risk: 34, blurb: 'Attempt to recruit a seated persona into a conspiracy.' },
+  turn: { label: 'Turn an officeholder', risk: 34, blurb: 'Try to recruit a seated persona into a conspiracy.' },
 };
 
 export function runAgent(world, { ownerPersonaId, coverName }) {
@@ -133,7 +133,7 @@ export function runAgent(world, { ownerPersonaId, coverName }) {
     const eo = execOffice(world);
     return {
       ok: false,
-      reason: `The ${eo?.name || 'head of government'} does not run agents. The state's apparatus answers to you; anything covert in your name is done by somebody you can disown.`,
+      reason: `The ${eo?.name || 'head of government'} does not run agents. The state's apparatus answers to you; covert work needs somebody you can disown.`,
     };
   }
   const s = {
@@ -159,7 +159,7 @@ export function mission(world, spyId, kind, targetId) {
     s.active = false; s.burned = world.clock.tick;
     const owner = world.personas[s.ownerPersonaId];
     if (owner) { nudgeApproval(owner, -14); owner.reputation -= 2; }
-    log(world, 'intrigue', `The agent known as ${s.coverName} is taken. Under questioning the name ${owner?.name} is given.`,
+    log(world, 'intrigue', `${s.coverName} is taken. Under questioning the name ${owner?.name} is given.`,
       { actors: [s.ownerPersonaId], weight: 4 });
     return { ok: true, value: { ...rec, note: 'Burned. Your name is in the record now.' } };
   }
@@ -178,7 +178,7 @@ export function mission(world, spyId, kind, targetId) {
     if (target) {
       target.traces.push({ id: uid('tr'), kind: 'fragment', tick: world.clock.tick, text: `A note in an unfamiliar hand naming ${world.personas[targetId]?.name || 'a member of the government'}.`, planted: true, weight: 14 });
       target.exposure = clamp(target.exposure + 18, 0, 100);
-      note = 'Planted. It will be found by whoever looks next.';
+      note = 'Planted. Whoever looks next will find it.';
     } else note = 'Nowhere to put it.';
   } else if (kind === 'sabotage') {
     const live = world.city.parcels.filter((p) => p.project);
@@ -247,9 +247,9 @@ export function declareUprising(world, { leaderId, cause, kind = 'coup', distric
   // and it needs a real public grievance to catch.
   if (kind === 'revolution') {
     if (leaderId === headId(world))
-      return { ok: false, reason: 'The head of government cannot raise a revolt against themselves.' };
+      return { ok: false, reason: 'The head of government cannot revolt against themselves.' };
     if (grievance(world) < 0.2)
-      return { ok: false, reason: 'The country is too content for a revolution. Let public disapproval build first.' };
+      return { ok: false, reason: 'The country is too content for a revolution. Let disapproval build first.' };
   }
   const u = {
     id: uid('up'), kind, leaderId, cause: cause || 'The government has forfeited its claim.',
@@ -336,8 +336,8 @@ export function recruitToPlot(world, recruiterId, targetId) {
   const target = world.personas[targetId];
   if (!target || !target.alive || target.imprisoned || target.exiled) return { ok: false, reason: 'Not someone you can reach.' };
   if (plot.members.includes(targetId)) return { ok: false, reason: 'Already sworn in.' };
-  if (targetId === headId(world)) return { ok: false, reason: 'You do not sound out the very person you mean to depose.' };
-  if (!isMinister(world, targetId)) return { ok: false, reason: 'Only serving ministers can be brought into the plot.' };
+  if (targetId === headId(world)) return { ok: false, reason: 'You do not sound out the person you mean to depose.' };
+  if (!isMinister(world, targetId)) return { ok: false, reason: 'Only serving ministers can join the plot.' };
   plot.exposure = clamp(plot.exposure + 4 + plot.members.length * 1.2, 0, 100);
 
   // A real player is invited and must answer for themselves — the real risk.
@@ -361,7 +361,7 @@ export function recruitToPlot(world, recruiterId, targetId) {
     plot.forewarned = true;
     plot.exposure = clamp(plot.exposure + 30, 0, 100);
     if (!plot.defenders.includes(targetId)) plot.defenders.push(targetId);
-    log(world, 'intrigue', `${target.name} refuses — and carries word to the government. The plot is compromised.`,
+    log(world, 'intrigue', `${target.name} refuses and carries word to the government. The plot is compromised.`,
       { actors: [targetId, headId(world)].filter(Boolean), weight: 3 });
     return { ok: true, value: { betrayed: true } };
   }
@@ -459,7 +459,7 @@ export function strikeCoup(world, byId) {
       const st = R.seatOf(world, pid); if (st) vacate(world, st, 'treason');
     }
     nudgeApproval(world.personas[headId(world)], 6);
-    log(world, 'court', `The coup fails at ${Math.round(odds.p * 100)}% odds. ${plot.members.length} plotter(s) are seized for treason; ${head?.name || 'the head of government'} survives.`, { actors: plot.members, weight: 4 });
+    log(world, 'court', `The coup fails at ${Math.round(odds.p * 100)}% odds. ${plot.members.length} plotter(s) seized for treason; ${head?.name || 'the head of government'} survives.`, { actors: plot.members, weight: 4 });
   }
   world.plotHistory = world.plotHistory || [];
   world.plotHistory.push(plot);
@@ -476,7 +476,7 @@ export function pledge(world, personaId, side) {
   // Everyone else may declare, and may change their mind; that is the drama.
   if (personaId === u.leaderId) {
     return { ok: false, reason: side === 'rising'
-      ? 'You are the rising. There is nothing to declare.'
+      ? 'You are the rising. Nothing to declare.'
       : 'You raised this standard. You cannot declare for the government you rose against.' };
   }
   if (u.pledges[personaId] === side) {
@@ -555,7 +555,7 @@ export function resolveUprising(world) {
         const d = world.districts.find((x) => x.id === id);
         if (d) { d.seceded = true; d.mood = 62; }
       }
-      log(world, 'war', `The secession holds. ${u.districts.length} district(s) leave ${world.nation} with a constitution of their own.`, { actors: [u.leaderId], weight: 5 });
+      log(world, 'war', `The secession holds. ${u.districts.length} state(s) leave ${world.nation} with one of their own.`, { actors: [u.leaderId], weight: 5 });
     } else {
       punish(world, u);
       log(world, 'war', `The secession is put down. The districts are reoccupied.`, { weight: 4 });
@@ -579,7 +579,7 @@ export function resolveUprising(world) {
     nudgeMoodAll(world, boost);
     log(world, 'crisis',
       u.kind === 'revolution'
-        ? `The revolution wins. ${leader?.name} is carried into the ${exec.name} on ${Math.round(check.share * 100)}% support, a movement ${Math.round(u.movement || 0)} strong.`
+        ? `The revolution wins. ${leader?.name} takes the ${exec.name} on ${Math.round(check.share * 100)}% support, a movement ${Math.round(u.movement || 0)} strong.`
         : `The rising succeeds. ${leader?.name} takes the ${exec.name}. Support: ${Math.round(check.share * 100)}%.`,
       { actors: [u.leaderId], weight: 5 });
   } else {
@@ -628,7 +628,7 @@ export function tickIntrigue(world) {
     pl.exposure = clamp(pl.exposure + 0.15 + pl.members.length * 0.15, 0, 100);
     if (!pl.forewarned && pl.exposure >= 72) {
       pl.forewarned = true;
-      log(world, 'intrigue', 'Word of a plot reaches the government. No names yet — but the guard is doubled.', { weight: 3 });
+      log(world, 'intrigue', 'Word of a plot reaches the government. No names — but the guard is doubled.', { weight: 3 });
     }
   }
 }

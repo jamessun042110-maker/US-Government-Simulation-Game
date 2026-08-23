@@ -35,7 +35,7 @@ const said = (w, re) => w.chronicle.some((e) => re.test(e.text));
   ok('the ally is called', called.includes('Mexico'), called.join(', '));
   ok('and is written onto the war', war.allies.includes('mexico'), JSON.stringify(war.allies));
   ok('and knows which war it is in', ally.fighting === 'w_test', String(ally.fighting));
-  ok('the Chronicle says so', said(w, /called to its obligations under the mutual-defense pact/));
+  ok('the Chronicle says so', said(w, /enters the war against .*, under the mutual-defense pact/));
   ok('the enemy is not called to its own defence', !war.allies.includes('canada'));
 }
 
@@ -67,7 +67,7 @@ const said = (w, re) => w.chronicle.some((e) => re.test(e.text));
   const called = A.callAllies(w, war, 'canada');
   ok('a signatory fighting its own war does not answer', called.length === 0, called.join(', '));
   ok('and the record says the pact could not be honoured',
-    said(w, /no signatory is in a position to answer/));
+    said(w, /no signatory can answer/));
 }
 
 // --- a power fighting beside us does not turn on us -------------------------

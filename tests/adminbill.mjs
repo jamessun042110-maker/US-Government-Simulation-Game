@@ -61,7 +61,7 @@ ok('the President authors an administration bill', true);
   const before = pres.approval;
   A.closeFloor(w, doc.id);
   ok("a legislator's bill passing does not move the President", pres.approval === before, `${before.toFixed(2)} → ${pres.approval.toFixed(2)}`);
-  ok('and the record marks it a bill from the floor', /introduced on the floor/i.test(resultLog(w, "A Private Member Act")), resultLog(w, "A Private Member Act"));
+  ok('and the record marks it a bill from the floor', /a bill from .*, from the floor/i.test(resultLog(w, "A Private Member Act")), resultLog(w, "A Private Member Act"));
 }
 {
   // A crisis the executive cannot fund alone, referred to the chamber from the

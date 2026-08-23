@@ -160,7 +160,7 @@ export function overreachOf(world, doc) {
       // act beyond the reach of the people who passed it.
       else if (R.retainsUnenumerated(world)) {
         score += 0.12;
-        grounds.push('no enumerated right reaches it, but liberty of the person is among those the people retained');
+        grounds.push('no enumerated right reaches it, but liberty of the person was retained');
       }
     }
     // Self-dealing: an office voting itself more power, or writing the rules
@@ -175,12 +175,12 @@ export function overreachOf(world, doc) {
     if (c.kind === 'AMEND') {
       const guard = /impeachment|amendment|override|quorum/.test(String(c.path || ''));
       score += guard ? 0.34 : 0.14;
-      if (guard) grounds.push('it loosens a check that exists to restrain its own author');
+      if (guard) grounds.push('it loosens a check meant to restrain its own author');
       else grounds.push('it alters the constitution rather than legislating under it');
     }
-    if (c.kind === 'REMOVE') { score += 0.26; grounds.push('it removes an officeholder without the trial the constitution requires'); }
+    if (c.kind === 'REMOVE') { score += 0.26; grounds.push('it removes an officeholder without the required trial'); }
     if (c.kind === 'DECLARE_WAR' && byOrder) { score += 0.3; grounds.push('war is declared without the chamber'); }
-    if (c.kind === 'REDISTRICT') { score += 0.16; grounds.push('the districts are redrawn by the people who stand in them'); }
+    if (c.kind === 'REDISTRICT') { score += 0.16; grounds.push('the districts are redrawn by those who stand in them'); }
     if (c.kind === 'CALL_ELECTION' && byOrder) { score += 0.14; grounds.push('the timing of an election is set by decree'); }
   }
 
@@ -189,7 +189,7 @@ export function overreachOf(world, doc) {
     s + (c.kind === 'APPROPRIATE' ? (+c.amount || 0) : 0), 0);
   if (byOrder && cost > 0) {
     const rule = R.spendRule(world, cost);
-    if (rule.requires) { score += 0.34; grounds.push('it spends what the constitution says only the chamber may spend'); }
+    if (rule.requires) { score += 0.34; grounds.push('it spends what only the chamber may spend'); }
     const a = R.allowance(world);
     if (a && cost > a.cap) { score += 0.18; grounds.push('it exceeds the discretionary allowance'); }
   }
@@ -205,7 +205,7 @@ export function overreachOf(world, doc) {
     const eq = R.rightBlocking(world, 'EQUAL_PROTECTION');
     if (eq) grounds.push(`it cannot be squared with ${eq.name}`);
     else if (R.retainsUnenumerated(world)) {
-      grounds.push('this constitution never wrote down equal protection, and never had to: it is among the rights the people retained');
+      grounds.push('this constitution never wrote down equal protection, and never had to: it is among the rights retained');
     }
   }
 
@@ -213,7 +213,7 @@ export function overreachOf(world, doc) {
   // lent, not granted — and the loan is reviewable.
   if (byOrder && doc.underEmergency) {
     score += 0.2;
-    grounds.push('it rests on emergency powers rather than on the office’s own grant');
+    grounds.push('it rests on emergency powers, not the office’s own grant');
   }
 
   // What the chamber did about it. An act carried 9–1 is not the same target as
@@ -230,7 +230,7 @@ export function overreachOf(world, doc) {
 function emergencyOverreach(world) {
   const em = world.emergency;
   if (!em?.active) return null;
-  const grounds = ['the emergency power is being used to govern rather than to answer a crisis'];
+  const grounds = ['the emergency power is governing, not answering a crisis'];
   let score = 0.3;
   const ran = world.clock.tick - (em.started || 0);
   if (ran > world.clock.ticksPerYear) { score += 0.25; grounds.push('it has now run longer than a canon year'); }
@@ -330,11 +330,11 @@ export function fileCase(world, target, why) {
   world.cases.push(c);
 
   const pr = precedentOn(world, c.doctrine);
-  log(world, 'court', `${world.personas[c.plaintiffId]?.name || 'A citizen'} brings suit against ${subject}: ${c.grounds[0] || 'it exceeds the power granted'}. The court takes the case.`
+  log(world, 'court', `${world.personas[c.plaintiffId]?.name || 'A citizen'} brings suit against ${subject}: ${c.grounds[0] || 'it exceeds the power granted'}. The court takes it.`
     + (pr ? ` ${pr.cite} is cited.` : ''), { actors: [c.plaintiffId].filter(Boolean), docId: docOf(target), weight: 3 });
 
   for (const j of justices(world)) {
-    if (j.playerId) notice(world, j.playerId, `A case is before you: ${c.title}. Hear it and decide it in The Supreme Court.`, 'ok');
+    if (j.playerId) notice(world, j.playerId, `A case is before you: ${c.title}. Hear and decide it in The Supreme Court.`, 'ok');
   }
   return c;
 }
@@ -353,7 +353,7 @@ export const CLAIMS = {
     label: 'Wrongful detention',
     doctrine: 'ARREST',
     blurb: 'They had me taken and held without lawful cause.',
-    ground: 'the detention was ordered without the cause the constitution requires',
+    ground: 'the detention was ordered without the required cause',
     weigh(world, plaintiff, defendant) {
       let score = 0.12; let rights = false;
       const grounds = [];
@@ -380,7 +380,7 @@ export const CLAIMS = {
   abuse_of_office: {
     label: 'Abuse of office',
     doctrine: 'GENERAL',
-    blurb: 'They used their office against me rather than for the republic.',
+    blurb: 'They used their office against me, not for the republic.',
     ground: 'the office was used as a private instrument',
     weigh(world, plaintiff, defendant) {
       let score = 0.1; const grounds = [];
@@ -397,7 +397,7 @@ export const CLAIMS = {
       }
       if (worstDoc) { score += worst * 0.6; grounds.push(`“${worstDoc.title}” is theirs`); }
       if (world.emergency?.active && world.emergency.by === defendant.id) {
-        score += 0.18; grounds.push('they are governing under their own declared emergency');
+        score += 0.18; grounds.push('they govern under their own declared emergency');
       }
       return { score, rights: false, grounds };
     },
@@ -406,7 +406,7 @@ export const CLAIMS = {
     label: 'Defamation',
     doctrine: 'GENERAL',
     blurb: 'They put a falsehood about me into print.',
-    ground: 'the statement was false and it was published anyway',
+    ground: 'the statement was false and published anyway',
     weigh(world, plaintiff, defendant) {
       let score = 0.12; const grounds = [];
       const outlets = (world.media?.outlets || []).filter((o) => o.ownerPersonaId === defendant.id).map((o) => o.id);
@@ -424,7 +424,7 @@ export const CLAIMS = {
   incitement: {
     label: 'Incitement',
     doctrine: 'GENERAL',
-    blurb: 'They stood up in a room of this republic and said I was not a person.',
+    blurb: 'They stood up in a public room and said I was not a person.',
     ground: 'a class of citizens was denied its humanity in the open',
     // The one claim that needs no statute behind it: what was said is either on
     // the record or it is not. A line spoken in a public room is worse than one
@@ -455,7 +455,7 @@ export const CLAIMS = {
     label: 'Public money to a private interest',
     doctrine: 'APPROPRIATE',
     blurb: 'They spent the republic\'s money on somebody it suited them to save.',
-    ground: 'public money was disbursed to a business the defendant had an interest in',
+    ground: 'public money went to a business the defendant had an interest in',
     /**
      * The one claim in this list where the record does nearly all of the work.
      *
@@ -468,13 +468,13 @@ export const CLAIMS = {
      */
     weigh(world, plaintiff, defendant) {
       const mine = (world.rescues || []).filter((r) => r.by === defendant.id);
-      if (!mine.length) return { score: 0.04, rights: false, grounds: ['the defendant has signed for no rescue at all'] };
+      if (!mine.length) return { score: 0.04, rights: false, grounds: ['the defendant has signed for no rescue'] };
       const grounds = [];
       let score = 0.1;
       const conflicted = mine.filter((r) => r.interest);
       grounds.push(conflicted.length
         ? `the defendant signed for ${mine.length} ${mine.length === 1 ? 'rescue' : 'rescues'}, ${conflicted.length} of them not disinterested`
-        : `the defendant signed for ${mine.length} ${mine.length === 1 ? 'rescue' : 'rescues'}, and the record shows nothing behind any of them`);
+        : `the defendant signed for ${mine.length} ${mine.length === 1 ? 'rescue' : 'rescues'}, and the record shows nothing behind them`);
       if (!conflicted.length) return { score: clamp(score, 0, 1), rights: false, grounds };
 
       // The worst single one carries the claim; a pattern of them aggravates it.
@@ -489,7 +489,7 @@ export const CLAIMS = {
       // money the chamber was asked for and granted.
       const undebated = (world.discretionLog || []).some((x) => x.by === defendant.id
         && /^rescue of /.test(x.purpose || '') && x.purpose.includes(worst.companyName));
-      if (undebated) { score += 0.12; grounds.push('and it never went to the chamber; it came out of the allowance'); }
+      if (undebated) { score += 0.12; grounds.push('and it never went to the chamber — it came from the allowance'); }
       // A rescue that saved almost nobody was not about the jobs.
       if ((worst.staff || 0) < 25) {
         score += 0.1;
@@ -533,7 +533,7 @@ export function fileSuit(world, plaintiffId, defendantId, claimKind, pleading) {
   if (prior.some((c) => c.status === 'argued')) return { ok: false, reason: 'That action is already before the court.' };
   const last = prior[prior.length - 1];
   if (last && world.clock.tick - (last.decidedAt || 0) < SUIT_COOLDOWN) {
-    return { ok: false, reason: `The court has only just decided this between you. Try again in ${SUIT_COOLDOWN - (world.clock.tick - last.decidedAt)} tick(s).` };
+    return { ok: false, reason: `This was only just decided between you. Try again in ${SUIT_COOLDOWN - (world.clock.tick - last.decidedAt)} tick(s).` };
   }
 
   const why = claim.weigh(world, plaintiff, defendant);
@@ -550,8 +550,8 @@ export function fileSuit(world, plaintiffId, defendantId, claimKind, pleading) {
   log(world, 'court', `${plaintiff.name} brings an action against ${defendant.name} for ${claim.label.toLowerCase()}: “${pleading.trim()}”`,
     { actors: [plaintiffId, defendantId], weight: 3 });
   const dp = defendant.playerId;
-  if (dp) notice(world, dp, `${plaintiff.name} has sued you for ${claim.label.toLowerCase()}. The Supreme Court is open to you while the case is live — answer it there.`, 'error');
-  if (plaintiff.playerId) notice(world, plaintiff.playerId, 'The hearing for your action is open in Chambers.', 'ok');
+  if (dp) notice(world, dp, `${plaintiff.name} has sued you for ${claim.label.toLowerCase()}. Answer in The Supreme Court while the case is live.`, 'error');
+  if (plaintiff.playerId) notice(world, plaintiff.playerId, 'Your hearing is open in Chambers.', 'ok');
   return { ok: true, value: c };
 }
 
@@ -576,11 +576,11 @@ export function answerSuit(world, caseId, personaId, text) {
 export function takeUp(world, docId, personaId, reason) {
   const doc = world.documents[docId];
   if (!doc || doc.status !== 'law') return { ok: false, reason: 'Only a law in force can be reviewed.' };
-  if (!isJustice(world, personaId)) return { ok: false, reason: 'Only a justice of the court may take up a case.' };
+  if (!isJustice(world, personaId)) return { ok: false, reason: 'Only a justice may take up a case.' };
   if (alreadyBefore(world, { kind: 'doc', docId })) return { ok: false, reason: 'That act is already before the court.' };
   const why = overreachOf(world, doc);
   if (reason && reason.trim()) why.grounds = [reason.trim(), ...why.grounds];
-  if (!why.grounds.length) why.grounds = ['it reaches past the power the constitution granted'];
+  if (!why.grounds.length) why.grounds = ['it reaches past the power granted'];
   const c = fileCase(world, { kind: 'doc', docId }, why);
   c.certBy = personaId;
   log(world, 'court', `${world.personas[personaId]?.name} takes up “${doc.title}” of the court's own motion.`,
@@ -686,7 +686,7 @@ export function castOpinion(world, caseId, personaId, vote, opinion) {
   const c = (world.cases || []).find((x) => x.id === caseId);
   if (!c) return { ok: false, reason: 'No such case.' };
   if (c.status !== 'argued') return { ok: false, reason: 'That case is decided.' };
-  if (!isJustice(world, personaId)) return { ok: false, reason: 'Only a justice of the court may decide a case.' };
+  if (!isJustice(world, personaId)) return { ok: false, reason: 'Only a justice may decide a case.' };
   if (!['strike', 'uphold'].includes(vote)) return { ok: false, reason: 'A justice votes to strike or to uphold.' };
   c.votes[personaId] = vote;
   if (opinion && opinion.trim()) c.opinions[personaId] = opinion.trim();
@@ -748,10 +748,10 @@ export function decideCase(world, c) {
     || (isSuit
       ? (struck
         ? `Judgment for ${world.personas[c.plaintiffId]?.name || 'the plaintiff'}. ${CLAIMS[c.claim]?.ground ? CLAIMS[c.claim].ground[0].toUpperCase() + CLAIMS[c.claim].ground.slice(1) : 'The claim is made out'}, and the record bears it out.`
-        : `Judgment for ${world.personas[c.respondentId]?.name || 'the respondent'}. A grievance honestly felt is not the same as a wrong the law will name, and this court will not make it one.`)
+        : `Judgment for ${world.personas[c.respondentId]?.name || 'the respondent'}. A grievance honestly felt is not a wrong the law will name, and this court will not make it one.`)
       : (struck
-        ? `The power claimed here was never granted. ${c.grounds[0] ? c.grounds[0][0].toUpperCase() + c.grounds[0].slice(1) : 'It exceeds the founding grant'}, and no clause of this constitution supplies it.`
-        : `The act sits inside the grant. That it is unwelcome is not the same as that it is unlawful, and the remedy for the former lies at the ballot.`));
+        ? `The power claimed here was never granted. ${c.grounds[0] ? c.grounds[0][0].toUpperCase() + c.grounds[0].slice(1) : 'It exceeds the founding grant'}, and no clause supplies it.`
+        : `The act sits inside the grant. Unwelcome is not unlawful, and the remedy for that lies at the ballot.`));
 
   // Effect.
   if (c.target.kind === 'person') {
@@ -799,11 +799,11 @@ export function decideCase(world, c) {
     ruling: c.ruling,
     holding: isSuit
       ? (struck
-        ? `On ${CLAIMS[c.claim]?.label.toLowerCase() || 'the claim'}: where ${CLAIMS[c.claim]?.ground || 'the claim is made out'}, judgment goes to the plaintiff.`
+        ? `On ${CLAIMS[c.claim]?.label.toLowerCase() || 'the claim'}: where ${CLAIMS[c.claim]?.ground || 'the claim is made out'}, judgment for the plaintiff.`
         : `On ${CLAIMS[c.claim]?.label.toLowerCase() || 'the claim'}: not every grievance is a wrong the law will name.`)
       : (struck
-        ? `On ${doctrineName(c.doctrine)}: the constitution does not reach this far. ${c.grounds[0] ? 'The court held that ' + c.grounds[0] + '.' : ''}`.trim()
-        : `On ${doctrineName(c.doctrine)}: the act lies within the grant, and stands.`),
+        ? `On ${doctrineName(c.doctrine)}: the constitution does not reach this far. ${c.grounds[0] ? 'Held: ' + c.grounds[0] + '.' : ''}`.trim()
+        : `On ${doctrineName(c.doctrine)}: the act lies within the grant and stands.`),
     opinion: c.opinion,
     tally: c.tally,
     tick: world.clock.tick,
@@ -891,8 +891,8 @@ export function tickCourt(world) {
     if (!why.rights && marginOf(doc) > 0 && chance(world, marginOf(doc) * 0.6)) return;
     if (!why.grounds.length) {
       why.grounds = [pick(world, [
-        'it reaches past the power the constitution granted',
-        'it was enacted without the process the constitution requires',
+        'it reaches past the power granted',
+        'it was enacted without the process required',
         'it burdens a citizen who never consented to it',
         'its terms are too vague to be law at all',
       ])];
