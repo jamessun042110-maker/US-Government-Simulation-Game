@@ -12,7 +12,7 @@ import * as ACT from './actions.js';
 import { BUILDINGS, ZONES, PARTIES, FOREIGN } from './world.js';
 import * as GEO from './geo.js';
 import * as ATL from './atlas.js';
-import { ALASKA, ALASKA_WORLD, HAWAII, CENTRAL_AMERICA } from './atlas.js';
+import { ALASKA, ALASKA_WORLD, HAWAII, CENTRAL_AMERICA, CARIBBEAN } from './atlas.js';
 import * as MACRO from './macro.js';
 import * as CO from './company.js';
 import { nationalApproval, approvalDrivers, approvalByDistrict, DRAFT_SLOWDOWN, openElections, pactHolds, interestRate } from './sim.js';
@@ -1636,6 +1636,61 @@ VIEWS.convention = (root) => {
   // shape the convention has always had — a document on the left, the table's
   // own business on the right. In one full-width stack the seat rows were a
   // metre of rule with a word at each end.
+  // Ready-up, and where it sits.
+  //
+  // This card used to be the fourth thing in the right-hand column, under the
+  // seat list, the party picker and the roster — about eight hundred pixels
+  // down, off the bottom of the screen on a laptop. The single most important
+  // button on the page was the one you had to go looking for, and the column
+  // it was at the bottom of was 1,022px long while the document column beside
+  // it was 232px with three quarters of a screen of nothing under it.
+  //
+  // So it sits under the summary instead, in the wide column, at that column's
+  // full width. It reads in the order the decision is actually made — here is
+  // the government, now begin it — the dead space is gone, and the page is
+  // about two hundred pixels shorter because the two columns are no longer so
+  // badly out of balance.
+  const beginCard = (() => {
+        const active = ACT.activePlayers(world);
+        const readyCount = active.filter((p) => p.ready).length;
+        const waiting = active.length - readyCount;
+        const solo = active.length <= 1;
+        const mineP = myPlayer();
+        const iAmReady = !!mineP?.ready;
+        const iAmSeated = !!mineP && world.seats.some((s) => s.personaId === mineP.personaId);
+        const unseated = Object.values(world.players).filter(
+          (p) => !world.seats.some((s) => s.personaId === p.personaId));
+        const blocked = unseated.length > 0 || !iAmSeated;
+        return el('div', { class: 'card gold' },
+          el('h3', {}, 'Begin the Season'),
+          el('p', { class: 'tiny dim' }, solo
+            ? 'The Season begins when you ready up.'
+            : 'Every founder must ready. Changing the constitution or a seat stands them all down.'),
+          unseated.length
+            ? el('div', { class: 'blocked', style: { marginBottom: '8px' } },
+                'Every founder needs a chair first. Still unseated: ',
+                unseated.map((p) => p.name).join(', '), '.')
+            : null,
+          !solo && !unseated.length
+            ? el('div', { class: 'spread small', style: { margin: '2px 0 10px' } },
+                el('span', { class: 'dim' }, 'Founders ready'),
+                el('b', { class: readyCount === active.length ? 'green' : '' }, `${readyCount} / ${active.length}`))
+            : null,
+          el('button', {
+            class: 'btn ' + (iAmReady ? 'ghost' : 'primary'), style: { width: '100%' },
+            disabled: blocked,
+            onclick: () => go('READY', { ready: !iAmReady }),
+          }, !iAmSeated ? 'Take a chair before you can ready up'
+            : unseated.length ? 'Waiting on the founders to be seated'
+              : solo ? 'Ready up — begin the Season'
+                : iAmReady ? "You're ready ✓ — click to stand down"
+                  : 'Ready up'),
+          el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
+            !solo && iAmReady && waiting > 0
+              ? `Waiting on ${waiting} more founder${waiting === 1 ? '' : 's'} to ready up.`
+              : 'After the Season begins this takes an amendment, under the rules you just wrote.'));
+  })();
+
   const docSummary = el('div', { class: 'stack' },
       el('div', { class: 'card' },
         el('div', { class: 'spread' }, el('h3', {}, 'The government, as written'),
@@ -1653,7 +1708,8 @@ VIEWS.convention = (root) => {
         el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
           `Ordinary legislation passes at ${Math.round((c.legislature.passFraction || 0) * 100)}%`
           + `, a veto is overridden at ${Math.round((c.legislature.overrideFraction || 0) * 100)}%`
-          + `, and this document is amended at ${Math.round((c.amendment?.fraction || 0) * 100)}%.`)));
+          + `, and this document is amended at ${Math.round((c.amendment?.fraction || 0) * 100)}%.`)),
+      beginCard);
 
   const seatCol = el('div', { class: 'stack' },
       el('div', { class: 'card gold' + (Object.values(world.players).some((p) => !world.seats.some((s) => s.personaId === p.personaId)) ? ' cta-pulse' : '') },
@@ -1734,46 +1790,6 @@ VIEWS.convention = (root) => {
           p.ready ? el('span', { class: 'tag green' }, 'ready ✓') : el('span', { class: 'tag' }, 'not ready'))),
         el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
           'Open a second tab to seat another player.')),
-      (() => {
-        const active = ACT.activePlayers(world);
-        const readyCount = active.filter((p) => p.ready).length;
-        const waiting = active.length - readyCount;
-        const solo = active.length <= 1;
-        const mineP = myPlayer();
-        const iAmReady = !!mineP?.ready;
-        const iAmSeated = !!mineP && world.seats.some((s) => s.personaId === mineP.personaId);
-        const unseated = Object.values(world.players).filter(
-          (p) => !world.seats.some((s) => s.personaId === p.personaId));
-        const blocked = unseated.length > 0 || !iAmSeated;
-        return el('div', { class: 'card gold' },
-          el('h3', {}, 'Begin the Season'),
-          el('p', { class: 'tiny dim' }, solo
-            ? 'The Season begins when you ready up.'
-            : 'Every founder must ready. Changing the constitution or a seat stands them all down.'),
-          unseated.length
-            ? el('div', { class: 'blocked', style: { marginBottom: '8px' } },
-                'Every founder needs a chair first. Still unseated: ',
-                unseated.map((p) => p.name).join(', '), '.')
-            : null,
-          !solo && !unseated.length
-            ? el('div', { class: 'spread small', style: { margin: '2px 0 10px' } },
-                el('span', { class: 'dim' }, 'Founders ready'),
-                el('b', { class: readyCount === active.length ? 'green' : '' }, `${readyCount} / ${active.length}`))
-            : null,
-          el('button', {
-            class: 'btn ' + (iAmReady ? 'ghost' : 'primary'), style: { width: '100%' },
-            disabled: blocked,
-            onclick: () => go('READY', { ready: !iAmReady }),
-          }, !iAmSeated ? 'Take a chair before you can ready up'
-            : unseated.length ? 'Waiting on the founders to be seated'
-              : solo ? 'Ready up — begin the Season'
-                : iAmReady ? "You're ready ✓ — click to stand down"
-                  : 'Ready up'),
-          el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
-            !solo && iAmReady && waiting > 0
-              ? `Waiting on ${waiting} more founder${waiting === 1 ? '' : 's'} to ready up.`
-              : 'After the Season begins this takes an amendment, under the rules you just wrote.'));
-      })(),
       conventionBack(world),
   );
 
@@ -2859,6 +2875,14 @@ function cityMap(world) {
 
   // The whole landmass in sand, so the beach shows outside every border.
   parts.push(`<path d="${GEO.pathOf(G.ring)}" fill="#e2d7bc" stroke="#d8c79a" stroke-width="6" stroke-linejoin="round"/>`);
+  // The isthmus and the islands, which this map cropped to but never drew. Both
+  // are scenery and neither is in the continent — see atlas.CARIBBEAN — so they
+  // are painted here rather than being part of the ring above. Without them the
+  // bottom-right quarter of the Domestic map is open water with Florida pointing
+  // into it, which is not what is down there.
+  for (const ring of [CENTRAL_AMERICA, ...CARIBBEAN.map((i) => i.poly)]) {
+    parts.push(`<path d="${GEO.pathOf(ring)}" fill="#ded2b4" stroke="#c9bc88" stroke-width="1.2" stroke-linejoin="round"/>`);
+  }
   // What is not ours, muted — but in the same colours it wears on the World tab,
   // and named. Both maps draw the identical polygon at a uniform scale, so the
   // country really is the same shape in each; what made them look like two
@@ -2887,10 +2911,20 @@ function cityMap(world) {
     const f = (world.foreign || []).find((x) => x.id === id);
     if (!f) continue;
     const half = GA.halves[id];
+    // Water is not somewhere a country's name can go. The sampler asked only
+    // whether a point was inside the country and inside the continent, and the
+    // frontier runs down the middle of the Great Lakes — so the whole southern
+    // half of Canada's visible strip on this map is lake. "Canada" landed on
+    // Huron and Georgian Bay with the water drawn over the top of it.
+    //
+    // Dropping the lake points does the rest on its own: the clearance score
+    // already rewards a spot with land above and below it, and once the lakes
+    // stop counting as land the best of those is the open ground north of them.
+    const wet = ([x, y]) => (ATL.LAKES || []).some((l) => GEO.inPoly([x, y], l.poly));
     const seen = [];
     for (let y = vy + 8; y < vy + vh - 8; y += 6) {
       for (let x = vx + 8; x < vx + vw - 8; x += 6) {
-        if (GEO.inPoly([x, y], half) && GEO.inPoly([x, y], G.ring)) seen.push([x, y]);
+        if (GEO.inPoly([x, y], half) && GEO.inPoly([x, y], G.ring) && !wet([x, y])) seen.push([x, y]);
       }
     }
     if (seen.length < 6) continue;                 // barely on the page — leave it unnamed

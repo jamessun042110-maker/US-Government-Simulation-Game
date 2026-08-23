@@ -81,15 +81,29 @@ const EASTPORT = P(45, -67);           // the north-east corner
 /** The Pacific coast, north to south: Cape Flattery down to San Diego. */
 export const COAST_PACIFIC = [
   CAPE_FLATTERY,
-  P(46.3, -124.1), P(42.8, -124.6), P(40.4, -124.4),  // Oregon coast, Cape Mendocino
-  P(37.8, -122.5), P(35.4, -120.9), P(34.4, -120.5),  // San Francisco, Point Conception
+  P(47.9, -124.65), P(47.3, -124.27),                  // the Olympic coast, Point Grenville
+  P(46.93, -124.15), P(46.7, -124.05), P(46.25, -124.08), // Grays Harbor, Willapa Bay, the Columbia
+  P(45.0, -123.97), P(44.0, -124.1), P(43.35, -124.4), // Cascade Head, Yaquina Head, Coos Bay
+  P(42.8, -124.6), P(42, -124.2), P(41.75, -124.2),    // Cape Blanco, the California line, Crescent City
+  P(40.4, -124.4), P(38.95, -123.73),                  // Cape Mendocino, Point Arena
+  P(37.8, -122.5), P(36.95, -122.02), P(36.3, -121.9), // the Golden Gate, Santa Cruz, Point Sur
+  P(35.4, -120.9), P(34.4, -120.5),                    // Morro Bay, Point Conception
   P(33.7, -118.2), P(32.5, -117.1),                    // Los Angeles, San Diego
 ];
 
 /** The Gulf and Atlantic coasts, west to east then north: Brownsville to Maine. */
 export const COAST_ATLANTIC = [
   P(27.8, -97.4), P(29.3, -94.8), P(29.7, -93.8),      // the Texas coast
-  P(29.2, -89.4), P(30.2, -88), P(30.4, -87.2),        // the delta, Mobile, Pensacola
+  // The delta to Pensacola. This was three points — delta, Mobile, Pensacola —
+  // and the straight run from the delta to Mobile cut the corner off the whole
+  // Mississippi Sound. It also left a hole: the Louisiana/Mississippi junction
+  // the two states share sits at the Pearl River (30.2, -89.6), which was not on
+  // the coastline at all, so the triangle between that junction and the coast
+  // belonged to no state. It was 568 cells of the country nobody governed —
+  // coastal Mississippi and Alabama, Gulfport to Mobile.
+  P(29.2, -89.4), P(30.2, -89.6),                      // the delta, the Pearl River
+  P(30.35, -89.1), P(30.4, -88.6),                     // Bay St Louis, Biloxi and Pascagoula
+  P(30.2, -88), P(30.3, -87.45), P(30.4, -87.2),       // Mobile Bay, Perdido, Pensacola
   P(29.7, -85), P(28.9, -82.7), P(27.8, -82.6),        // the Florida panhandle and gulf coast
   P(26.5, -82.1), P(25.8, -81.5), P(25.1, -81.1),      // Fort Myers, the Ten Thousand Islands
   KEY_WEST, P(25.2, -80.4), P(25.8, -80.2),            // round the Keys and up to Miami
@@ -108,14 +122,55 @@ export const COAST_ATLANTIC = [
 
 /** The US–Canada frontier, west to east. The line a won northern war moves. */
 export const BORDER_CA = [
-  P(49, -123), LAKE_OF_WOODS, P(46.8, -92.1), P(46.5, -84.3),
-  P(43, -82.4), P(42.1, -83.1), P(43.1, -79.1), P(44.1, -76.4),
-  P(45, -73.3), P(47.4, -69.2), EASTPORT,
+  // The western end is the sea, not the 49th parallel. The frontier leaves the
+  // Pacific at the mouth of the Strait of Juan de Fuca, runs east along it, and
+  // only turns north through Haro Strait to reach the parallel at Point
+  // Roberts. It used to start at P(49, -123) and the national ring closed
+  // straight from there to Cape Flattery — one diagonal across the Olympic
+  // Peninsula, Puget Sound and everything else in the way.
+  P(48.5, -124.8), P(48.25, -123.2), P(48.75, -123.15), P(49, -123.05),
+  LAKE_OF_WOODS,
+  // The boundary waters, Lake of the Woods east to the head of Lake Superior.
+  P(48.6, -93.4), P(48.2, -91.5), P(48.1, -90.8), P(48.0, -89.6),
+  // Through Lake Superior — north of Isle Royale, which is American — and down
+  // into Whitefish Bay. This used to run from Lake of the Woods to Duluth and
+  // then straight to the Soo. Duluth is two hundred miles inside the country,
+  // so the frontier cut clean across Michigan's Upper Peninsula on its way.
+  P(48.35, -88.6), P(48.15, -87.2), P(47.5, -85.5), P(46.9, -84.65),
+  P(46.5, -84.35),
+  // The St Marys River, then south down the middle of Lake Huron, passing under
+  // Manitoulin, which is Canadian.
+  P(46.0, -83.9), P(45.7, -83.4), P(45.2, -82.6), P(44.5, -82.3), P(43.6, -82.3),
+  // The St Clair River, Lake St Clair and the Detroit River.
+  P(43, -82.4), P(42.6, -82.5), P(42.4, -82.7), P(42.1, -83.1),
+  // East-north-east through Lake Erie to the mouth of the Niagara.
+  P(41.8, -82.4), P(42.0, -81.0), P(42.3, -80.0), P(42.9, -79.05), P(43.25, -79.06),
+  // And through Lake Ontario to the Thousand Islands.
+  P(43.5, -78.0), P(43.8, -76.9), P(44.2, -76.15),
+  // Up the St Lawrence, east along the 45th parallel — the surveyed line, which
+  // is why it is straight — and over the height of land into Maine, then down
+  // the St John and the St Croix to the sea.
+  P(44.6, -75.5), P(45, -74.75), P(45, -73.3), P(45, -71.5),
+  P(45.3, -71.1), P(46.4, -70.2), P(47.35, -69.05),
+  P(47.2, -68.4), P(47.35, -68.0), P(45.9, -67.78), EASTPORT,
 ];
 
 /** The US–Mexico frontier, west to east. The line a won southern war moves. */
 export const BORDER_MX = [
-  P(32.5, -117.1), YUMA, EL_PASO, P(29.2, -102.9), P(27.5, -99.5), BROWNSVILLE,
+  P(32.5, -117.1), YUMA,                              // the Pacific, the Colorado
+  // Arizona and New Mexico, with the step at Antelope Wells that the survey
+  // actually put there.
+  P(31.33, -111.07), P(31.33, -108.2), P(31.78, -108.2), EL_PASO,
+  // The Rio Grande, which is a river and not a ruled line: down to Presidio,
+  // round the Big Bend, and out past Laredo to the sea. It was three straight
+  // segments, and the Big Bend — the one stretch of this border anybody can
+  // draw from memory — was not in them.
+  P(30.6, -104.9), P(29.55, -104.4),                  // Candelaria, Presidio
+  P(29.2, -103.3), P(29.05, -102.9),                  // the Big Bend, Boquillas
+  P(29.4, -102.0), P(29.75, -101.4),                  // the Devils River, Amistad
+  P(29.35, -100.9), P(28.7, -100.5),                  // Del Rio, Eagle Pass
+  P(27.7, -99.5), P(26.4, -99.0),                     // Laredo, Falcon
+  P(26.05, -98.0), BROWNSVILLE,                       // McAllen, and the mouth
 ];
 
 // Far enough outside the frame that a closure can never clip anything real.
@@ -383,6 +438,72 @@ export const CENTRAL_AMERICA = [
 ];
 
 /**
+ * The Greater Antilles, and the near Bahamas.
+ *
+ * Scenery, for the same reason CENTRAL_AMERICA is scenery and by the same
+ * mechanism: land added to CONTINENT_RING that neither neighbour positively
+ * claims becomes the United States, and an archipelago that annexes itself to us
+ * the moment it is drawn is worse than no archipelago. These rings live outside
+ * the territory system and only the map reads them.
+ *
+ * They are *not* the Caribbean League. The league is a power with ground that
+ * can be taken off it, and its polygon is built in geo.js as one shape because
+ * `sabCut` slices a single ring. This is the geography underneath — the islands
+ * that are actually there, at the latitudes they are actually at, so the sea
+ * south-east of Florida stops being empty water on a map that draws every other
+ * coast in the hemisphere.
+ *
+ * Each island is its own ring, north coast west-to-east and south coast back.
+ */
+export const CARIBBEAN = [
+  {
+    name: 'Cuba',
+    poly: [
+      P(21.87, -84.95), P(22.75, -84.0), P(23.05, -82.4), P(23.2, -81.15),   // Cabo San Antonio, Havana, Varadero
+      P(22.6, -79.3), P(21.65, -77.2), P(21.1, -75.75), P(20.25, -74.13),    // Cayo Coco, Nuevitas, Punta Maisi
+      P(19.95, -75.2), P(19.9, -76.7), P(19.85, -77.72),                     // Guantanamo, Santiago, Cabo Cruz
+      P(20.7, -77.3), P(21.1, -78.9), P(21.6, -80.5),                        // Manzanillo, Ana Maria, Trinidad
+      P(22.1, -82.7), P(22.05, -84.1),                                       // Batabano, Cortes
+    ],
+  },
+  {
+    name: 'Hispaniola',
+    poly: [
+      P(19.75, -72.75), P(19.9, -71.65), P(19.85, -70.7),                    // Mole-Saint-Nicolas, Monte Cristi
+      P(19.3, -69.35), P(18.6, -68.35),                                      // Cabo Frances Viejo, Punta Cana
+      P(18.4, -69.3), P(18.45, -69.9), P(18.2, -71.1),                       // Santo Domingo, Barahona
+      P(18.35, -71.75), P(18.05, -73.3), P(18.2, -74.45),                    // Neiba, Les Cayes, Cap Tiburon
+      P(18.6, -74.1), P(18.75, -72.4), P(19.35, -72.85),                     // Port-au-Prince, Gonaives
+    ],
+  },
+  {
+    name: 'Jamaica',
+    poly: [
+      P(18.45, -78.35), P(18.5, -77.5), P(18.2, -76.35),                     // Negril, Montego Bay, Morant Point
+      P(17.85, -76.8), P(17.9, -77.9),                                       // Kingston, Black River
+    ],
+  },
+  {
+    name: 'Puerto Rico',
+    poly: [
+      P(18.5, -67.15), P(18.45, -65.9), P(17.95, -65.7), P(17.95, -66.9), P(18.15, -67.2),
+    ],
+  },
+  {
+    name: 'Andros',
+    poly: [P(25.1, -78.05), P(24.7, -77.75), P(24.0, -77.6), P(23.8, -77.8), P(24.5, -78.2)],
+  },
+  {
+    name: 'Grand Bahama',
+    poly: [P(26.75, -78.95), P(26.62, -78.2), P(26.5, -78.45), P(26.6, -79.0)],
+  },
+  {
+    name: 'Great Abaco',
+    poly: [P(26.6, -77.2), P(26.0, -77.0), P(25.85, -77.3), P(26.4, -77.45)],
+  },
+];
+
+/**
  * North America: everything the map draws land for.
  *
  * The engine's `ring` is the whole continent, which the country polygons are
@@ -437,14 +558,28 @@ export const STATES = [
     merged: ['Maine', 'New Hampshire', 'Vermont', 'Massachusetts', 'Rhode Island', 'Connecticut'],
     poly: [
       EASTPORT, P(43.7, -70.2), P(41.7, -70), P(41, -71.9), P(41, -73.5),
-      P(42.7, -73.3), P(45, -73.3), P(47.4, -69.2),
+      P(42.7, -73.3), P(45, -73.3),
+      // The 45th parallel to the New Hampshire corner, then the height of land
+      // up Maine's western side, the St John along the top, and the St Croix
+      // back down to the sea. It used to be one straight line from the Quebec
+      // corner to a point in the middle of Aroostook and another back to
+      // Eastport, which cut the whole north-east corner off the state.
+      P(45, -71.5), P(45.3, -71.1), P(46.4, -70.2), P(47.35, -69.05),
+      P(47.2, -68.4), P(47.35, -68.0), P(45.9, -67.78),
     ],
   },
   {
     id: 'new-york', name: 'New York', code: 'NY', people: 20.2, democrat: 0.61, jobless: 0.044, rough: 52, homeValue: 460, income: 82000, merged: ['New York'],
     poly: [
       P(45, -73.3), P(42.7, -73.3), P(41, -73.5), P(40.6, -74), P(41.4, -74.7),
-      P(42, -75.4), P(42, -79.8), P(43.1, -79.1), P(44.1, -76.4),
+      P(42, -75.4), P(42, -79.8),
+      // Lake Erie to the Niagara, the Ontario shore, and up the St Lawrence to
+      // the 45th parallel. This was two straight lines: Niagara to the Thousand
+      // Islands, and the Thousand Islands to the Quebec corner.
+      P(42.85, -78.9), P(43.25, -79.06),                   // Buffalo, the mouth of the Niagara
+      P(43.35, -78.0), P(43.25, -77.6), P(43.4, -76.5),    // Rochester, Oswego
+      P(44.0, -76.3), P(44.2, -76.15),                     // Sackets Harbor, the Thousand Islands
+      P(44.6, -75.5), P(45, -74.75),                       // the St Lawrence
     ],
   },
   {
@@ -483,7 +618,9 @@ export const STATES = [
       P(29.5, -81.1), P(28.4, -80.6), P(27.0, -80.1), P(25.8, -80.2),
       P(25.2, -80.4), KEY_WEST, P(25.1, -81.1), P(25.8, -81.5), P(26.5, -82.1),
       P(27.8, -82.6), P(28.9, -82.7), P(29.7, -85),
-      P(30.4, -87.2), P(30.2, -88), P(31, -87.6),
+      // The panhandle ends at Perdido Bay, which is where Alabama begins. It
+      // used to run to Mobile Bay, so Florida held the Alabama coast.
+      P(30.4, -87.2), P(30.3, -87.45), P(31, -87.6),
     ],
   },
   {
@@ -491,8 +628,12 @@ export const STATES = [
     merged: ['Georgia', 'Alabama', 'Mississippi'],
     poly: [
       P(35, -84), P(34.8, -83.1), P(32.1, -81.1), P(30.7, -81.5), P(30.7, -83),
-      P(31, -85), P(31, -87.6), P(30.2, -88), P(30.2, -89.6), P(31, -91.5),
-      P(35, -90), P(35, -88.2),
+      P(31, -85), P(31, -87.6),
+      // The Gulf, east to west, on the same vertices as COAST_ATLANTIC. Alabama
+      // and Mississippi have a coast and this is it; the state used to stop at
+      // Mobile and leave the rest of it to nobody.
+      P(30.3, -87.45), P(30.2, -88), P(30.4, -88.6), P(30.35, -89.1), P(30.2, -89.6),
+      P(31, -91.5), P(35, -90), P(35, -88.2),
     ],
   },
   {
@@ -514,9 +655,46 @@ export const STATES = [
   },
   {
     id: 'michigan', name: 'Michigan', code: 'MI', people: 10.1, democrat: 0.51, jobless: 0.045, rough: 9, homeValue: 230, income: 69000, merged: ['Michigan'],
+    // Two peninsulas joined at the Straits, which is what Michigan is. It used
+    // to be one blob: the Upper Peninsula was a flat line at 46.5°N — no
+    // Keweenaw, no Whitefish Point, a ruler laid across the top of Wisconsin —
+    // and the two halves were welded together straight across the open water of
+    // northern Lake Michigan. The flat top also left a quarter-degree band
+    // between the state and Lake Superior's own south shore that belonged to no
+    // state at all: 565 cells of it, the full width of the peninsula.
+    //
+    // The north shore here and Lake Superior's south shore in LAKES are written
+    // from the same arguments, so the state and the lake cannot disagree about
+    // where the shoreline is.
     poly: [
-      P(46.5, -90), P(46.5, -84.3), P(43, -82.4), P(42.1, -83.1), P(41.7, -83.5),
-      P(41.7, -84.8), P(41.7, -86.8), P(45.1, -86.3), P(45.8, -87), P(46.5, -90),
+      // The Upper Peninsula's north shore — Lake Superior, east to west.
+      P(46.5, -84.35),                                     // Sault Ste Marie, the Soo
+      P(46.77, -84.96), P(46.68, -85.98),                  // Whitefish Point, the Pictured Rocks
+      P(46.55, -87.4), P(46.72, -88.4),                    // Marquette, the head of Keweenaw Bay
+      P(47.47, -87.88),                                    // Copper Harbor, the tip of the Keweenaw
+      P(47.0, -88.9), P(46.87, -89.32),                    // the peninsula's west shore, Ontonagon
+      P(46.55, -90.4),                                     // the Montreal River — the Wisconsin line
+      // South-east down the Wisconsin border to Green Bay.
+      P(45.98, -88.7), P(45.1, -87.6),                     // the Menominee, down to Green Bay
+      // The Upper Peninsula's south shore — up the east side of Green Bay, then
+      // east along Lake Michigan's north shore.
+      P(45.75, -87.06), P(45.7, -86.6), P(45.95, -86.25),  // Escanaba, the Garden Peninsula, Manistique
+      P(46.1, -85.45), P(45.87, -84.85),                   // Naubinway, St Ignace
+      // Across the Straits of Mackinac: five miles of water with a bridge on
+      // it, and the only thing joining the two halves of the state.
+      P(45.78, -84.85),                                    // Mackinaw City
+      // The Lower Peninsula's west shore — Lake Michigan, north to south.
+      P(45.2, -85.6), P(44.0, -86.5),                      // the Leelanau, Ludington
+      P(43.2, -86.35), P(42.1, -86.4), P(41.76, -86.8),    // Muskegon, St Joseph, the Indiana line
+      // The southern border.
+      P(41.76, -84.8), P(41.7, -83.5),
+      // The Lower Peninsula's east shore — Erie, St Clair, Huron, south to north.
+      P(42.1, -83.1), P(43.0, -82.4),                      // Detroit, Port Huron
+      P(43.7, -82.55), P(44.05, -83.05),                   // the Thumb's outer shore and its tip
+      P(43.65, -83.85), P(44.3, -83.3),                    // Saginaw Bay, Au Sable
+      P(45.0, -83.35), P(45.65, -84.45), P(45.75, -84.6),  // Alpena, Cheboygan, the Straits
+      // Back across, and east along the Upper Peninsula's Huron shore.
+      P(45.85, -84.6), P(46.0, -84.1),                     // St Ignace, the St Marys River
     ],
   },
   {
@@ -530,8 +708,22 @@ export const STATES = [
     id: 'upper-midwest', name: 'Upper Midwest', code: 'UM', people: 11.6, democrat: 0.515, jobless: 0.031, rough: 13, homeValue: 300, income: 78000,
     merged: ['Wisconsin', 'Minnesota'],
     poly: [
-      LAKE_OF_WOODS, P(48, -89.5), P(46.8, -92.1), P(46.5, -90), P(45.8, -87),
-      P(45.1, -86.3), P(42.5, -87.8), P(42.5, -90.6), P(43.5, -91.2),
+      LAKE_OF_WOODS,
+      // The boundary waters, on the frontier's own vertices.
+      P(48.6, -93.4), P(48.2, -91.5), P(48.1, -90.8), P(48.0, -89.6),
+      // Minnesota's north shore down to Duluth, then Wisconsin's east to the
+      // Montreal River, which is where Michigan begins.
+      P(47.9, -89.9), P(47.4, -91.3), P(46.7, -92.1), P(46.55, -90.4),
+      // South-east down the Michigan line to Green Bay.
+      P(45.98, -88.7), P(45.1, -87.6),
+      // Round the Door Peninsula: down the bay's western shore, out to Death's
+      // Door and back along the lake side. The state used to run from a point in
+      // the middle of Lake Superior to two points in the middle of Lake
+      // Michigan, so Wisconsin held open water on both sides of itself.
+      P(44.52, -88.02), P(44.9, -87.65), P(45.3, -86.95),  // Green Bay, and the peninsula
+      P(44.85, -87.35), P(44.0, -87.7),                    // its lake shore, Manitowoc
+      P(43.05, -87.9), P(42.5, -87.8),                     // Milwaukee, Kenosha
+      P(42.5, -90.6), P(43.5, -91.2),
       P(43.5, -96.6), P(45.9, -96.5), P(49, -96.8),
     ],
   },
@@ -565,8 +757,13 @@ export const STATES = [
     id: 'texas', name: 'Texas', code: 'TX', people: 29.1, democrat: 0.47, jobless: 0.041, rough: 9, homeValue: 300, income: 75000, merged: ['Texas'],
     poly: [
       P(36.5, -103), P(36.5, -100), P(34.5, -100), P(33.9, -94.4), P(29.7, -93.8),
-      P(29.3, -94.8), P(27.8, -97.4), BROWNSVILLE, P(27.5, -99.5), P(29.2, -102.9),
-      EL_PASO, P(31.8, -103),
+      P(29.3, -94.8), P(27.8, -97.4), BROWNSVILLE,
+      // Up the Rio Grande on the frontier's own vertices.
+      P(26.05, -98.0), P(26.4, -99.0), P(27.7, -99.5),      // McAllen, Falcon, Laredo
+      P(28.7, -100.5), P(29.35, -100.9), P(29.75, -101.4),  // Eagle Pass, Del Rio, Amistad
+      P(29.4, -102.0), P(29.05, -102.9), P(29.2, -103.3),   // the Devils River, the Big Bend
+      P(29.55, -104.4), P(30.6, -104.9), EL_PASO,           // Presidio, Candelaria
+      P(31.8, -103),
     ],
   },
   {
@@ -582,23 +779,36 @@ export const STATES = [
     merged: ['Colorado', 'Utah', 'Nevada', 'Arizona', 'New Mexico'],
     poly: [
       P(42, -120), P(42, -111), P(41, -111), P(41, -102), P(37, -102),
-      P(37, -103), P(31.8, -103), EL_PASO, YUMA, P(35, -114.6), P(39, -120),
+      P(37, -103), P(31.8, -103), EL_PASO,
+      // West along the New Mexico and Arizona line, with its step.
+      P(31.78, -108.2), P(31.33, -108.2), P(31.33, -111.07), YUMA,
+      P(35, -114.6), P(39, -120),
     ],
   },
   {
     id: 'california', name: 'California', code: 'CA', people: 39.5, democrat: 0.65, jobless: 0.053, rough: 46, homeValue: 780, income: 91000, merged: ['California'],
     poly: [
       P(42, -120), P(39, -120), P(35, -114.6), YUMA, P(32.5, -117.1),
-      P(33.7, -118.2), P(34.4, -120.5), P(35.4, -120.9), P(37.8, -122.5),
-      P(40.4, -124.4), P(42, -124.2),
+      // North up the coast, on COAST_PACIFIC's own vertices.
+      P(33.7, -118.2), P(34.4, -120.5), P(35.4, -120.9),
+      P(36.3, -121.9), P(36.95, -122.02), P(37.8, -122.5),
+      P(38.95, -123.73), P(40.4, -124.4), P(41.75, -124.2), P(42, -124.2),
     ],
   },
   {
     id: 'pacific-northwest', name: 'Pacific Northwest', code: 'PN', people: 14.1, democrat: 0.59, jobless: 0.043, rough: 40, homeValue: 530, income: 88000,
     merged: ['Washington', 'Oregon', 'Alaska', 'Hawaii'],
     poly: [
-      P(49, -123), P(49, -117), P(42, -117), P(42, -120), P(42, -124.2),
-      P(42.8, -124.6), P(46.3, -124.1), CAPE_FLATTERY,
+      P(49, -123.05), P(49, -117), P(42, -117), P(42, -120), P(42, -124.2),
+      // North up the coast, on COAST_PACIFIC's own vertices.
+      P(42.8, -124.6), P(43.35, -124.4), P(44.0, -124.1), P(45.0, -123.97),
+      P(46.25, -124.08), P(46.7, -124.05), P(46.93, -124.15), P(47.3, -124.27),
+      P(47.9, -124.65), CAPE_FLATTERY,
+      // And east along the Strait of Juan de Fuca to Point Roberts. The state
+      // used to close straight from Cape Flattery to the 49th parallel, which
+      // drew a diagonal through the Olympic Peninsula and gave Washington a
+      // corner it does not have.
+      P(48.15, -123.7), P(48.1, -122.75), P(48.4, -122.6), P(48.75, -122.5),
     ],
   },
 ];
@@ -753,44 +963,67 @@ export const LAKES = [
   {
     name: 'Lake Superior',
     poly: [
-      P(46.7, -92.1), P(47.4, -91.3), P(47.9, -89.9), P(48.1, -89.2),   // Duluth, the north shore
-      P(48.6, -88.4), P(48.8, -87.1), P(48.4, -85.9), P(47.9, -84.8),
-      P(46.5, -84.4), P(46.6, -85.5), P(46.7, -87.4), P(46.9, -88.5),   // the Soo, the south shore
-      P(46.7, -90.4), P(46.7, -92.1),
+      P(46.7, -92.1), P(47.4, -91.3), P(47.9, -89.9), P(48.0, -89.6),   // Duluth, the north shore, the Pigeon River
+      P(48.4, -89.2), P(48.6, -88.4),                                   // Thunder Bay P(48.8, -87.1), P(48.4, -85.9), P(47.9, -84.8),
+      // The south shore, east to west, on Michigan's own vertices — the Keweenaw
+      // included, because a lake drawn without it and a state drawn with it
+      // disagree about the shoreline by a whole peninsula.
+      P(46.5, -84.35), P(46.77, -84.96), P(46.68, -85.98),              // the Soo, Whitefish Point
+      P(46.55, -87.4), P(46.72, -88.4), P(47.47, -87.88),               // Marquette, Keweenaw Bay, Copper Harbor
+      P(47.0, -88.9), P(46.87, -89.32), P(46.55, -90.4),                // Ontonagon, the Montreal River
+      P(46.7, -92.1),
     ],
   },
   {
     name: 'Lake Michigan',
+    // The eastern shore is Michigan's western one, vertex for vertex. It used to
+    // be drawn a fifth of a degree further east than the state was, so the lake
+    // took a bite out of the Lower Peninsula all the way from Muskegon to the
+    // Leelanau.
     poly: [
-      P(41.7, -87.5), P(42.9, -87.8), P(44.0, -87.6), P(44.6, -87.4),   // Chicago north to Green Bay
-      P(45.1, -87.6), P(45.4, -86.7), P(45.8, -85.5), P(45.8, -84.8),
-      P(45.1, -85.0), P(44.3, -86.2), P(43.1, -86.5), P(41.9, -86.6),   // the Michigan shore, south
-      P(41.7, -87.5),
+      P(41.7, -87.5), P(42.5, -87.8), P(43.05, -87.9), P(44.0, -87.7),  // Chicago, Kenosha, Milwaukee, Manitowoc
+      // Up the Door Peninsula's lake side, round Death's Door, and back down
+      // inside it — so Green Bay is the arm of the lake it actually is rather
+      // than a straight line drawn across its mouth.
+      P(44.85, -87.35), P(45.3, -86.95), P(44.9, -87.65),
+      P(44.52, -88.02), P(45.1, -87.6),                                 // the head of the bay, the Menominee
+      P(45.75, -87.06), P(45.7, -86.6), P(45.95, -86.25),               // Escanaba, the Garden Peninsula
+      P(46.1, -85.45), P(45.87, -84.85), P(45.78, -84.85),              // Naubinway, and the Straits
+      P(45.2, -85.6), P(44.0, -86.5), P(43.2, -86.35),                  // the Leelanau, Ludington, Muskegon
+      P(42.1, -86.4), P(41.76, -86.8), P(41.7, -87.5),                  // St Joseph, the Indiana line
     ],
   },
   {
     name: 'Lake Huron',
     poly: [
-      P(45.8, -84.8), P(46.0, -83.5), P(46.1, -82.2), P(45.8, -81.3),   // the North Channel
+      P(45.85, -84.6), P(46.0, -84.1),                                  // St Ignace, the St Marys
+      P(46.0, -83.5), P(46.1, -82.2), P(45.8, -81.3),                   // the North Channel
       P(45.3, -80.9), P(44.7, -79.8), P(44.5, -80.5), P(44.8, -81.3),   // Georgian Bay
-      P(44.0, -81.7), P(43.3, -82.0), P(43.0, -82.4), P(43.7, -82.5),   // the Ontario shore to Sarnia
-      P(44.3, -83.3), P(44.9, -83.3), P(45.6, -84.2), P(45.8, -84.8),
+      P(44.0, -81.7), P(43.3, -82.0), P(43.0, -82.4),                   // the Ontario shore to Sarnia
+      // And north again on Michigan's own east shore — the Thumb, Saginaw Bay
+      // and the Huron coast, which the lake used to draw as three straight lines
+      // through the middle of them.
+      P(43.7, -82.55), P(44.05, -83.05), P(43.65, -83.85),              // the Thumb, and into Saginaw Bay
+      P(44.3, -83.3), P(45.0, -83.35), P(45.65, -84.45), P(45.75, -84.6),
     ],
   },
   {
     name: 'Lake Erie',
     poly: [
-      P(42.1, -83.2), P(42.4, -82.9), P(42.9, -81.2), P(42.9, -80.2),   // Detroit, the Canadian shore
-      P(42.9, -79.0), P(42.5, -79.1), P(41.7, -80.5), P(41.5, -81.7),   // Buffalo, the Ohio shore
-      P(41.4, -82.7), P(41.7, -83.5), P(42.1, -83.2),
+      P(42.1, -83.1), P(42.4, -82.9), P(42.9, -81.2), P(42.9, -80.2),   // Detroit, the Canadian shore
+      P(42.85, -78.9),                                                  // Buffalo — New York's own corner
+      P(42, -79.8), P(41.5, -80.5),                                     // the New York and Pennsylvania lines
+      P(41.5, -81.7), P(41.7, -83.5), P(42.1, -83.1),                   // Cleveland, Toledo
     ],
   },
   {
     name: 'Lake Ontario',
     poly: [
-      P(43.3, -79.2), P(43.6, -79.4), P(44.0, -78.0), P(44.2, -76.9),   // Niagara, Toronto, the Thousand Islands
-      P(44.2, -76.2), P(43.5, -76.5), P(43.3, -77.6), P(43.2, -78.7),   // the New York shore
-      P(43.3, -79.2),
+      P(43.25, -79.06), P(43.6, -79.4), P(44.0, -78.0), P(44.2, -76.9), // Niagara, Toronto
+      P(44.2, -76.15),                                                  // the Thousand Islands
+      // The New York shore, on New York's own vertices.
+      P(44.0, -76.3), P(43.4, -76.5), P(43.25, -77.6), P(43.35, -78.0),
+      P(43.25, -79.06),
     ],
   },
   // The one lake in the west, and the one an oval really does describe: it is a

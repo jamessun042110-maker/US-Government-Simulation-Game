@@ -259,16 +259,21 @@ export const TEMPLATES = [
           powers: ['sign_treaty'] },
         { id: 'defense', name: 'Secretary of Defense', seats: 1, selection: 'appointment', appointedBy: 'president', atWill: true,
           powers: ['command_military'] },
+        { id: 'exchequer', name: 'Secretary of the Treasury', seats: 1, selection: 'appointment', appointedBy: 'president', atWill: true,
+          powers: [] },
         // The Attorney General runs the Department of Justice and holds the
         // power of arrest, which is where it belongs: in the United States the
         // executive does not detain anybody, law officers do, and they answer
         // to this chair. Everything else about the post is the same contract
         // the other secretaries sit under — named and dismissed at will, no
         // fixed term, unfilled at the founding.
+        //
+        // Listed after the Treasury rather than before it. This order is the
+        // order the Oval Office's Appointments card reads the cabinet out in —
+        // it filters `constitution.offices` and keeps their sequence — so the
+        // document is also the layout of that screen.
         { id: 'ag', name: 'Attorney General', seats: 1, selection: 'appointment', appointedBy: 'president', atWill: true,
           powers: ['arrest'] },
-        { id: 'exchequer', name: 'Secretary of the Treasury', seats: 1, selection: 'appointment', appointedBy: 'president', atWill: true,
-          powers: [] },
         // `forLife` rather than a term. The Constitution gives judges their
         // offices "during good Behaviour" — no clock, and that is the whole
         // point of the branch: a bench that has to be reappointed is a bench

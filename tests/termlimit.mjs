@@ -10,6 +10,16 @@ const mk = () => {
   const w = W.newWorld({ nation: 'The Silver Republic', founder: 'James Sun' });
   ACT.apply(w, { type: 'JOIN', playerId: 'p1', name: 'James Sun' });
   w.phase = 'live';
+  // And no age in the way. Every claim in this file is about *term limits*, but
+  // `mayHoldAgain` asks `eligibleByAge` first and returns its reason — so a
+  // founder who happens to roll 34 against a presidency that asks 35 fails
+  // "may stand with no terms served" for a reason that has nothing to do with
+  // terms. `makePersona` rolls from 34, so that is about one run in thirty-four;
+  // measured here at 2 in 25. Same trap as candidacy.mjs and emptyballot.mjs,
+  // and the same fix: put the age out of the way so the assertion can only be
+  // answering the question it asks.
+  const p = w.personas[w.players.p1.personaId];
+  p.age = Math.max(p.age ?? 0, R.minAgeFor(w, 'president') + 5);
   return w;
 };
 
