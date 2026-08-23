@@ -17,6 +17,14 @@ const hired = (text) => {
 };
 
 // --- the headline number scales with the money ------------------------------
+//
+// The headline is the posts the money *supports*, not only the ones it pays
+// wages for: a works programme's contracts put people to work at the firms
+// filling them, and A.JOBS_MULTIPLIER is the low end of the range the
+// literature puts on that. So the count is money/COST_PER_JOB times the
+// multiplier, and the price per direct post is still the stated one.
+const M = 1.6;   // A.JOBS_MULTIPLIER, which is module-private
+const posts = (dollars) => Math.round(Math.floor(dollars / A.COST_PER_JOB) * M);
 {
   const small = A.applySpendingImpact(mk(), 5000, 'public works and jobs');
   const mid = A.applySpendingImpact(mk(), 99999, 'public works and jobs');
@@ -24,11 +32,15 @@ const hired = (text) => {
   const huge = A.applySpendingImpact(mk(), 1e8, 'public works and jobs');
 
   ok('$5,000 hires nobody, and says so', hired(small) === 0 && /hires nobody/.test(small), small);
-  ok('$99,999 hires one post', hired(mid) === 1, mid);
-  ok('$10M hires 125 — one post per COST_PER_JOB', hired(big) === 125, big);
-  ok('$100M hires 1,250', hired(huge) === 1250, huge);
+  ok('$99,999 supports the one post it pays for', hired(mid) === posts(99999), mid);
+  ok('$10M pays for 125 posts and supports 200', hired(big) === posts(1e7) && posts(1e7) === 200, big);
+  ok('$100M pays for 1,250 and supports 2,000', hired(huge) === posts(1e8), huge);
   ok('and the count is strictly monotone in the money',
     hired(small) < hired(mid) && hired(mid) < hired(big) && hired(big) < hired(huge));
+  // The whole reason the line exists: the player watched the rate not move and
+  // could not tell whether the lever was broken or the sum was small.
+  ok('the line says what fraction of a point it is worth, and what a point costs',
+    /of a point off the rate/.test(huge) && /A whole point would take/.test(huge), huge);
 }
 
 // The price is the one the republic already pays a construction worker, so the
@@ -44,7 +56,7 @@ const hired = (text) => {
   const before = w.economy.reliefBoost || 0;
   A.applySpendingImpact(w, 1e7, 'public works and jobs');
   const labor = W.totalPop(w) * 0.48;
-  const expected = 125 / labor;
+  const expected = posts(1e7) / labor;
   const got = (w.economy.reliefBoost || 0) - before;
   ok('the relief boost is the headcount over the labour force',
     Math.abs(got - expected) < 1e-9, `${got.toFixed(5)} vs ${expected.toFixed(5)}`);

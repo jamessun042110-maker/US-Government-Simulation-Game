@@ -222,7 +222,17 @@ function tickEconomy(world) {
   // Jobs and relief spending buys a temporary reduction in unemployment that
   // fades as the program's money runs out. Applied here, after recompute, so a
   // bill's own recompute can't erase it.
-  e.reliefBoost = Math.max(0, (e.reliefBoost || 0) - 0.0015);
+  //
+  // The decay is a fraction of what is left, not a fixed 0.0015 a tick. That
+  // subtraction was written when a relief bill bought three points of
+  // unemployment and it took a couple of hundred ticks to wear off; against a
+  // labour force of 159 million a $5B works programme buys six hundredths of a
+  // point, and a flat 0.0015 is twenty-five times the whole of it — so the
+  // programme was erased on the tick after it passed, whatever it cost. A
+  // proportional decay is scale-free: any programme, large or small, is mostly
+  // spent by the end of the canon year it was funded for.
+  const RELIEF_DECAY = 3 / Math.max(1, world.clock.ticksPerYear);
+  e.reliefBoost = Math.max(0, (e.reliefBoost || 0) * (1 - RELIEF_DECAY));
   const relief = e.reliefBoost || 0;
   // Okun's term rides on top of the structural rate the map dictates: output
   // above potential pulls people into work, below it pushes them out. It is
@@ -234,7 +244,12 @@ function tickEconomy(world) {
   e.unemployment += (target - e.unemployment) * rate;
   for (const d of world.districts) {
     if (d.structural == null) d.structural = d.unemployment ?? 0.05;
-    const dt = clamp(d.structural + slump * 0.11 - relief + cyc, 0.005, 0.75);
+    // The national relief, plus whatever this state's own share of a targeted
+    // programme bought it. A jobs bill deals its posts out where the work is
+    // short (acts.SPEND_EFFECTS), so the two halves are not the same number and
+    // the district's is the one that makes the policy visible.
+    d.reliefBoost = Math.max(0, (d.reliefBoost || 0) * (1 - RELIEF_DECAY));
+    const dt = clamp(d.structural + slump * 0.11 - relief - d.reliefBoost + cyc, 0.005, 0.75);
     d.unemployment += (dt - d.unemployment) * (dt > d.unemployment ? 0.06 : 0.02);
   }
   if (world.clock.tick % world.clock.ticksPerYear === 0) {

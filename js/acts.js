@@ -1675,6 +1675,46 @@ export const COST_PER_JOB = CONSTRUCTION_COST_PER_WORKER;
 const LABOR_SHARE = 0.48;
 
 /**
+ * Posts supported per post paid for.
+ *
+ * A works programme does not only pay wages. It buys steel, concrete, rolling
+ * stock and contracts, and the firms filling those orders take people on to
+ * fill them — which is the whole argument for spending on works rather than
+ * handing the money out. 1.6 is the low end of the range the literature puts on
+ * infrastructure employment, and low is the right end to sit at in a model that
+ * cannot see a supply chain.
+ *
+ * It is deliberately *not* the twenty-five times it would take to make $5B move
+ * the headline rate. $5B is a small sum against a $22T economy and the game
+ * should say so rather than flatter it; what it must not do is quietly buy
+ * nothing at all, which is what it was doing. See `hiringNote`.
+ */
+const JOBS_MULTIPLIER = 1.6;
+
+/** The national labour force: everyone who wants work. */
+const labourForce = (w) => Math.max(1, totalPop(w) * LABOR_SHARE);
+
+/**
+ * What a jobs appropriation actually bought, in the terms a player can act on.
+ *
+ * The old line was "About 62,500 people find work while it runs" — true, and
+ * useless: it is 0.04 of a percentage point against a labour force of 159
+ * million, so the player watched the unemployment figure not move and concluded
+ * the lever was broken. It was not broken; it was small, and nothing on the
+ * screen said how small or what would be big. Saying both turns a mystery into
+ * a number to legislate against.
+ */
+function hiringNote(w, hired) {
+  const share = hired / labourForce(w);
+  // Divided by the multiplier, because `hired` already carries it: the figure
+  // has to be the money you appropriate, not the posts you end up with.
+  const perPoint = (0.01 * labourForce(w) * COST_PER_JOB) / JOBS_MULTIPLIER;
+  return `About ${Math.round(hired).toLocaleString()} people find work while it runs`
+    + ` — ${(share * 100).toFixed(2)} of a point off the rate.`
+    + ` A whole point would take ${money(perPoint)}.`;
+}
+
+/**
  * What it costs the public purse to get one person off the street and keep them
  * off it for a year — the capital and the case work together.
  *
@@ -1729,23 +1769,43 @@ export const SPEND_EFFECTS = [
     re: /job|employ|work|industr|factory|business|stimul|public works|infrastructur/i, name: 'jobs', label: 'Jobs and works', example: 'public works and jobs',
     apply: (w, s, amount) => {
       // The count comes out of the money, not out of the strength term: a
-      // programme hires what its budget will pay for at COST_PER_JOB, and the
-      // fall in unemployment is that headcount against the labour force. Ten
-      // million dollars is 125 posts, and in a republic of twenty-odd thousand
-      // that is about a point of unemployment — which is what it should be.
-      const hired = Math.floor(amount / COST_PER_JOB);
-      if (!hired) {
+      // programme hires what its budget will pay for at COST_PER_JOB, plus the
+      // supplier posts its contracts support, and the fall in unemployment is
+      // that headcount against the labour force.
+      // Floor the posts the money actually pays wages for — a programme cannot
+      // hire four-fifths of a person — then round the supported total, because
+      // a headcount is a whole number wherever it is printed.
+      const hired = Math.round(Math.floor(amount / COST_PER_JOB) * JOBS_MULTIPLIER);
+      if (hired < 1) {
         return `${moneyExact(amount)} hires nobody: a post costs about ${money(COST_PER_JOB)} for the year.`;
       }
       // Routed through a decaying relief modifier the tick loop applies after
       // it recomputes unemployment from the map — otherwise the very next
       // recompute (from this same bill) would erase the effect.
-      const drop = clamp(hired / Math.max(1, totalPop(w) * LABOR_SHARE), 0, 0.12);
+      //
+      // The posts are dealt out where the work is short rather than spread flat
+      // across twenty states. A national programme that took the same fraction
+      // off Nebraska's 2.8% as off California's 5.3% is not how a jobs bill is
+      // written or where its money goes, and flat is also the version nobody
+      // can see: a fifth of a point everywhere reads as nothing, and several
+      // points in the state that needed it reads as a policy. `d.reliefBoost`
+      // is the per-district half of the same modifier — see sim.tickEconomy.
+      const labourOf = (d) => Math.max(1, (d.pop || 0) * LABOR_SHARE);
+      // Need is the workless above a rate the country treats as full
+      // employment, so a state already at the floor draws none of it.
+      const need = w.districts.map((d) => Math.max(0, (d.unemployment || 0) - 0.03) * labourOf(d));
+      const needSum = need.reduce((a, b) => a + b, 0);
+      const drop = clamp(hired / labourForce(w), 0, 0.12);
       w.economy.reliefBoost = clamp((w.economy.reliefBoost || 0) + drop, 0, 0.25);
-      for (const d of w.districts) { d.unemployment = clamp(d.unemployment - drop, 0.008, 0.7); nudgeMood(d, 2 * s); }
-      return hired === 1
-        ? 'One person finds work while it runs.'
-        : `About ${hired.toLocaleString()} people find work while it runs.`;
+      w.districts.forEach((d, i) => {
+        // Nowhere is above the floor — nothing to target, so it lands evenly.
+        const posts = needSum > 0 ? hired * (need[i] / needSum) : hired / w.districts.length;
+        const dDrop = clamp(posts / labourOf(d), 0, 0.12);
+        d.reliefBoost = clamp((d.reliefBoost || 0) + dDrop, 0, 0.25);
+        d.unemployment = clamp(d.unemployment - dDrop, 0.008, 0.7);
+        nudgeMood(d, 2 * s);
+      });
+      return hiringNote(w, hired);
     },
   },
   {
