@@ -812,6 +812,34 @@ export const LAKES = [
  * Canada after a northern war is worse than no label. `size` is relative: an
  * ocean is set larger than a sea, the way an atlas does it.
  */
+/**
+ * Alaska, placed on the world map against Canada's north-western corner.
+ *
+ * On the Domestic map Alaska is an inset in a labelled box, which is how every
+ * US map does it and is the right answer there. On the World map it was simply
+ * absent — the country's largest state was not on the map of the world.
+ *
+ * It cannot be drawn in true position. The main projection puts 141°W at x=-2.6
+ * and 168°W at about x=-100, so a true-position Alaska is entirely off the left
+ * edge, and moving the frame to hold it would push everything else across and
+ * shrink the country the game is about to make room for a state with no seats
+ * in it.
+ *
+ * So it is placed rather than projected: Alaska's own projection (AK), scaled
+ * down and set in the corner so that its eastern edge meets Canada's western
+ * one — which is where Alaska is. The frontier between them is a straight line
+ * on the ground too (the 141st meridian), so the join is honest even though the
+ * position is not. `SCALE` and `AT` are chosen so the two touch: Canada's west
+ * boundary is a vertical line at the x of P(58, -133).
+ */
+export const ALASKA_WORLD = (() => {
+  const SCALE = 0.86, AT = [3.5, 1.0];
+  return ALASKA.map(([x, y]) => [
+    +(AT[0] + x * SCALE).toFixed(2),
+    +(AT[1] + y * SCALE).toFixed(2),
+  ]);
+})();
+
 export const SEAS = [
   // Off Baja, and higher than the ocean's own middle. The Pacific is the narrow
   // half of this frame — level with California there are twenty units of water

@@ -12,7 +12,7 @@ import * as ACT from './actions.js';
 import { BUILDINGS, ZONES, PARTIES, FOREIGN } from './world.js';
 import * as GEO from './geo.js';
 import * as ATL from './atlas.js';
-import { ALASKA, HAWAII, CENTRAL_AMERICA } from './atlas.js';
+import { ALASKA, ALASKA_WORLD, HAWAII, CENTRAL_AMERICA } from './atlas.js';
 import * as MACRO from './macro.js';
 import * as CO from './company.js';
 import { nationalApproval, approvalDrivers, approvalByDistrict, DRAFT_SLOWDOWN, openElections, pactHolds, interestRate } from './sim.js';
@@ -3319,6 +3319,14 @@ VIEWS.world = (root) => {
   parts.push(`<path d="${GEO.pathOf(CENTRAL_AMERICA)}" fill="none" stroke="#26506a" stroke-opacity="0.42" stroke-width="1.4" stroke-linejoin="round"/>`);
   parts.push(sand(GEO.pathOf(G.ring)));
   parts.push(sand(GEO.pathOf(G.sab)));
+  // Alaska, in the corner, meeting Canada's western edge — which is where it is.
+  // See atlas.ALASKA_WORLD: it is placed rather than projected, because a true
+  // position for it is a hundred units off the left of this frame. It is drawn
+  // with its own sand and its own fill rather than inside the `wland` clip,
+  // since that clip is the continent's coastline and this is not on it.
+  parts.push(sand(GEO.pathOf(ALASKA_WORLD)));
+  parts.push(`<path d="${GEO.pathOf(ALASKA_WORLD)}" fill="${LAY.us.fill}"/>`);
+  parts.push(`<path d="${GEO.pathOf(ALASKA_WORLD)}" fill="none" stroke="#26506a" stroke-opacity="0.42" stroke-width="1.4" stroke-linejoin="round"/>`);
 
   parts.push('<g clip-path="url(#wland)">');
   for (const id of ['canada', 'mexico', 'us']) {
