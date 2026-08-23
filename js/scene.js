@@ -1785,18 +1785,33 @@ function chamber(world) {
 
   // The flag on the wall, hung flat rather than flown — this one is nailed up
   // behind the chair, so it has no pole and no fold, only its own weight.
+  //
+  // It was two colour bands and a black disc — Silver's flag, drawn from
+  // `FLAG.hoist`, `FLAG.fly` and `FLAG.disc`, three keys the Stars and Stripes
+  // does not have. Every one of them was `undefined`, so the whole thing was
+  // mixed from nothing and came out a colour nobody chose.
+  //
+  // Nine stripes across eighteen rows rather than thirteen: two rows is the
+  // least that still reads as a stripe, and an odd count is what puts red at
+  // the top and the bottom. The canton takes the top four stripes and
+  // two-fifths of the fly, the real proportion and the thing the eye actually
+  // recognises. Same vocabulary as `nationalFlag`, at the size this wall gives.
   const d = dim * 0.5;
-  const hoist = mix(FLAG.hoist, '#1a0f28', d), fly = mix(FLAG.fly, '#3a2c0a', d);
+  const red = mix(FLAG.red, '#2a0c10', d);
+  const white = mix(FLAG.white, '#2c2c34', d);
+  const blue = mix(FLAG.blue, '#080c1c', d);
   C.rect(94, 10, 52, 2, dark(stone, 0.4));               // the rail it hangs from
-  C.rect(95, 12, 25, 18, hoist);
-  C.rect(120, 12, 25, 18, fly);
-  // The disc sits high in the cloth rather than in the middle of it, because
-  // the Speaker's chair stands in front of the bottom third and a disc centred
-  // on the flag is a disc centred behind a chair.
-  C.disc(120, 19, 7, 7, mix(FLAG.disc, '#000000', d * 0.3));
-  C.disc(120, 19, 5, 5, lite(mix(FLAG.disc, '#000000', d * 0.3), 0.14));
-  for (let y = 13; y < 30; y += 6) C.rect(95, y, 50, 1, dark(fly, 0.1));   // the hang of the cloth
-  C.rect(95, 29, 50, 1, dark(wood, 0.4));
+  const FX = 95, FY = 12, FW = 50, SH = 2;
+  for (let r = 0; r < 9; r++) C.rect(FX, FY + r * SH, FW, SH, r % 2 === 0 ? red : white);
+  C.rect(FX, FY, 20, SH * 4, blue);                      // the canton
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 5; c++) C.set(FX + 2 + c * 4, FY + 1 + r * 2, white);
+  }
+  // Two folds, hanging. Vertical, because the stripes are already horizontal
+  // and a horizontal shadow over them reads as a tenth stripe in the wrong
+  // colour; and clear of the canton, which has no cloth to spare.
+  for (const fx of [FX + 30, FX + 42]) C.rect(fx, FY, 1, 18, dark(red, 0.22));
+  C.rect(FX, FY + 17, FW, 1, dark(wood, 0.4));
 
   // -- The floor -----------------------------------------------------------
   C.vgrad(0, 44, CHAM.w, 28, [dark(carpet, 0.14), carpet, lite(carpet, 0.08)], 3);
@@ -2589,9 +2604,13 @@ function profileHead(C, T, cx, y, f, gender) {
  * balcony was a torso ending in a straight cut with daylight visible through
  * the balusters underneath it.
  */
-function oathTaker(C, P, cx, y, gender, f = -1) {
+function oathTaker(C, P, cx, y, gender, f = -1, accent = FLAG.red) {
   const T = tones(P);
-  const tie = mix(FLAG.hoist, '#000000', 0.2);
+  // The tie, and the pin at an open collar. `accent` is the administration's
+  // party colour where it has one, which is what a president actually wears to
+  // their own inauguration — red when nobody's. It read `FLAG.hoist`, a key
+  // from Silver's two-colour flag, so the tie was mixed from `undefined`.
+  const tie = mix(accent, '#000000', 0.2);
   profileHead(C, T, cx, y, f, gender);
 
   // Neck, set back from the face the way a neck is.
@@ -2617,7 +2636,7 @@ function oathTaker(C, P, cx, y, gender, f = -1) {
   rect(front - 2, front - 1, S + 2, 4, T.shirt);     // the shirt at the throat
   if (gender === 'f') {
     rect(front - 3, front - 2, S + 2, 6, T.shirt);   // an open collar, no tie
-    C.set(bx(front - 3), S + 7, mix(FLAG.fly, '#ffffff', 0.2));
+    C.set(bx(front - 3), S + 7, mix(accent, '#ffffff', 0.2));
   } else if (gender === 'm') {
     rect(front - 2, front - 2, S + 4, 7, tie);
     rect(front - 2, front - 1, S + 4, 1, lite(tie, 0.3));
@@ -2829,7 +2848,7 @@ function inaugural(world, gender, party) {
   // it, and the raised hand needs somewhere to be that is not the masonry.
   C.rect(80, 92, 80, 3, mix(st, roof, 0.3));                // the floor slab
   chiefJustice(C, P, 108, 56, 1);
-  oathTaker(C, P, 132, 56, gender, -1);
+  oathTaker(C, P, 132, 56, gender, -1, party || FLAG.red);
 
   // The parapet: solid stone, waist high, with its panels sunk into the face
   // rather than cut through it. A balustrade with daylight between the
