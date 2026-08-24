@@ -2417,7 +2417,57 @@ function debtCard(world, a, live) {
     el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
       d.verdict ? `The books call it ${d.verdict}. ` : '',
       'A shortfall is borrowed, not conjured: the treasury stops at zero and the hole shows here, '
-      + 'costing interest as long as it is carried.'));
+      + 'costing interest as long as it is carried.'),
+    // Borrowing on purpose, which until now could only happen by accident.
+    //
+    // `macro.financeDeficit` sweeps an overdraft onto the debt line at the
+    // year's close — that is what happens to a government that has already
+    // overspent. A Treasury that can see a bill coming and fund it in advance is
+    // the ordinary case and there was no way to do it. Two controls, and the
+    // ceiling above them, because that is the shape of the real instrument: the
+    // Treasury issues to whoever will buy, up to a limit the legislature has
+    // voted, and the market prices the risk into the rate rather than refusing.
+    live ? issueCard(world, d) : null);
+}
+
+function issueCard(world, d) {
+  const p = me();
+  const e = world.economy;
+  const offs = p ? R.officesOf(world, p.id).map((o) => o.id) : [];
+  const mine = offs.includes(world.constitution?.centralBank?.office || 'exchequer') || offs.includes('president');
+  const cap = MACRO.debtCeiling(world);
+  const room = Math.max(0, cap - (e.debt || 0));
+  S.debtBox = S.debtBox || {};
+  if (!mine) {
+    return el('div', { class: 'tiny dimmer', style: { marginTop: '10px' } },
+      'The public debt is issued and redeemed by the Secretary of the Treasury and the President.');
+  }
+  const field = (key, ph) => el('input', {
+    class: 'inp sm mono', style: { width: '104px' }, placeholder: ph,
+    value: S.debtBox[key] || '',
+    oninput: (ev) => { S.debtBox[key] = ev.target.value; },
+  });
+  return el('div', { style: { marginTop: '10px', borderTop: '1px solid var(--rule-strong)', paddingTop: '9px' } },
+    el('div', { class: 'spread', style: { marginBottom: '6px' } },
+      el('span', { class: 'small dim' }, 'Debt ceiling'),
+      el('span', { class: 'mono' + (room <= 0 ? ' red' : '') },
+        `${moneyExact(cap)} · ${room > 0 ? moneyExact(room) + ' of room' : 'no room left'}`)),
+    el('div', { class: 'row' },
+      field('issue', 'e.g. 50bn'),
+      el('button', {
+        class: 'btn sm', disabled: room <= 0,
+        onclick: () => { const v = parseAmount(S.debtBox.issue); if (Number.isFinite(v)) { go('DEBT', { tool: 'issue', value: v }); S.debtBox.issue = ''; CTX.rerender(true); } },
+      }, 'Issue securities')),
+    el('div', { class: 'row', style: { marginTop: '5px' } },
+      field('redeem', 'e.g. 20bn'),
+      el('button', {
+        class: 'btn sm ghost', disabled: !(e.debt > 0) || !(e.treasury > 0),
+        onclick: () => { const v = parseAmount(S.debtBox.redeem); if (Number.isFinite(v)) { go('DEBT', { tool: 'redeem', value: v }); S.debtBox.redeem = ''; CTX.rerender(true); } },
+      }, 'Redeem early')),
+    el('div', { class: 'tiny dimmer', style: { marginTop: '6px' } },
+      `Issuing raises cash against the debt and costs ${((e.marketRate || 0) * 100).toFixed(2)}% a year to carry — `
+      + 'and more paper chasing the same buyers moves that rate itself. Redeeming pays it down out of cash on hand. '
+      + 'Past the ceiling the Treasury must go to Congress.'));
 }
 
 /**

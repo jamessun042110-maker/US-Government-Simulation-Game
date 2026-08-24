@@ -15,7 +15,7 @@
 // acts.sign, acts.disburse, depts.talk. An NPC president cannot do anything a
 // player in the same chair could not, and is refused by the same rules.
 
-import { clamp, chance, rng, count, moneyExact } from './util.js';
+import { clamp, chance, rng, pick, count, moneyExact } from './util.js';
 import * as R from './rules.js';
 import * as A from './acts.js';
 import * as D from './director.js';
@@ -1096,8 +1096,135 @@ function runTreasury(world, p) {
 }
 
 /** One turn of the departments nobody is playing. */
+/**
+ * Members of Congress, saying something.
+ *
+ * The chamber only ever spoke inside a vote — `doc.statements`, one line each,
+ * on the floor, and nowhere else. Between votes a legislature of sixty-five
+ * people was completely silent, which is the opposite of the thing it is famous
+ * for. A member with a district, a party and a temperament has opinions about
+ * whatever is currently happening to the country and no way to express them.
+ *
+ * So, on a slow cadence, one of them says something about whatever is actually
+ * in front of the country: a measure standing on the floor, a bill just carried
+ * or just lost, a war, or the state of the economy. It is contextual by
+ * construction — the subject is read off the world, and the line is coloured by
+ * where they sit, which party they are in and which of the six temperaments they
+ * have. A wonk and a firebrand do not respond to the same deficit in the same
+ * words.
+ *
+ * Statements only: no outlet, no circulation, no effect on approval. This is the
+ * Chronicle carrying what was said, not a second media model running beside
+ * `media.js` — a press release that moved the polls would need every one of
+ * that file's guard rails and would be a different feature.
+ */
+const PRESS_CADENCE = CADENCE * 9;
+
+function pressRelease(world) {
+  if (world.clock.tick % PRESS_CADENCE !== 0) return;
+  const chambers = R.chambers(world);
+  if (!chambers.length) return;
+  const bench = world.seats
+    .filter((s) => chambers.includes(s.office) && s.personaId)
+    .map((s) => ({ seat: s, p: world.personas[s.personaId] }))
+    .filter((x) => x.p && x.p.alive && x.p.synthetic && !x.p.imprisoned);
+  if (!bench.length) return;
+  const { seat, p } = pick(world, bench);
+  if (!acts(world, p, 0.5)) return;
+
+  const temper = temperamentOf(p);
+  const disp = dispositionOf(p);
+  const home = world.districts.find((d) => d.id === seat.district);
+  const where = home ? home.name : world.nation;
+  const party = PARTIES.find((x) => x.id === p.party);
+  const e = world.economy;
+
+  // What is actually in front of the country, in the order a member would reach
+  // for it. A live floor beats a finished one; a war beats both.
+  const docs = Object.values(world.documents || {});
+  const onFloor = docs.find((d) => d.status === 'floor' && d.type !== 'nomination');
+  const nomination = docs.find((d) => d.status === 'floor' && d.type === 'nomination');
+  const settled = docs.filter((d) => ['law', 'failed', 'vetoed'].includes(d.status)
+    && world.clock.tick - (d.promulgated ?? 0) < PRESS_CADENCE * 2)
+    .sort((a2, b2) => (b2.promulgated ?? 0) - (a2.promulgated ?? 0))[0];
+  const war = (world.foreign || []).find((f) => f.atWar);
+  const jobless = (e.unemployment || 0) * 100;
+  const debtRatio = (e.debt || 0) / Math.max(1, e.gdp || 1);
+
+  // How they talk. `merit` is how far the argument moves them and `interest` how
+  // far their own side does — the same two numbers the floor reads.
+  const plain = temper.merit >= 0.25;      // wonk, lawyerly
+  const loud = temper.interest >= 0.3;     // firebrand
+  const line = (() => {
+    if (war) {
+      return loud ? `There is one question in front of this country and it is ${war.name}. ${where} did not ask for this war and ${where} will not be the last to leave it.`
+        : plain ? `On ${war.name}: I want the cost of this war stated in front of the chamber before another division is voted, not after.`
+          : `${where} has people in this fight. I will keep saying their names until it is over.`;
+    }
+    if (onFloor) {
+      const mine = doc_stance(world, p, onFloor);
+      return plain ? `I have read ‘${onFloor.title}’ twice. ${mine ? 'It does more good than harm and I will vote for it.' : 'It does not do what its preamble says it does, and I will not vote for it.'}`
+        : loud ? `‘${onFloor.title}’ is exactly what ${party ? 'the other side' : 'this town'} does when it thinks nobody in ${where} is reading. ${mine ? 'I am voting for it anyway, because ' + where + ' needs it.' : 'I am voting no.'}`
+          : `${mine ? 'I will be supporting' : 'I cannot support'} ‘${onFloor.title}’. ${where} deserves the reason, so here it is in writing.`;
+    }
+    if (nomination) {
+      return plain ? `Advice and consent is not a formality. I will be asking the nominee questions before I vote on them.`
+        : `The Senate has a name in front of it. ${where} expects it to be taken seriously, and I intend to.`;
+    }
+    if (settled) {
+      const won = settled.status === 'law';
+      return won ? `‘${settled.title}’ is law. What matters now is whether ${where} feels it, and I intend to find out.`
+        : `‘${settled.title}’ failed. I am told that is the end of it. It is not.`;
+    }
+    if (jobless > 6) {
+      return plain ? `Unemployment is ${jobless.toFixed(1)}%. That is not a number, it is roughly one household in ${Math.max(2, Math.round(100 / jobless))} in ${where}.`
+        : `${jobless.toFixed(1)}% out of work. I have been in this job long enough to know what that looks like in ${where}.`;
+    }
+    if (debtRatio > 0.6) {
+      return plain ? `The debt is ${(debtRatio * 100).toFixed(0)}% of what the country makes in a year. I would like the chamber to say out loud who it expects to pay it.`
+        : `We are borrowing against ${where}'s children and calling it a budget.`;
+    }
+    // Nothing in front of the country. They still have a district, a party and a
+    // temperament, so they still have something to say — but it should not be
+    // the *same* something every time, which is what one fixed line per
+    // disposition gave: five members of one chamber reciting it word for word
+    // inside a year reads as a broken template rather than as a quiet week.
+    const quiet = disp.purse > 0.2
+      ? [`${where} has been waiting a long time for this government to build something. I am still waiting.`,
+         `I did not come here to admire the problem. ${where} wants something opened, and so do I.`,
+         `There is money in that treasury and there are people in ${where} who could be working. I leave the arithmetic to the chamber.`]
+      : plain
+        ? [`No votes this week, so I have been reading the accounts. I recommend it to colleagues who have not.`,
+           `${where} does not need me to make news. It needs me to know what is in the bills before I vote on them.`,
+           `A quiet week is the only time anyone in this building reads anything. I have used mine.`]
+        : loud
+          ? [`The chamber is quiet. ${where} is not, and I am here because of ${where}, not because of the chamber.`,
+             `They will tell you nothing happened this week. Nothing happening is a decision somebody made.`,
+             `I was sent here to be a nuisance about ${where}. Consider this the weekly instalment.`]
+          : [`Quiet weeks are when the work gets done. ${where} sent me here to do it, not to be seen doing it.`,
+             `Nothing to report, which in this job is worth reporting.`,
+             `I have spent the week in ${where} rather than in this building. I recommend the habit.`];
+    return quiet[Math.floor(hash01(p.id + world.clock.tick) * quiet.length) % quiet.length];
+  })();
+
+  log(world, 'press', `${p.name} (${party ? party.name : 'Independent'}${home ? ', ' + where : ''}): “${line}”`,
+    { actors: [p.id], district: seat.district || null, weight: 1 });
+}
+
+/** Whether this member is presently inclined to back a measure. */
+function doc_stance(world, p, doc) {
+  const votes = doc.votes || {};
+  if (votes[p.id]) return votes[p.id] === 'yea';
+  const temper = temperamentOf(p);
+  return hash01(p.id + doc.id) < 0.5 + temper.merit * 0.2;
+}
+
 export function tickDepartments(world) {
   if (world.phase !== 'live') return;
+  // The chamber says something between votes. Cheap, cadence-guarded, and
+  // deliberately hung off this tick rather than given one of its own — it must
+  // run before the DEPT_CADENCE gate below, which is a different rhythm.
+  pressRelease(world);
   if (world.clock.tick % DEPT_CADENCE !== 0) return;
   for (const [dept, run] of [['state', runState], ['defense', runDefense], ['exchequer', runTreasury]]) {
     const p = npcSecretary(world, dept);

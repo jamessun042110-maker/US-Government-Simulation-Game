@@ -843,6 +843,40 @@ export const HANDLERS = {
   // opens at all is rules.mayMoveRates, which is a clause in the constitution
   // rather than a power on an office: a republic that made its bank independent
   // cannot reach these however senior the person clicking is.
+  /**
+   * The Treasury's own borrowing, as opposed to the bank's money.
+   *
+   * Deliberately a separate action from MONETARY: issuing securities is fiscal
+   * and belongs to the Treasury whether or not the bank is independent, whereas
+   * the rate is the bank's and the Secretary may only touch it in a republic
+   * that has taken the bank's independence away. Gating both on `mayMoveRates`
+   * would have made a country's ability to fund itself depend on whether it had
+   * politicised its central bank, which is not a relationship anybody has.
+   */
+  DEBT(world, a) {
+    const pid = meP(world, a);
+    const offs = R.officesOf(world, pid).map((o) => o.id);
+    const cb = world.constitution?.centralBank;
+    if (!(offs.includes(cb?.office || 'exchequer') || offs.includes('president'))) {
+      return notice(world, a.playerId,
+        'Only the Secretary of the Treasury and the President may issue or redeem the public debt.');
+    }
+    const res = a.tool === 'redeem'
+      ? MACRO.redeemDebt(world, a.value)
+      : MACRO.issueDebt(world, a.value);
+    if (!need(world, a, res)) return;
+    const who = world.personas[pid]?.name || 'The Treasury';
+    const e = world.economy;
+    if (a.tool === 'redeem') {
+      log(world, 'money', `${who} redeems ${moneyExact(res.value.repaid)} of the public debt. `
+        + `${moneyExact(e.debt)} remains outstanding.`, { actors: [pid], weight: 2 });
+    } else {
+      log(world, 'money', `${who} issues ${moneyExact(res.value.raised)} in Treasury securities at `
+        + `${((e.marketRate || 0) * 100).toFixed(2)}%. The debt stands at ${moneyExact(e.debt)}.`,
+      { actors: [pid], weight: 2 });
+    }
+  },
+
   MONETARY(world, a) {
     const pid = meP(world, a);
     if (!R.mayMoveRates(world, pid)) {

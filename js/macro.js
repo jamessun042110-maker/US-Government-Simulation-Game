@@ -473,6 +473,88 @@ export function financeDeficit(world) {
  * reader of the room will recognise. Used by the Treasury view; kept here so
  * the sentence and the arithmetic cannot drift apart.
  */
+/**
+ * The statutory ceiling on the debt stock, and what it is for.
+ *
+ * A real Treasury does not borrow because it feels like it and does not stop
+ * because it feels like it: it issues securities to whoever will buy them, up to
+ * a limit Congress has voted, and the market prices the risk in the rate rather
+ * than refusing outright. Both halves matter here — a ceiling with no market
+ * behind it is a number, and a market with no ceiling is a government that never
+ * has to ask anybody for anything.
+ *
+ * 120% of a year's output. The United States has run past that once, in 1946,
+ * and is near it now; a republic at that level in this game is one whose
+ * interest bill is already eating its budget, and telling it to go and legislate
+ * is the right answer. Raising it is an Act — the ceiling is read from the
+ * constitution when a table has written one, and falls back to this.
+ */
+export const DEBT_CEILING_RATIO = 1.2;
+export const debtCeiling = (world) => {
+  const e = ensure(world);
+  const set = +world.constitution?.debtCeilingRatio;
+  return (Number.isFinite(set) && set > 0 ? set : DEBT_CEILING_RATIO) * Math.max(1, e.gdp || 1);
+};
+
+/**
+ * Issue securities: raise cash now against the debt stock.
+ *
+ * This is the deliberate half of borrowing, and until now only the *accidental*
+ * half existed — `financeDeficit` sweeps an overdraft onto the debt line at the
+ * year's close, which is what happens to a government that has already
+ * overspent. A Treasury that can see a bill coming and fund it in advance is the
+ * ordinary case and there was no way to do it.
+ *
+ * The proceeds land in the treasury and the same sum joins the debt, where it
+ * costs `marketRate` a year for as long as it is carried — and `marketRate`
+ * already carries a credit spread and a crowding-out premium, so a country that
+ * borrows heavily pays more for the next tranche without any rule here saying
+ * so. That is the market half. The ceiling is the statutory half.
+ */
+export function issueDebt(world, amount) {
+  const e = ensure(world);
+  const want = Math.round(+amount || 0);
+  if (!(want > 0)) return { ok: false, reason: 'Name a sum to raise.' };
+  const cap = debtCeiling(world);
+  const room = cap - (e.debt || 0);
+  if (room <= 0) {
+    return { ok: false, reason: `The debt stands at ${Math.round((e.debt / Math.max(1, e.gdp)) * 100)}% of output `
+      + `and the ceiling is ${Math.round((cap / Math.max(1, e.gdp)) * 100)}%. Congress must raise it before the Treasury may issue more.` };
+  }
+  if (want > room) {
+    return { ok: false, reason: `Only ${Math.round(room / 1e9)}bn of room is left under the debt ceiling.` };
+  }
+  e.debt = (e.debt || 0) + want;
+  e.treasury = (e.treasury || 0) + want;
+  e.issuedYtd = (e.issuedYtd || 0) + want;
+  // Issuing into a thin market costs something in standing: more paper chasing
+  // the same buyers is exactly what the crowding-out premium in `marketRate` is
+  // measuring, and the rating follows it down.
+  e.credit = clamp((e.credit ?? 50) - (want / Math.max(1, e.revenueYr || 1)) * 6, 5, 100);
+  return { ok: true, value: { raised: want, debt: e.debt, rate: e.marketRate } };
+}
+
+/**
+ * Redeem debt early, out of cash on hand.
+ *
+ * The mirror of issuance and the only way a surplus can be *spent on the future*
+ * rather than sat on. Bounded by the cash actually in the drawer, because paying
+ * down debt with money you do not have is just moving the debt.
+ */
+export function redeemDebt(world, amount) {
+  const e = ensure(world);
+  const want = Math.round(+amount || 0);
+  if (!(want > 0)) return { ok: false, reason: 'Name a sum to repay.' };
+  if (!(e.debt > 0)) return { ok: false, reason: 'There is nothing outstanding to redeem.' };
+  const pay = Math.min(want, e.debt, Math.max(0, e.treasury || 0));
+  if (pay <= 0) return { ok: false, reason: 'The treasury has nothing to redeem it with.' };
+  e.debt -= pay;
+  e.treasury -= pay;
+  e.repaidYtd = (e.repaidYtd || 0) + pay;
+  e.credit = clamp((e.credit ?? 50) + (pay / Math.max(1, e.revenueYr || 1)) * 4, 5, 100);
+  return { ok: true, value: { repaid: pay, debt: e.debt } };
+}
+
 export function debtReading(world) {
   const e = ensure(world);
   const ratio = debtRatio(world);
