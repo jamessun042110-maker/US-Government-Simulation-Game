@@ -23,7 +23,7 @@ import * as DEP from './depts.js';
 import * as CO from './company.js';
 import * as MACRO from './macro.js';
 import { log } from './chronicle.js';
-import { PARTIES, temperamentOf, BUILDINGS, makePersona } from './world.js';
+import { PARTIES, temperamentOf, BUILDINGS, makePersona, UPKEEP_PER_FORMATION } from './world.js';
 
 /**
  * How often the chair looks at its desk.
@@ -162,14 +162,40 @@ const acts = (world, p, base) => chance(world, clamp(base * dispositionOf(p).ene
  */
 function canCommit(world, cost, share) {
   const e = world.economy || {};
-  if (!MACRO.debtReading(world).sustainable) return false;
-  return cost <= Math.max(0, e.treasury || 0) + (e.revenueYr || 0) * share;
+  // And the room closes as the debt stock grows against output — a gradient,
+  // not the on/off `debtReading().sustainable` this first used. That test is
+  // `rate <= 6% || ratio < 0.6`, so while the market rate stayed low it was
+  // true at any debt at all and there was no brake whatsoever: measured over
+  // twenty republics, spending reached 492% of revenue against the old gate's
+  // 150%, debt 137% of output, and 16 of 20 collapsed. Removing a bad brake is
+  // not the same as fitting a good one.
+  //
+  // Full room at or below 60% of GDP, which is what `macro.debtReading` calls
+  // carried without difficulty, and nothing left at 150%, where the interest
+  // bill alone outruns what the country raises. A republic merely in overdraft
+  // still governs; one that has already spent its future does not get to keep
+  // spending it.
+  const ratio = (e.debt || 0) / Math.max(1, e.gdp || 1);
+  const room = clamp((DEBT_STOP - ratio) / (DEBT_STOP - DEBT_FREE), 0, 1);
+  return cost <= Math.max(0, e.treasury || 0) + (e.revenueYr || 0) * share * room;
 }
 
-// A capital project is one or two per cent of a year's revenue; an army in
-// wartime is a third of one. Both are what those things actually cost a country.
-const COMMIT_BUILD = 0.05;
-const COMMIT_WAR = 0.35;
+// A capital project is a few per cent of a year's revenue; an army in wartime is
+// a fifth of one. Both are about what those things cost a country.
+const COMMIT_BUILD = 0.04;
+const COMMIT_WAR = 0.20;
+const DEBT_FREE = 0.6;   // below this the republic borrows freely
+const DEBT_STOP = 1.5;   // and at this it has stopped being able to
+// What share of a year's revenue the standing army may cost. The founding
+// establishment of four formations is already about 0.75 of it.
+// What share of a year's revenue the standing army may cost. Wartime is
+// deliberately generous — the founding establishment of four formations already
+// eats about three quarters of everything the republic raises, so anything
+// tighter forbids the country its own opening army — and the peacetime figure is
+// what `standDown` brings it back to once the shooting stops.
+const MILITARY_CEILING = 2.0;
+const PEACE_MILITARY_CEILING = 0.8;
+const PEACETIME_FLOOR = 4;
 
 /** The synthetic holder of the top chair, or null when a player holds it. */
 export function npcHead(world) {
@@ -751,6 +777,7 @@ export function tickExecutive(world, ballot) {
   appointCabinet(world, p);
   emergency(world, p);
   warBill(world, p);
+  standDown(world, p);
   rescue(world, p);
   spend(world, p);
   build(world, p);
@@ -879,6 +906,45 @@ function runDefense(world, p) {
  * through createDoc and introduce like any other, the members vote on it as
  * they vote on anything, and it can be refused.
  */
+/**
+ * Standing the army down when the shooting stops.
+ *
+ * Volunteers are already disbanded the moment a war ends — `sim.tickWar` does
+ * it, and `depts.mobilizeVolunteers` says why in as many words: raised for a
+ * war, not kept as a standing force. Nothing did the same for the regular line.
+ * `world.military.units` only ever moved downward through combat losses, so a
+ * republic that armed for a war carried that army at UPKEEP_PER_FORMATION a
+ * year, in peacetime, for the rest of the Season.
+ *
+ * That is the ratchet behind the whole finance picture. Annual spending went
+ * from $1,239bn to $1,869bn the year one republic took its army from four
+ * formations to seven, against $1,122bn of revenue — and stayed at $1,901bn
+ * afterwards, through the peace, while the units it had bought were being lost
+ * one by one. The deficit compounds through the interest line from there.
+ *
+ * So: at peace, a government brings the establishment back to what the country
+ * can carry. Not below `PEACETIME_FLOOR`, which is the founding army and the
+ * least a state keeps; not in a hurry, one formation per turn of the cadence,
+ * because demobilising is a decision and not an accounting entry; and never
+ * while anyone is still shooting.
+ *
+ * A player's army is untouched. This is the NPC deciding, the same way it
+ * decides to sue for peace — the engine does not disband anybody's divisions
+ * behind their back.
+ */
+function standDown(world, p) {
+  if ((world.foreign || []).some((f) => f.atWar)) return;
+  if ((world.military.units || 0) <= PEACETIME_FLOOR) return;
+  const upkeepPer = UPKEEP_PER_FORMATION * (world.military.funding || 1);
+  const carry = (world.economy.revenueYr || 0) * PEACE_MILITARY_CEILING;
+  const affordable = Math.floor(carry / Math.max(1, upkeepPer));
+  const target = Math.max(PEACETIME_FLOOR, affordable);
+  if (world.military.units <= target) return;
+  world.military.units -= 1;
+  log(world, 'war', `A division is stood down. ${world.military.units} left under arms.`,
+    { actors: [p.id], weight: 2 });
+}
+
 function warBill(world, p) {
   if (!R.mayPropose(world, p.id, 'bill').ok) return;
   // One at a time, and never while the floor is busy with something else.
@@ -900,7 +966,30 @@ function warBill(world, p) {
   // hostile enough to be worth arming against at all, it is worth matching.
   if (ours >= theirs * (enemy ? 1.1 : 0.95)) return;
   if (!acts(world, p, enemy ? 0.5 : 0.2)) return;
-  const want = Math.max(1, Math.min(6, Math.ceil((theirs * (enemy ? 1.25 : 1.05)) - ours)));
+  let want = Math.max(1, Math.min(6, Math.ceil((theirs * (enemy ? 1.25 : 1.05)) - ours)));
+  // An army is a standing bill, not a purchase, and this used to weigh only the
+  // purchase. A formation costs DIVISION_COST ($60bn) once and
+  // UPKEEP_PER_FORMATION ($210bn) every year it stays under arms — three and a
+  // half times its own price, annually — so "can we buy six" and "can we keep
+  // six" are different questions and only the second one matters a year later.
+  //
+  // Measured: a republic that took its army from four formations to seven moved
+  // annual spending from $1,239bn to $1,869bn against $1,122bn of revenue, and
+  // never came back from it. The deficit then compounds through the interest
+  // line, which is why 16 of 20 republics collapsed once the cash gate stopped
+  // masking it.
+  //
+  // The ceiling is a share of a year's revenue. It is deliberately generous —
+  // the founding army already eats three quarters of everything the republic
+  // raises, so anything tighter would forbid the country its own opening
+  // establishment — but it is finite, and it is what stops a war being answered
+  // with an army the peace cannot afford.
+  const upkeepPer = UPKEEP_PER_FORMATION * (world.military.funding || 1);
+  const carry = (world.economy.revenueYr || 0) * MILITARY_CEILING;
+  const standing = (world.military.units + DEP.formingCount(world)) * upkeepPer;
+  const roomForUnits = Math.floor(Math.max(0, carry - standing) / Math.max(1, upkeepPer));
+  if (roomForUnits <= 0) return;
+  want = Math.min(want, roomForUnits);
   // And aeroplanes, while the chamber is being asked. A wing costs more than
   // any allowance runs to, so this instrument is the only way an air force is
   // ever bought in a republic with a chamber — see CLAUSES.RAISE_AIRWINGS.

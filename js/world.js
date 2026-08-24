@@ -33,6 +33,23 @@ export const BUILDINGS = {
   barracks: { name: 'Garrison', zone: 'civic', cost: 1e10, years: 1.2, jobs: 300000, homes: 0, upkeep: 1.4e9, land: -6, mood: -1, units: 2, tag: 'military' },
 };
 
+/**
+ * What one formation costs to keep under arms for a year.
+ *
+ * Named and exported because it is not only a line in the budget — it is the
+ * number a government has to be able to answer before it raises anything, and
+ * `npc.warBill` reads it to ask whether the country can carry the army it is
+ * about to buy. A division costs `depts.DIVISION_COST` ($60bn) once and this
+ * every year afterwards, which is three and a half times its own price
+ * annually: the standing bill, not the purchase, is what decides a defence
+ * budget, and a caller that weighs only the purchase arms the republic into a
+ * permanent deficit it cannot then legislate its way out of.
+ *
+ * For scale: the founding army of four formations costs $840bn a year against
+ * about $1.12T of revenue — three quarters of everything the republic raises.
+ */
+export const UPKEEP_PER_FORMATION = 2.1e11;
+
 export const MAX_DISTRICTS = 20;
 
 /**
@@ -1460,7 +1477,7 @@ export function recomputeEconomy(world) {
   // dear (three times it). Raise more and the standing bill rises with it.
   const milit = (world.military.units
     + (world.military.volunteers || 0) * 0.3
-    + (world.military.airforce || 0) * 3) * 2.1e11 * world.military.funding;
+    + (world.military.airforce || 0) * 3) * UPKEEP_PER_FORMATION * world.military.funding;
   // Debt is priced at what the market actually charges this state: the short
   // rate the money market clears at, plus the credit spread, plus the premium
   // for crowding out. macro.tickMacro computes it and leaves it on marketRate;
