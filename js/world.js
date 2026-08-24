@@ -769,9 +769,19 @@ function seedStock(world, pop) {
       if (jobs >= jobTarget) break;
       // Close the last of the gap with small employers, so the opening
       // unemployment figure lands where it was aimed instead of overshooting.
+      //
+      // Measured against the works itself rather than against a literal. This
+      // read `gap > 900`, which was a factory's jobs when a factory employed
+      // nine hundred people; the rescale took it to nine hundred thousand and
+      // left the threshold behind, so the gap — now counted in millions — was
+      // over it always and `market` was never once placed. Twenty-five founding
+      // worlds seeded no retail at all and overshot the jobs target by 383,000
+      // on average and 882,000 at worst. Written this way it cannot rot again:
+      // the question is "is there more than a whole factory left to place", and
+      // the factory answers it.
       const gap = jobTarget - jobs;
       const r = rng(world);
-      place(parcels, gap > 900 ? (r < 0.45 ? 'factory' : 'offices') : 'market');
+      place(parcels, gap > BUILDINGS.factory.jobs ? (r < 0.45 ? 'factory' : 'offices') : 'market');
     }
   }
   for (const p of world.city.parcels) if (!p.building && !p.water && rng(world) < 0.45) p.zone = 'unzoned';
