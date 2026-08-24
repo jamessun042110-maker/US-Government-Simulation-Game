@@ -4079,9 +4079,27 @@ VIEWS.oval = (root) => {
   // bench, unless this republic has amended plurality of office in. The engine
   // refuses all of it anyway; offering a name and then refusing the click reads
   // as a bug rather than as a rule.
+  // A nomination standing before the confirming chamber. Not the same thing as
+  // `world.nominations`, which holds only offers waiting on a *player* to accept
+  // — a synthetic nominee skips that queue and goes straight to the Senate floor
+  // (acts.sendUp), and this card knew nothing about that half. So a seat with a
+  // name already before the Senate read as "vacant / needs filling" and offered
+  // the dropdown again, which is how the same person came to be sent up four
+  // times over. See acts.appointGate, which now refuses it engine-side too.
+  const liveNominations = Object.values(world.documents || {}).filter((d) => d.type === 'nomination'
+    && ['draft', 'floor', 'awaiting-signature'].includes(d.status));
+  const confirmOf = (d) => (d.clauses || []).find((c) => c.kind === 'CONFIRM');
+  const beforeChamber = (seatId) => liveNominations.find((d) => confirmOf(d)?.seatId === seatId);
+  // And every name currently in front of the chamber, for any chair. A person
+  // waiting on the Senate holds no office yet, so `mayAlsoHold` cannot see them
+  // — they would otherwise still be offered for a second post while the first
+  // one was being voted on.
+  const awaitingConsent = new Set(liveNominations.map((d) => confirmOf(d)?.persona).filter(Boolean));
+
   const eligibleFor = (o) => Object.values(world.personas).filter((x) =>
     x.alive && !x.exiled && !x.imprisoned
     && (R.allowsPlurality(world) || x.id !== p?.id)
+    && !awaitingConsent.has(x.id)
     && R.mayAlsoHold(world, x.id, o.id).ok);
 
   // Exactly what the sidebar badge counts (actionItems.oval): a seat this player
@@ -4091,32 +4109,51 @@ VIEWS.oval = (root) => {
   // word "vacant" in grey italics — so the number was on one screen and the
   // thing it counted was unfindable on the next. The convention already solved
   // this for the founding chairs; this is the same treatment, in the same red.
-  const mustFill = (o, s, h, pending) => !!(mayAppoint(o) && o.atWill && !h && !pending);
+  const mustFill = (o, s, h, pending) => !!(mayAppoint(o) && o.atWill && !h && !pending
+    && !beforeChamber(s.id));
   const openSeats = appointable.flatMap((o) => world.seats.filter((s) => s.office === o.id)
     .filter((s) => mustFill(o, s, s.personaId ? world.personas[s.personaId] : null,
       (world.nominations || []).find((n) => n.seatId === s.id))));
 
   const appointmentsCard = el('div', { class: 'card' + (openSeats.length ? ' cta-pulse' : '') },
-    el('div', { class: 'spread' }, el('h3', {}, 'Appointments'),
+    el('div', { class: 'spread' }, el('h3', {}, 'Nominations'),
       openSeats.length
         ? el('span', { class: 'cta-bubble' },
           `${openSeats.length} seat${openSeats.length === 1 ? '' : 's'} to fill`)
         : null),
     el('div', { class: 'tiny dimmer', style: { marginBottom: '8px' } },
-      'The cabinet and bench are filled here. A player must accept a post first.'),
+      'The cabinet and bench are named here. A name goes to the Senate for its advice and consent; a player must accept the post first.'),
     ...appointable.flatMap((o) => {
       const can = mayAppoint(o);
       return world.seats.filter((s) => s.office === o.id).map((s) => {
         const h = s.personaId ? world.personas[s.personaId] : null;
         const pending = (world.nominations || []).find((n) => n.seatId === s.id);
+        const sent = beforeChamber(s.id);
+        const sentName = sent ? world.personas[confirmOf(sent)?.persona]?.name : null;
         const open = mustFill(o, s, h, pending);
         return el('div', { class: open ? 'seat-open' : '', style: { padding: '7px 0', borderTop: '1px solid var(--rule-strong)' } },
           el('div', { class: 'spread' },
+            // A name before the chamber reads where the holder's name reads. The
+            // seat is not vacant in any sense the President can act on — it has
+            // a nominee, and the only thing left to happen to it is the Senate's
+            // answer — so it says so, with the nominee named and the tag beside
+            // them, rather than showing "vacant" over an empty dropdown.
             el('span', { class: 'small' }, el('b', {}, o.name), ' — ',
-              h ? h.name : open ? el('b', { style: { color: 'var(--red-text)' } }, 'vacant')
-                : el('i', { class: 'dimmer' }, 'vacant')),
+              h ? h.name
+                : sentName ? el('span', {}, sentName,
+                    el('span', { class: 'tiny dimmer' }, ' (nominated)'))
+                  : open ? el('b', { style: { color: 'var(--red-text)' } }, 'vacant')
+                    : el('i', { class: 'dimmer' }, 'vacant')),
             open ? el('span', { class: 'tag red' }, 'needs filling') : null,
+            sent && !h ? el('span', { class: 'tag gold' }, 'before the Senate') : null,
             pending && !h ? el('span', { class: 'tag gold' }, 'awaiting acceptance') : null),
+          // What the chamber is doing with it, and how long it has been at it.
+          sent && !h
+            ? el('div', { class: 'tiny dimmer', style: { marginTop: '4px' } },
+              `${sentName || 'The nominee'} is before the `
+              + `${R.office(world, R.confirmingChamber(world))?.name || 'chamber'} for its advice and consent. `
+              + 'The chair stays empty until the vote carries, and no other name can be sent up for it until then.')
+            : null,
           // A nomination is not an appointment. While one is outstanding the
           // seat is neither filled nor free, and saying so is the whole point —
           // otherwise the room looks broken while someone thinks it over.
@@ -4129,7 +4166,7 @@ VIEWS.oval = (root) => {
           // An occupied post is filled before it is refilled: dismissal comes
           // first, so a replacement is never a single click that quietly
           // removes someone. A fixed-term seat cannot be cleared at all.
-          can && !pending ? el('div', { class: 'row', style: { marginTop: '5px' } },
+          can && !pending && !sent ? el('div', { class: 'row', style: { marginTop: '5px' } },
             // Forced, because naming a secretary has to land the moment you
             // pick the name. The periodic repaint is held while a form control
             // holds focus (app.busy → typingIn) — which is exactly the state a
