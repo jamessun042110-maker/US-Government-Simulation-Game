@@ -10,12 +10,17 @@ The live code is this repo — `/Users/james/Claude Code/congressional app
 challenge`, GitHub `jamessun042110-maker/US-Government-Simulation-Game`. **The
 folder name contains spaces: quote every path.**
 
-**State:** branch **`main`**, clean, five commits on top of `7accfe6` and **not
-pushed**. Suite: **2,338 passed / 0 failed, 130 files** (`electoral.mjs` and
-`broke.mjs` are the new ones), ~35k lines of JS — of which 512 are generated
-(`worldmap.js`). **The whole per-file sweep is green**, which had never been
-true before: `macro.mjs` and `biodates.mjs` were both failing at the previous
-handoff and both are fixed.
+**State:** branch **`main`**, clean, **nine commits on top of `e505e7e`** and
+**not pushed** (`e505e7e` and everything before it *is* pushed). Suite:
+**2,338 passed / 0 failed, 130 files**, ~35k lines of JS — of which 512 are
+generated (`worldmap.js`).
+
+**Do not write "the whole per-file sweep is green" without measuring it over
+repeated runs.** The previous handoff said exactly that, "with no exceptions",
+and it was wrong: `runoff.mjs` was failing 5 runs in 24 and `company.mjs` 3 in
+12, both pre-existing. A single clean sweep tells you nothing about a file that
+fails one time in five. Three flaky files and six engine bugs were fixed on top
+of that sweep — see "What a hundred republics said".
 
 **Check the branch before you commit.** This document used to say `bicameral-congress`,
 clean, not merged and not pushed. Partway through the session that produced the
@@ -540,8 +545,10 @@ independent.
 - Two of the five confetti colours and every flag in the crowd were mixed from
   **`FLAG.hoist` / `FLAG.fly`, keys the Stars and Stripes does not have** —
   leftovers from Silver's two-colour flag. That is why the crowd waved green.
-  Three more of those survive in `js/scene.js` (lines ~1789, ~2589, ~2615) and
-  are still drawing garbage colours.
+  The three that this file used to say still survived in `js/scene.js` (lines
+  ~1789, ~2589, ~2615) are **gone** — checked Aug 24, the only `FLAG.hoist` /
+  `FLAG.fly` / `FLAG.disc` mentions left in that file are the comments recording
+  the fix. Nothing reads those keys any more.
 
 **Party colours are blue and red** (`world.PARTIES`), and each party carries an
 **`ink`** for type laid on that colour — the chips used to hardcode `'#111'`
@@ -861,7 +868,7 @@ a free parameter. If you want it to be, that is the list.
 them.** The census rescale moved the population from twenty-four thousand to
 331 million and the money up a thousandfold — but every *rate* underneath moved
 too, and a threshold calibrated against the old country silently became either
-never-true or always-true. **Seven have been found.** The first four:
+never-true or always-true. **Eight have been found.** The first four:
 
 - **The NPC build trigger** asked whether more than **3%** of the country slept
   outside. The real figure is 0.2%, so no unattended government ever built
@@ -923,6 +930,107 @@ capitalised article, dropped mid-sentence. Without it the founding document read
 
 ---
 
+## What a hundred republics said
+
+Aug 24. A hundred games were run headless — a character with a set temperament
+and party seated in each of the nine offices in turn, forty canon years apiece,
+four thousand canon years in total — twice over: once checking invariants and
+once censusing what the engine actually *did*. `play.mjs` and `play2.mjs` in the
+session scratchpad; they are worth rebuilding if they are gone.
+
+**The invariant pass found nothing, and that is a real result.** No crash, no
+non-finite number anywhere in the economy or the districts, no ghost personas,
+no seat count disagreeing with the document, no election stuck open, no chair
+left vacant at year forty, in any of the hundred.
+
+**The coverage pass found six bugs**, and the method is the transferable part:
+*census what fires, and read the zeroes.* A mechanic that never happens in four
+thousand canon years is either dead code or a bug. That is how all of these
+surfaced, and it is the same trick that found the `market` branch.
+
+- **Not one treaty was ever ratified.** 800 filed, 776 refused. `npc.sueForPeace`
+  files a peace only while `f.atWar` and the ministry answers sixty ticks later,
+  so a war that ended in between left the overture standing with nothing to
+  settle — and `tickAssent` wrote that down as the *power refusing*, and shut
+  the door on them for two years. The republic was being punished with
+  diplomatic silence for its war ending. `weighAssent` marks those answers
+  `moot` now; they lapse instead, and nobody is locked out.
+- **A fire destroyed fifteen million homes and made nobody homeless.**
+  `distributePopulation` owns `d.homes`, and the only thing that ever called it
+  was a project *finishing*. Housing gained moved homelessness; housing lost
+  never did.
+- **No retail was ever seeded**, in any world: `gap > 900` where 900 was a
+  factory's jobs before the thousandfold rescale.
+- **A republic in deficit stopped building and never raised another division.**
+  Every NPC spending decision gated on cash in hand, and deficit is the designed
+  normal. An unattended United States lost 34 wars of 34.
+- **An army raised for a war was kept for ever.** Volunteers demobilise;
+  the regular line never did.
+- **69% of nominations were duplicates**, and the same gap let one person be
+  confirmed to two cabinet posts at once.
+
+**Numbers to compare against, per 100 games of 40 years.** Both columns are
+measured on the committed tree — the "after" is the final validation run, not
+the best intermediate one:
+
+| | before | after |
+|---|---|---|
+| crashes / non-finite / invariant breaks | 0 | 0 |
+| republics collapsing | 24 | **16** |
+| laws passed | 435 | **1,037** |
+| buildings opened | 250 | **763** |
+| nominations filed | 559 | **343** (the duplicates are gone) |
+| treaties lapsing honestly | 0 | 246 |
+| **wars won** | **0** | **0** |
+
+**Read that last row.** The war fixes are real — an intermediate configuration
+measured 46 wars won and 31 annexations where there had been 0 and 1 — but the
+constants that produced it also took collapse from 24 in 100 to 71, and a
+republic that always collapses is worse than one that always loses its wars. The
+committed constants buy stability back and hand the victories back with it. The
+gain this session banked is everything *except* the war: a government that keeps
+governing while in deficit, legislates two and a half times as much, builds
+three times as much, and no longer collapses as often. Winning a war still needs
+the balance decision below.
+
+**Two cautions if you rerun this.** `world.elections` is a *rolling window*, not
+a history — it is pruned, so counting `w.elections.length` at year forty says
+nothing and briefly convinced this session that elections had stopped. Count by
+id into a Set. And a tally's fields are `yea`/`nay`, not `yes`/`no`; reading the
+wrong one makes every vote look unrecorded.
+
+### The open question this session did not answer
+
+**The United States cannot win a war, and money is not why.** Spending can buy
+victories — 46 of them in a hundred games — but only at a rate of borrowing that
+collapses seven republics in ten, so the committed constants do not buy them and
+the shipped game still wins none. The model is what is against it:
+`depts.enemyWeight` scales with hostility, Canada's hostility climbs to 100 and
+pins there, so Canada is worth 8-10 in the line by the time the shooting starts
+while the republic can afford about four formations. Beating that needs roughly
+six, at `UPKEEP_PER_FORMATION` — $210bn each, every year — which is 113% of
+everything the republic raises, permanently.
+
+Spending more does not fix it. Every capital share measured bought more collapse
+and no more victories: at a 0.35 share, 11 of 20 republics collapsed and none
+won; at 1.0, 15 of 20 collapsed and three won.
+
+So the question is a balance one and it belongs to the owner, not to a session
+at three in the morning. It is one of:
+
+- **the army is priced too dear** — four formations cost three quarters of
+  federal revenue at the founding, before the republic does anything at all,
+  where the real figure is about 13%; or
+- **revenue is too thin** — the game raises 5.6% of GDP where the real federal
+  government raises about 19%, which makes *everything* unaffordable and is why
+  `ADMINISTRATION_PER_HEAD` bites as hard as it does; or
+- **hostility should not double a neighbour's divisions**, only their
+  willingness to use them.
+
+Pick one deliberately. Changing any of them moves the whole economy, which is
+why this session changed none of them and fixed only the gate that was
+plainly wrong.
+
 ## Still to do
 
 **Queued, not started:**
@@ -955,10 +1063,17 @@ capitalised article, dropped mid-sentence. Without it the founding document read
    ($22.4T output, $1.25T revenue, $1.24T spending) and unattended runs behave,
    but the director's crisis costs, NPC bill sizes and the pace at which the
    treasury drains are all untested by a player.
-4. **Hunt the rest of the stale rates.** Seven found, three of them in the last
-   session by re-reading that section and doing what it says. There is no reason
-   to think seven is the number. The recipe and the grep are in "Rates written
-   for twenty-four thousand people".
+4. **Hunt the rest of the stale rates.** Eight found, three of them in one
+   earlier session and an eighth on Aug 24 (`seedStock`'s `gap > 900`, which
+   meant no Retail District was ever seeded in any world). The Aug 24 sweep of
+   the documented grep found nothing else in the money literals — `npc.js`'s
+   `1e8` floors and `acts.js`'s `1e9` were all correctly rescaled — so the
+   remaining ones, if any, are *rates and shares* rather than sums — which is
+   the harder half and where the last three came from. There is no reason to
+   think eight is the number. The recipe and the grep are in "Rates written for
+   twenty-four thousand people", and the complementary method — census what
+   fires across a hundred games and read the zeroes — is in "What a hundred
+   republics said".
 5. **Icons and the per-view palette.** `--brand` is federal blue and the parties
    are blue and red, so the wordmark, the default accent and every party chip
    agree with the title screen. What is left is the **per-view accent scopes**
@@ -988,15 +1103,20 @@ capitalised article, dropped mid-sentence. Without it the founding document read
 
 **Known rough edges:**
 
-- **The whole suite is green.** `macro.mjs` and `biodates.mjs` were both failing
-  at the last handoff and both are fixed — see "The flakes, and the lesson".
-  There is no known-failing test right now, which has not been true before.
-- **`senateclasses.mjs` fails about 8% of the time**, and it is a *guarantee*
-  ("class 1 sits two years, class 2 four, class 3 six") so by this file's own
-  rule it is a bug, not a sample. Measured at 3/40 before the last session's
-  changes and 4/40 after, so it is pre-existing and nothing recent caused it.
-  When it fails all three classes read 6.0 years, which means the first-term cut
-  in `actions.beginSeason` did not happen at all. **Nobody has looked yet.**
+- **The suite is green, and the "no exceptions" claim was not true.** The
+  previous handoff said the per-file sweep was clean with no exceptions. It was
+  not: `runoff.mjs` failed 5 runs in 24 and `company.mjs` 3 in 12, both measured
+  in a stashed tree before this session touched anything. Both are fixed. If you
+  are about to write that sentence again, **measure it over repeated runs first**
+  — a single clean sweep says nothing about a file that fails one time in five.
+- **`senateclasses.mjs` is fixed** — it was the age trap a fourth time.
+  `SEAT_SELF` asks `eligibleByAge`, `makePersona` rolls from 34, the presidency
+  asks 35, so about one founder in thirty-four was refused the chair; a founder
+  with no chair fails `readyGate`, which makes `READY` a silent no-op, so the
+  world never left `convention` and `beginSeason` — where the first terms are
+  cut — never ran. 13 in 300 before, 0 in 60 after. The setup now asserts it
+  produced a live republic, because a convention that never adjourned came back
+  as three unrelated-looking failures and none of them named the cause.
 - **A two-way presidential race has no college majority about 13% of the time**
   — 8 in 60 measured — because 68 electors is an even number and a country near
   50–50 lands on 34–34. The House then decides (7 of those 8) and a deadlocked
