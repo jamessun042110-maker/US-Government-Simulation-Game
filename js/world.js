@@ -3,7 +3,7 @@
 import { rng, range, pick, clamp, uid, sum, mulberry32, hashSeed, PALETTE, youthOf, YOUTH_APPROVAL } from './util.js';
 import { templateById, termEndTick, apportion, cohortsOf } from './rules.js';
 import { initMacro } from './macro.js';
-import { STATE_NAMES, isCoastal, LAKES, STATES, codeOf, peopleOf, democratOf, joblessOf, roughOf, homeValueOf, incomeOf } from './atlas.js';
+import { STATE_NAMES, isCoastal, LAKES, STATES, FEDERAL_DISTRICT, codeOf, peopleOf, democratOf, joblessOf, roughOf, homeValueOf, incomeOf } from './atlas.js';
 import { cityGeometry, inPoly, bounds } from './geo.js';
 
 export const ZONES = {
@@ -471,6 +471,33 @@ export function newWorld(opts) {
       salience: { jobs: range(world, .5, 1), housing: range(world, .3, 1), taxes: range(world, .3, 1), order: range(world, .3, 1), amenity: range(world, .2, .8) },
       history: [],
     });
+  }
+
+  // The District of Columbia, which is not one of them.
+  //
+  // It is kept off `world.districts` on purpose. That array is "the states": the
+  // Senate takes its seat count from it, Huntington-Hill apportions the House
+  // across it, and `assignDistrictSeats` deals a chair for every entry. A
+  // twenty-first member would quietly give the district two senators and a
+  // congressman, which is the one thing about Washington that is not true.
+  //
+  // So it lives here instead, with exactly the two things the presidential count
+  // needs - a population and a party split - in the same shape a district uses,
+  // so `partisanOf` reads it without knowing it is not a state. Three electoral
+  // votes, per the Twenty-third Amendment. See electoral.js.
+  {
+    const lib = clamp(FEDERAL_DISTRICT.democrat + range(world, -0.025, 0.025), 0.05, 0.95);
+    const committed = 1 - UNDECIDED_AT_FOUNDING;
+    const partisan = { democrat: committed * lib, republican: committed * (1 - lib) };
+    world.dc = {
+      id: 'dc', name: FEDERAL_DISTRICT.name, code: FEDERAL_DISTRICT.code,
+      pop: Math.round(FEDERAL_DISTRICT.people * 1e6),
+      electors: FEDERAL_DISTRICT.electors,
+      lean: partisan.democrat >= partisan.republican ? 'democrat' : 'republican',
+      partisan,
+      undecided: UNDECIDED_AT_FOUNDING,
+      mood: Math.round(range(world, 44, 62)),
+    };
   }
 
   // One parcel per congressional district.

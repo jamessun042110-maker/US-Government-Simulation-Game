@@ -14,7 +14,7 @@ import * as GEO from './geo.js';
 import * as ATL from './atlas.js';
 import * as WP from './worldproj.js';
 import { COUNTRIES as WORLD_COUNTRIES, byIso as worldByIso } from './worldmap.js';
-import { ALASKA, ALASKA_WORLD, HAWAII, CENTRAL_AMERICA, CARIBBEAN } from './atlas.js';
+import { ALASKA, ALASKA_WORLD, HAWAII, CENTRAL_AMERICA, CARIBBEAN, FEDERAL_DISTRICT } from './atlas.js';
 import * as MACRO from './macro.js';
 import * as CO from './company.js';
 import { nationalApproval, approvalDrivers, approvalByDistrict, DRAFT_SLOWDOWN, openElections, pactHolds, interestRate } from './sim.js';
@@ -3030,6 +3030,29 @@ function cityMap(world) {
           + ` pointer-events="none">${b.byUs ? 'HELD BY US' : 'OCCUPIED'}</text>`);
       }
     }
+  }
+
+  // The District of Columbia.
+  //
+  // Drawn as a marker rather than as its polygon, because the polygon is right
+  // and useless: the survey diamond is a tenth of a degree across, which on this
+  // map is a third of a frame unit — thinner than the stroke that would draw it.
+  // So the real shape is scaled up about eight times around its own centre, which
+  // keeps the retroceded Virginia side visible and makes it something you can
+  // actually see. It carries no district colour because it is not a state and
+  // returns nobody; the three beside it are its electoral votes, which are the
+  // only thing it does get. See electoral.js.
+  if (world.dc) {
+    const c = FEDERAL_DISTRICT.at, k = 8;
+    const blow = FEDERAL_DISTRICT.poly.map(([x, y]) => [c[0] + (x - c[0]) * k, c[1] + (y - c[1]) * k]);
+    parts.push(`<path d="${GEO.pathOf(blow)}" fill="#d8cfae" stroke="#3a2f1c" stroke-opacity="0.7" stroke-width="0.5" stroke-linejoin="round"/>`);
+    parts.push(`<text x="${(c[0] + 4.5).toFixed(1)}" y="${(c[1] + 1).toFixed(1)}"`
+      + ` font-size="3.1" font-weight="800" letter-spacing="0.3" fill="#3a2f1c"`
+      + ` stroke="#e8dcc0" stroke-opacity="0.6" stroke-width="1.1" paint-order="stroke"`
+      + ` pointer-events="none">D.C.</text>`);
+    parts.push(`<text x="${(c[0] + 4.5).toFixed(1)}" y="${(c[1] + 4.4).toFixed(1)}"`
+      + ` font-size="2.4" fill="#5b4a2c" fill-opacity="0.85" pointer-events="none">`
+      + `${world.dc.electors} electors</text>`);
   }
 
   // District lines over the parcels, and the selected parcel picked out.

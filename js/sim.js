@@ -8,6 +8,7 @@
 import { clamp, rng, chance, pick, sum, uid, money, moneyExact, withThe, MOOD_DAMP, APPROVAL_DAMP, nudgeMood, nudgeMoodAll, youthOf, YOUTH_CONNECTION } from './util.js';
 import { log, canonDate, obituary, writeFinalBios, computeRanking } from './chronicle.js';
 import * as R from './rules.js';
+import * as EC from './electoral.js';
 import { BUILDINGS, recomputeEconomy, distributePopulation, totalPop, makePersona, PARTIES, COLLEGES, temperamentOf } from './world.js';
 import { closeFloor, closeOverride, scheduleElection, vacate, promulgate, createDoc, introduce, callAllies, dismissAllies, tickNominations, tickDivestOfficeholders, ALLY_WEIGHT, DICTATE_TICKS, TOTAL_FRONT } from './acts.js';
 import { tickMedia } from './media.js';
@@ -1685,6 +1686,11 @@ function scheduleRunoff(world, prev, o, topTwo) {
 
 // How reliably each part of the electorate turns out. A party's firm bloc votes;
 // the undecided vote at less than half that, and the rest of them stay home.
+// What one player's ballot is worth in their own state, as a share of what that
+// state actually casts. Enough to decide a state balanced on a knife edge; not
+// remotely enough for a table of four to outvote 331 million. Only the
+// presidential count uses it — see closeElection.
+const PLAYER_BALLOT_SHARE = 0.01;
 const PARTISAN_TURNOUT = 0.75;
 const UNDECIDED_TURNOUT = 0.4;
 
@@ -1801,9 +1807,15 @@ export function closeElection(world, e) {
       return offs.includes(head?.id) ? full : 1 + (full - 1) * 0.5;
     };
 
-    const appeals = field.map((c) => {
+    // Appeal is a function of *place*, because party fit is. A Democrat runs
+    // better in a Democratic state and worse in a Republican one, and a
+    // presidential count that asked this once nationally could not see that.
+    // `referendum` still reads the outer `d` rather than the place: whether this
+    // is a verdict on the government is a fact about the office, not about which
+    // state is being counted.
+    const appealsIn = (place) => field.map((c) => {
       const p = world.personas[c.personaId];
-      const partyFit = d && p.party === d.lean ? 1.25 : 0.85;
+      const partyFit = place && p.party === place.lean ? 1.25 : 0.85;
       const incumbency = R.seatOf(world, c.personaId) ? 1.1 : 1;
       // A former head of government's endorsement is a thumb on the scale worth
       // (their performance score / 100) per cent — heavier the better regarded
@@ -1821,27 +1833,146 @@ export function closeElection(world, e) {
     // stay home. A candidate with no party has only the undecided to win, which in
     // a two-party electorate is almost never enough — running as an independent is
     // meant to be hard.
-    const part = partisanOf(world, d);
-    const N = d ? d.pop : totalPop(world);
-    const appealSum = sum(appeals) || 1;
-    const partyAppeal = {};
-    field.forEach((c, i) => {
-      const cp = world.personas[c.personaId]?.party;
-      if (cp) partyAppeal[cp] = (partyAppeal[cp] || 0) + appeals[i];
-    });
-    field.forEach((c, i) => {
-      const cp = world.personas[c.personaId]?.party;
-      const bloc = (cp && (part.partisan[cp] || 0) > 0)
-        ? N * part.partisan[cp] * PARTISAN_TURNOUT * (appeals[i] / (partyAppeal[cp] || 1))
-        : 0;
-      const undec = N * (part.undecided || 0) * UNDECIDED_TURNOUT * (appeals[i] / appealSum);
-      const citizens = (bloc + undec) / 1000 * cw;
-      const players = sum(Object.entries(e.ballots), ([voter, choice]) =>
-        choice === c.personaId ? pw * (world.personas[voter]?.playerId ? 1 : 0.4) : 0);
-      c.votes = citizens + players;
-      c.breakdown = { citizens, players, bloc: (bloc / 1000) * cw, undecided: (undec / 1000) * cw };
-    });
-    const winner = field.slice().sort((a, b) => b.votes - a.votes)[0];
+    //
+    // One question, asked of one place. A district election asks it once about
+    // its own district; a presidential election asks it twenty-one times, once
+    // per state and once for the District of Columbia, and the Electoral College
+    // counts the answers.
+    const splitIn = (place, byHome) => {
+      const appeals = appealsIn(place);
+      const part = partisanOf(world, place);
+      const N = place ? place.pop : totalPop(world);
+      const appealSum = sum(appeals) || 1;
+      const partyAppeal = {};
+      field.forEach((c, i) => {
+        const cp = world.personas[c.personaId]?.party;
+        if (cp) partyAppeal[cp] = (partyAppeal[cp] || 0) + appeals[i];
+      });
+      const rows = field.map((c, i) => {
+        const cp = world.personas[c.personaId]?.party;
+        const bloc = (cp && (part.partisan[cp] || 0) > 0)
+          ? N * part.partisan[cp] * PARTISAN_TURNOUT * (appeals[i] / (partyAppeal[cp] || 1))
+          : 0;
+        const undec = N * (part.undecided || 0) * UNDECIDED_TURNOUT * (appeals[i] / appealSum);
+        const citizens = (bloc + undec) / 1000 * cw;
+        return {
+          personaId: c.personaId, cand: c, citizens, votes: citizens, players: 0,
+          bloc: (bloc / 1000) * cw, undecided: (undec / 1000) * cw,
+        };
+      });
+      // Where a player's own ballot goes.
+      //
+      // Everywhere else it is a flat `playerWeight`, which is a national figure
+      // and has nowhere to land on a map. In a presidential election it is cast
+      // in the state that person is from — `persona.district`, or the District of
+      // Columbia for anyone the republic has not placed — and it is worth
+      // PLAYER_BALLOT_SHARE of what that state actually casts. That is enough to
+      // decide a state balanced on a knife edge and nowhere near enough for a
+      // table of four to outvote three hundred and thirty-one million.
+      const cast = sum(rows, (r) => r.citizens) || 1;
+      for (const r of rows) {
+        r.players = byHome
+          ? sum(Object.entries(e.ballots), ([voter, choice]) => {
+            if (choice !== r.personaId) return 0;
+            const v = world.personas[voter];
+            if (!v) return 0;
+            const home = v.district || 'dc';
+            if (home !== (place?.id || 'dc')) return 0;
+            return cast * PLAYER_BALLOT_SHARE * (v.playerId ? 1 : 0.4);
+          })
+          : sum(Object.entries(e.ballots), ([voter, choice]) =>
+            choice === r.personaId ? pw * (world.personas[voter]?.playerId ? 1 : 0.4) : 0);
+        r.votes = r.citizens + r.players;
+      }
+      return rows;
+    };
+
+    // Is this the one office the college decides? The presidency, nationally —
+    // never a district chamber, and never a runoff, which is already a settled
+    // two-horse race.
+    const byCollege = !!head && o.id === head.id && !seat.district && !e.runoff;
+    let college = null;
+    if (byCollege) {
+      college = EC.countCollege(world, (place) =>
+        splitIn(place, true).map((r) => ({ personaId: r.personaId, votes: r.votes })));
+      // The popular vote is still counted and still reported — it is just no
+      // longer what decides it. A candidate can carry the country and lose the
+      // college, which is the whole reason a college is a separate thing.
+      for (const c of field) {
+        const won = college.byState.reduce((n, st) =>
+          n + (st.split.find((x) => x.personaId === c.personaId)?.votes || 0), 0);
+        c.votes = won;
+        c.electors = college.tally[c.personaId] || 0;
+        c.breakdown = { citizens: won, players: 0, bloc: 0, undecided: 0 };
+      }
+      e.college = {
+        need: college.need, total: college.electors.total, tally: college.tally,
+        byState: college.byState.map(({ place, name, electors, winner: w, share }) =>
+          ({ place, name, electors, winner: w, share })),
+      };
+    } else {
+      const rows = splitIn(d, false);
+      field.forEach((c, i) => {
+        c.votes = rows[i].votes;
+        c.breakdown = {
+          citizens: rows[i].citizens, players: rows[i].players,
+          bloc: rows[i].bloc, undecided: rows[i].undecided,
+        };
+      });
+    }
+    // Not `const`: a contingent election can replace it below.
+    let winner = byCollege && college.winner
+      ? field.find((c) => c.personaId === college.winner)
+      : field.slice().sort((a, b) => b.votes - a.votes)[0];
+    //
+    // Under the college that majority is a majority of *electors*, and when
+    // nobody has one the answer is not a runoff — it is the Twelfth Amendment's
+    // contingent election. The House chooses from the top three and each state
+    // delegation casts one vote, so a congressman from Montana and the whole of
+    // California's delegation weigh the same. A delegation that splits evenly
+    // casts nothing, which is how the thing deadlocks.
+    if (byCollege && !college.winner) {
+      const three = EC.contingentField(college);
+      const cv = EC.contingentVote(world, three,
+        // A member backs their own party's candidate, and beyond that the one
+        // whose state they sit for actually voted for — the delegation is
+        // answerable to that electorate whatever the member thinks.
+        (candId, memberId) => {
+          const cand = world.personas[candId], mem = world.personas[memberId];
+          if (!cand || !mem) return 0;
+          const seatOf = R.seatOf(world, memberId);
+          const st = college.byState.find((x) => x.place === seatOf?.district);
+          return (cand.party && cand.party === mem.party ? 2 : 0)
+            + (st && st.winner === candId ? 1 : 0)
+            + (cand.approval || 0) / 1000;
+        });
+      e.contingent = { field: three, tally: cv.tally, need: cv.need, delegations: cv.delegations };
+      if (cv.winner) {
+        const w = field.find((c) => c.personaId === cv.winner);
+        if (w) {
+          log(world, 'election', `No candidate reached ${college.need} electoral votes. `
+            + `The House of Representatives chooses, voting by state delegation, and elects `
+            + `${world.personas[cv.winner]?.name} with ${cv.tally[cv.winner]} of ${(world.districts || []).length} states.`,
+          { weight: 5 });
+          // The contingent election *is* the result. Fall through with it.
+          field.forEach((c) => { c.contingentWinner = c.personaId === cv.winner; });
+          winner = w;
+        }
+      } else {
+        // A deadlocked House is a real outcome and the republic still needs
+        // somebody sworn in. The country votes again between the two who came
+        // closest — not the Constitution's answer (which is the Vice President
+        // acting) but the one this engine can carry, since a presidency left
+        // vacant here would have nobody to succeed to it.
+        const topTwo = field.slice().sort((a, b) => b.votes - a.votes).slice(0, 2);
+        log(world, 'election', `The House deadlocks: no candidate carried ${cv.need} state delegations. `
+          + 'The country votes again.', { weight: 5 });
+        scheduleRunoff(world, e, o, topTwo);
+        e.status = 'closed';
+        e.closedAt = world.clock.tick;
+        return;
+      }
+    }
     const prev = seat.personaId;
     // Whether the country kept the person it had. Read before the seat is
     // touched, because vacate() clears it.
@@ -1856,7 +1987,10 @@ export function closeElection(world, e) {
     // them necessarily clears fifty per cent. Head office only; district and
     // chamber seats stay first-past-the-post, and a two-horse race needs no
     // runoff (one of two already has the majority, bar an exact tie).
-    if (head && o.id === head.id && !seat.district && !e.runoff
+    // A runoff still settles every other head-of-government election — a
+    // constitution that has amended the presidency into something the college
+    // does not cover, and the runoff round itself.
+    if (!byCollege && head && o.id === head.id && !seat.district && !e.runoff
       && field.length > 2 && winner.votes <= total / 2) {
       const topTwo = field.slice().sort((a, b) => b.votes - a.votes).slice(0, 2);
       scheduleRunoff(world, e, o, topTwo);
@@ -1953,13 +2087,33 @@ export function closeElection(world, e) {
     // countTerm has already run for this win, so the tally on the persona
     // is the number of terms including the one just begun.
     const held = world.personas[winner.personaId]?.terms?.[o.id] || 1;
+    // How the win is described. A presidential result is an electoral one: the
+    // popular share is reported beside it and not instead of it, because the
+    // interesting sentence a college makes possible is "lost the country and won
+    // the office", and a line that only quoted the popular vote could not say it.
+    const byHouse = !!e.contingent && winner.contingentWinner;
+    const tallyOf = e.college ? (e.college.tally[winner.personaId] || 0) : 0;
+    const how = e.college
+      ? (byHouse
+        ? `chosen by the House with ${e.contingent.tally[winner.personaId]} of ${(world.districts || []).length} state delegations`
+          + `, after a college of ${e.college.total} gave nobody ${e.college.need}`
+        : `with ${tallyOf} of ${e.college.total} electoral votes and ${share}% of ${cast} cast`)
+      : `with ${share}% of ${cast} votes`;
     log(world, 'election', returned
       ? `${world.personas[winner.personaId]?.name} is re-elected ${o.seats > 1 ? 'to the ' : ''}${o.name}${where}`
         + `${held > 1 ? ` for a ${['', 'first', 'second', 'third', 'fourth', 'fifth', 'sixth'][Math.min(6, held)]} term` : ''}`
-        + `, with ${share}% of ${cast} votes.`
-      : `${world.personas[winner.personaId]?.name} takes the ${o.name}${where} with ${share}% of ${cast} votes`
+        + `, ${how}.`
+      : `${world.personas[winner.personaId]?.name} takes the ${o.name}${where} ${how}`
         + `${prev ? `, unseating ${world.personas[prev]?.name}` : ''}.`,
     { actors: [winner.personaId, prev].filter(Boolean), weight: 2 });
+    // And the thing worth saying out loud when it happens.
+    if (e.college && !byHouse) {
+      const popular = field.slice().sort((a, b) => b.votes - a.votes)[0];
+      if (popular && popular.personaId !== winner.personaId) {
+        log(world, 'election', `${world.personas[popular.personaId]?.name} carried the country and lost it: `
+          + `more votes, fewer states.`, { actors: [popular.personaId], weight: 4 });
+      }
+    }
 
     // The winner's running mate takes the office elected on this ticket (the VP).
     const mateOffice = R.ticketMateOffice(world, e.office);

@@ -813,6 +813,39 @@ export const STATES = [
   },
 ];
 
+/**
+ * The District of Columbia.
+ *
+ * Not one of the twenty, and deliberately not in `STATES`: it is not a state, it
+ * elects nobody to either chamber, and everything that deals seats walks that
+ * array. What it does have is three electoral votes — the Twenty-third Amendment
+ * gives the district as many as the least populous state, which is three — and
+ * about seven hundred thousand people who are counted in no state's total.
+ *
+ * That combination is the whole point of modelling it. A place with a
+ * presidential vote and no congressional one is a fact about the United States
+ * that a government simulator either represents or quietly erases, and it costs
+ * one record to represent.
+ *
+ * The shape is the real diamond with the Virginia side retroceded — the survey
+ * laid out a square ten miles on a side and Alexandria was given back in 1847,
+ * so the western third is the Potomac now. At this scale it is about a third of
+ * a frame unit across, which is why the map draws it as a marker rather than
+ * trusting the polygon to be visible.
+ */
+export const FEDERAL_DISTRICT = {
+  id: 'dc', name: 'District of Columbia', code: 'DC',
+  people: 0.69, democrat: 0.92, electors: 3,
+  poly: [
+    P(38.995, -77.041),                    // the north corner of the survey
+    P(38.893, -76.909),                    // the east corner
+    P(38.79, -77.039),                     // the south corner, at the Potomac
+    P(38.835, -77.078), P(38.934, -77.12), // up the river, where Alexandria went back
+  ],
+  /** Where a marker goes, since the polygon is smaller than the pen. */
+  at: P(38.9, -77.03),
+};
+
 // --- Water ------------------------------------------------------------------
 //
 // The terrain generator used to scatter two lakes per seed at whatever inland
