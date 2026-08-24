@@ -2082,8 +2082,46 @@ export function appointGate(world, byPersonaId, seatId, personaId) {
   if (outstanding) {
     return fail(`${world.personas[outstanding.personaId]?.name} was offered the ${o.name} and has not answered. Withdraw it first.`);
   }
+  // And one *nomination* at a time, which is a different queue and was not
+  // checked at all. `world.nominations` holds only offers waiting on a player to
+  // accept; a synthetic nominee skips that queue entirely and goes straight to
+  // `sendUp`, which puts a document on the confirming chamber's floor and leaves
+  // the chair empty until it carries. For those ninety-odd ticks this gate saw a
+  // vacant seat and an empty offer queue and let the same name be sent up again,
+  // and again.
+  //
+  // Measured over six republics of forty years: 22 of 32 nominations — 69% —
+  // were the same person for the same seat, filed while the previous one was
+  // still live. It is not only noise. A nomination occupies the floor, and
+  // `npc.warBill` and the rest of the government's business will not file
+  // anything while a document is standing on it, so a president re-nominating
+  // their own Secretary of State four times over is a president who has stopped
+  // the legislature to do it.
   const nominee = world.personas[personaId];
   if (!nominee || !nominee.alive) return fail('There is nobody by that name to appoint.');
+  const pending = Object.values(world.documents || {}).filter((d) => d.type === 'nomination'
+    && ['draft', 'floor', 'awaiting-signature'].includes(d.status));
+  const live = pending.find((d) => (d.clauses || []).some((c) => c.kind === 'CONFIRM' && c.seatId === seat.id));
+  if (live) {
+    const who = world.personas[(live.clauses || []).find((c) => c.kind === 'CONFIRM')?.persona]?.name;
+    return fail(`${who || 'A nominee'} is already before the ${R.office(world, R.confirmingChamber(world))?.name || 'chamber'} for the ${o.name}.`);
+  }
+  // And the same blind spot the other way round. `R.mayAlsoHold` above asks what
+  // offices this person *holds*, and somebody waiting on the Senate holds
+  // nothing — so the same name could be sent up for State and for Defense on
+  // consecutive turns, pass `mayAlsoHold` both times because neither had seated
+  // yet, and be confirmed to both. That is the plurality of office the
+  // constitution forbids, arrived at through the one door that does not check
+  // for it, and it is what `npccabinet.mjs`'s "nobody holds two of them" was
+  // catching. A nomination is a claim on a person as much as on a chair.
+  const elsewhere = pending.find((d) => (d.clauses || []).some((c) => c.kind === 'CONFIRM'
+    && c.persona === personaId && c.seatId !== seat.id));
+  if (elsewhere && !R.allowsPlurality(world)) {
+    const other = (elsewhere.clauses || []).find((c) => c.kind === 'CONFIRM');
+    const otherSeat = world.seats.find((x) => x.id === other?.seatId);
+    return fail(`${nominee?.name || 'That name'} is already before the chamber for the `
+      + `${R.office(world, otherSeat?.office)?.name || 'another office'}, and no person may hold two.`);
+  }
   return ok({ seat, office: o, nominee, needsConsent: !!nominee.playerId });
 }
 
