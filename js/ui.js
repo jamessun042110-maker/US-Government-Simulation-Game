@@ -2826,9 +2826,25 @@ function seaLabels(box, scale = 1, ink = '#dfe9f2', opacity = 0.34, seas = ATL.S
     const pad = 3;
     const x = clamp(sea.at[0], box.x + half + pad, box.x + box.w - half - pad);
     const y = clamp(sea.at[1], box.y + size + pad, box.y + box.h - pad);
+    // Haloed, because a sea's *name* is wider than the sea.
+    //
+    // Every anchor in WORLD_SEAS is in open water — checked, all fifteen — but
+    // the label is centred on it and runs outward, and at world scale "GULF OF
+    // MEXICO" is several times wider than the Gulf. So most of the lettering
+    // lands on Texas and Mexico, where pale blue at a third opacity against sand
+    // is not faint, it is gone: the Gulf, the Mediterranean and the South China
+    // Sea all read as unlabelled. They were being drawn the whole time, and last,
+    // on top of everything — the fault was contrast, not order.
+    //
+    // The stroke is the deep water this map is drawn on, so over sea it is
+    // invisible and over land it cuts the letters out of the ground. Cheaper and
+    // steadier than trying to find a gap in the coastline big enough for the
+    // words.
     return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle"`
       + ` font-size="${size.toFixed(1)}" font-weight="600" letter-spacing="${track.toFixed(1)}"`
       + ` fill="${ink}" fill-opacity="${opacity}" pointer-events="none"`
+      + ` stroke="#0e3448" stroke-opacity="${(opacity * 0.85).toFixed(2)}"`
+      + ` stroke-width="${(size * 0.16).toFixed(2)}" stroke-linejoin="round" paint-order="stroke"`
       + ` font-family="var(--sans), system-ui, sans-serif">${esc(text)}</text>`;
   }).join('');
 }
@@ -3260,9 +3276,38 @@ function cityMap(world) {
 function compassRose(cx, cy, r) {
   const ink = '#efe7d3';
   const n = (v) => (+v).toFixed(1);
-  return `<g pointer-events="none"><circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="#0e3448" stroke="${ink}" stroke-width="${n(r * 0.13)}"/>`
-    + `<path d="M${n(cx)},${n(cy - r * 0.79)} L${n(cx + r * 0.27)},${n(cy)} L${n(cx)},${n(cy + r * 0.79)} L${n(cx - r * 0.27)},${n(cy)} Z" fill="${ink}"/>`
-    + `<text x="${n(cx)}" y="${n(cy - r * 1.21)}" text-anchor="middle" font-size="${n(r * 0.71)}" font-weight="800" fill="${ink}">N</text></g>`;
+  // A rose, not a letter on a disc. It used to be a circle, a single vertical
+  // needle and the letter N — which orients the map and does not read as a
+  // compass, because a compass has four points on it and everyone knows what one
+  // looks like. Now: the four ordinals as a thin star underneath, the cardinals
+  // as a filled four-point needle with north picked out light and south dark so
+  // the needle has a direction, a hub, and all four letters.
+  const pt = (a, len, w) => {
+    const rad = (d) => (d * Math.PI) / 180;
+    const tip = [cx + Math.sin(rad(a)) * len, cy - Math.cos(rad(a)) * len];
+    const l = [cx + Math.sin(rad(a - 90)) * w, cy - Math.cos(rad(a - 90)) * w];
+    const rr = [cx + Math.sin(rad(a + 90)) * w, cy - Math.cos(rad(a + 90)) * w];
+    return `M${n(tip[0])},${n(tip[1])} L${n(rr[0])},${n(rr[1])} L${n(l[0])},${n(l[1])} Z`;
+  };
+  const label = (a, ch) => {
+    const rad = (a * Math.PI) / 180;
+    const d = r * 1.34;
+    return `<text x="${n(cx + Math.sin(rad) * d)}" y="${n(cy - Math.cos(rad) * d + r * 0.26)}"`
+      + ` text-anchor="middle" font-size="${n(r * 0.62)}" font-weight="800" fill="${ink}">${ch}</text>`;
+  };
+  return `<g pointer-events="none">`
+    + `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r)}" fill="#0e3448" stroke="${ink}" stroke-width="${n(r * 0.11)}"/>`
+    + `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r * 0.74)}" fill="none" stroke="${ink}" stroke-opacity="0.35" stroke-width="${n(r * 0.05)}"/>`
+    // the ordinals, thin and dim
+    + [45, 135, 225, 315].map((a) => `<path d="${pt(a, r * 0.66, r * 0.1)}" fill="${ink}" fill-opacity="0.4"/>`).join('')
+    // the cardinals, and north brightest
+    + `<path d="${pt(90, r * 0.82, r * 0.15)}" fill="${ink}" fill-opacity="0.75"/>`
+    + `<path d="${pt(270, r * 0.82, r * 0.15)}" fill="${ink}" fill-opacity="0.75"/>`
+    + `<path d="${pt(180, r * 0.82, r * 0.17)}" fill="${ink}" fill-opacity="0.45"/>`
+    + `<path d="${pt(0, r * 0.86, r * 0.17)}" fill="${ink}"/>`
+    + `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r * 0.12)}" fill="${ink}"/>`
+    + label(0, 'N') + label(90, 'E') + label(180, 'S') + label(270, 'W')
+    + `</g>`;
 }
 
 function parcelCell(pp) {
@@ -3440,14 +3485,19 @@ VIEWS.world = (root) => {
     parts.push(fills.join(''));
     parts.push(`<path d="${lines.join(' ')}" fill="none" stroke="#26506a" stroke-opacity="0.28" stroke-width="0.7" stroke-linejoin="round"/>`);
   }
-  // The isthmus first, and under everything: it is scenery, not a player, and it
-  // is the only land on this map nobody can take. Drawn a shade greyer than the
-  // countries and with no capital, no name and no standing — the eye should read
-  // "the continent carries on" and then stop looking at it. See
-  // atlas.CENTRAL_AMERICA for why it is not part of the continent proper.
-  parts.push(sand(GEO.pathOf(WP.ring(CENTRAL_AMERICA))));
-  parts.push(`<path d="${GEO.pathOf(WP.ring(CENTRAL_AMERICA))}" fill="#cfc7b0"/>`);
-  parts.push(`<path d="${GEO.pathOf(WP.ring(CENTRAL_AMERICA))}" fill="none" stroke="#26506a" stroke-opacity="0.42" stroke-width="1.4" stroke-linejoin="round"/>`);
+  // The isthmus is **not** drawn here, and that is the fix rather than an
+  // omission. `atlas.CENTRAL_AMERICA` is one featureless blob standing in for
+  // the whole isthmus, authored for the Domestic map where there is no basemap
+  // under it and the continent has to be shown carrying on somehow. On *this*
+  // map there is a basemap, and it has Guatemala, Belize, Honduras, El Salvador,
+  // Nicaragua, Costa Rica and Panama in it, each with its own borders.
+  //
+  // The blob was pushed after the basemap and so painted straight over all seven
+  // — the comment here used to say "first, and under everything", which is what
+  // it meant to do and the opposite of what the draw order did. Central America
+  // simply did not exist on the world map. The real countries are better in
+  // every way, so they are what is drawn.
+
   parts.push(sand(GEO.pathOf(G.ring)));
   parts.push(sand(GEO.pathOf(G.sab)));
   // Alaska and Hawaii, in their true positions.
@@ -3477,8 +3527,37 @@ VIEWS.world = (root) => {
   }
 
   parts.push('<g clip-path="url(#wland)">');
+  // The powers, in their colours — from the *basemap's* outline while the
+  // frontier is where history left it, and from the game's own geometry once it
+  // is not.
+  //
+  // `G.halves` is the atlas's hand-drawn North America, and the atlas is written
+  // to be checkable rather than to be traced: its Canada is a good likeness at
+  // the scale the Domestic map is read at, and painted opaquely over Natural
+  // Earth's Canada on a world map it visibly does not fit the country underneath
+  // it. On this map the honest outline is available and free.
+  //
+  // But it is only honest while nothing has moved. The whole point of
+  // `atlas.ringsAt` is that annexation shifts a real frontier, and Natural
+  // Earth cannot show that — a Canada half taken would still draw full size. So
+  // the moment a frontier has moved for a power, that power reverts to the
+  // geometry that knows where its border actually is now.
+  const ISO_OF = { canada: 'CA', mexico: 'MX', us: 'US' };
+  const anyMoved = Object.values(world.annexed || {}).some((v) => Math.abs(v) > 0.01);
   for (const id of ['canada', 'mexico', 'us']) {
-    parts.push(`<path d="${GEO.pathOf(G.halves[id])}" fill="${LAY[id].fill}"/>`);
+    const moved = id === 'us' ? anyMoved : Math.abs((world.annexed || {})[id] || 0) > 0.01;
+    const base = moved ? null : worldByIso(ISO_OF[id]);
+    if (base) {
+      // The lower 48 only for us: Alaska and Hawaii are painted separately just
+      // above, from these same rings, and painting them twice is harmless but
+      // painting them here would also drag in every outlying territory.
+      const rings = id === 'us'
+        ? base.rings.filter((r) => r.reduce((n, q) => n + q[0], 0) / r.length >= -130)
+        : base.rings;
+      parts.push(`<path d="${rings.map((r) => GEO.pathOf(WP.ringOfLonLat(r))).join(' ')}" fill="${LAY[id].fill}"/>`);
+    } else {
+      parts.push(`<path d="${GEO.pathOf(G.halves[id])}" fill="${LAY[id].fill}"/>`);
+    }
   }
   // Ground currently held by somebody else's army: over the countries, under
   // the terrain and the names, hatched — occupation, not a redrawn border. The
