@@ -808,14 +808,25 @@ export function treatyParty(world, doc) {
  */
 export function weighAssent(world, doc) {
   const t = treatyParty(world, doc);
-  if (!t?.foreign) return { ok: false, reason: 'There is no such power to sign it.' };
+  // `moot` marks the answers that are not answers: the proposal was overtaken by
+  // events between the day it was filed and the day the ministry got to it, and
+  // nobody on the other side ever weighed it. See tickAssent, which records a
+  // moot treaty as lapsed rather than refused and does not lock the power out
+  // for it. A refusal is a decision; this is the absence of one.
+  if (!t?.foreign) return { ok: false, moot: true, reason: 'There is no such power to sign it.' };
   const f = t.foreign;
 
   // A peace treaty is the one thing a country at war signs, and the one thing a
   // country at peace has no business signing. Both are refused the wrong way
   // round: only-at-war for peace, only-at-peace for the others.
   if (t.kind === 'TREATY_PEACE') {
-    if (!f.atWar) return { ok: false, reason: `${world.nation} is not at war with ${f.name}. No war to end.` };
+    // Moot, not refused. `npc.sueForPeace` files this only while the war is on,
+  // and the ministry answers sixty ticks later — so a war that ends in between
+  // (won, lost, or settled another way) left the overture standing with nothing
+  // to settle. Measured over 240 canon years, 8 of 35 peace treaties arrived
+  // here to a war that was already over, and every one was written down as
+  // Canada declining and cost two years of diplomatic silence.
+    if (!f.atWar) return { ok: false, moot: true, reason: `${world.nation} is not at war with ${f.name}. No war to end.` };
     // Their willingness follows the ground. The front is signed from *our*
     // point of view — positive means we are winning, so they want to stop —
     // and negative means they are winning, so they are not looking to. Map
@@ -832,7 +843,9 @@ export function weighAssent(world, doc) {
     return { chance: clamp(p, 0.02, 0.98), foreign: f, reasons };
   }
 
-  if (f.atWar) return { ok: false, reason: `${f.name} is at war with ${world.nation}. Nothing to discuss.` };
+  // Also moot, and the mirror of the case above: an ordinary treaty filed in
+  // peacetime that a declaration of war overtook before it was answered.
+  if (f.atWar) return { ok: false, moot: true, reason: `${f.name} is at war with ${world.nation}. Nothing to discuss.` };
 
   if (refusing(world, f)) {
     return {
@@ -919,10 +932,19 @@ export function tickAssent(world) {
     doc.assent.answered = world.clock.tick;
     doc.assent.agreed = yes;
     doc.assent.why = w.reason || (w.reasons || []).join(', ');
+    doc.assent.moot = !yes && w.moot === true;
     // A no stands. Otherwise the same treaty goes back out on the next tick
     // and hostility decides nothing but how many attempts it takes.
-    if (!yes && f) f.refusedUntil = world.clock.tick + refusalTicks(world);
-    out.push({ doc, yes, foreign: f, why: doc.assent.why });
+    //
+    // But only a real no. A moot treaty is one nobody read — the war it would
+    // have ended was over before the ministry answered — and locking the power
+    // out of diplomacy for two years because a war *finished* punishes the
+    // republic for the thing it wanted. It also compounds: every overture filed
+    // in the closing weeks of a war came back a refusal and pushed the door
+    // shut again, which is a large part of why 776 of 800 treaties across four
+    // thousand canon years ended refused and not one was ever ratified.
+    if (!yes && f && !doc.assent.moot) f.refusedUntil = world.clock.tick + refusalTicks(world);
+    out.push({ doc, yes, foreign: f, why: doc.assent.why, moot: doc.assent.moot });
   }
   return out;
 }

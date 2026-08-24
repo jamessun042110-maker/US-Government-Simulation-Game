@@ -97,13 +97,21 @@ export function tick(world) {
   // Foreign ministries answering the treaties put to them. An accepted one is
   // laid before the chamber exactly as it would have been; a refused one is
   // dead, and the Department of State has somewhere to start again.
-  for (const { doc, yes, foreign, why } of DEP.tickAssent(world)) {
+  for (const { doc, yes, foreign, why, moot } of DEP.tickAssent(world)) {
     if (yes) {
       doc.status = 'draft';
       const res = introduce(world, doc.id, doc.authorId, 90);
       log(world, 'war', `${foreign?.name} agrees to “${doc.title}”${why ? ` — ${why}` : ''}. `
         + `It goes before the chamber.`, { docId: doc.id, weight: 3 });
       if (!res.ok) doc.status = 'draft';
+    } else if (moot) {
+      // Nobody declined this. It was overtaken between the day it was filed and
+      // the day the ministry reached it — most often a treaty of peace whose war
+      // ended first — so it lapses, and the power is not written down as having
+      // refused something it never read. See depts.weighAssent, `moot`.
+      doc.status = 'lapsed';
+      log(world, 'war', `“${doc.title}” is overtaken by events${why ? ` — ${why}` : ''}. `
+        + 'It is withdrawn.', { docId: doc.id, weight: 2 });
     } else {
       doc.status = 'refused';
       log(world, 'war', `${foreign?.name} declines “${doc.title}”${why ? ` — ${why}` : ''}.`,

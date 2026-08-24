@@ -1972,7 +1972,7 @@ function strikeControl(d, p) {
 }
 
 function statusTag(d) {
-  const map = { law: ['green', 'in force'], failed: ['red', 'failed'], struck: ['purple', 'struck down'], floor: ['gold', 'on the floor'], override: ['gold', 'override'], vetoed: ['red', 'vetoed'], 'awaiting-signature': ['blue', 'awaiting signature'], 'awaiting-assent': ['blue', 'with the other party'], refused: ['red', 'declined abroad'], draft: ['', 'draft'] };
+  const map = { law: ['green', 'in force'], failed: ['red', 'failed'], struck: ['purple', 'struck down'], floor: ['gold', 'on the floor'], override: ['gold', 'override'], vetoed: ['red', 'vetoed'], 'awaiting-signature': ['blue', 'awaiting signature'], 'awaiting-assent': ['blue', 'with the other party'], refused: ['red', 'declined abroad'], lapsed: ['', 'overtaken by events'], draft: ['', 'draft'] };
   const [cls, label] = map[d.status] || ['', d.status];
   return el('span', { class: 'tag ' + cls }, label);
 }
