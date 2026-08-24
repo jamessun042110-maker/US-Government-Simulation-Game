@@ -16,7 +16,23 @@ const pid = w.players.p1.personaId;
 w.seats.find((s) => s.office === 'president').personaId = pid;
 
 const key = Object.keys(W.BUILDINGS)[0];
-const idx = w.city.parcels.findIndex((p) => !p.building && !p.project);
+// A parcel this bill could legally build on, guaranteed rather than hoped for.
+//
+// This was a bare `findIndex`, and `findIndex` returns -1 when every parcel in
+// the country is already built — `parcels[-1]` is undefined and line 25 threw,
+// taking the whole file down with it about twice in twenty-five runs. A seeder
+// that fills the map more thoroughly makes a full country more likely (the
+// `market` branch in world.seedStock now places rather than being dead code),
+// but the fault is here: the file is about what happens to a BUILD clause when
+// its ground is taken while the chamber debates, and it needs a free parcel to
+// say that about. So it takes one, clearing the least useful thing standing if
+// the seeder happened to leave nothing.
+let idx = w.city.parcels.findIndex((p) => !p.building && !p.project);
+if (idx < 0) {
+  idx = w.city.parcels.findIndex((p) => !p.water && !p.project);
+  if (idx >= 0) w.city.parcels[idx].building = null;
+}
+if (idx < 0) throw new Error('setup: no parcel available to contest');
 const doc = A.createDoc(w, { type: 'bill', title: 'The Contested Ground Act', authorId: pid,
   clauses: [{ kind: 'BUILD', building: key, parcel: idx }] });
 A.introduce(w, doc.id, pid, 20);

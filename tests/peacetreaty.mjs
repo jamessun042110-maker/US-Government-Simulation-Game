@@ -68,6 +68,12 @@ function mk() {
   const { w, pid } = mk();
   const f = w.foreign.find((x) => x.id === 'canada');
   f.atWar = true;
+  // Hostile, because that is the only kind of country you sign a peace with.
+  // Canada boots at 6 now that it is a treaty ally rather than a fascist state
+  // (see world.FOREIGN), and a power at 6 has no room to come down 30 — so the
+  // setup was measuring the floor rather than the clause. The claim is unchanged
+  // and is about the clause: a peace brings hostility down substantially.
+  f.hostility = 80;
   const war = { id: 'w0', foreign: f.id, started: 0, front: 20, exhaustion: 0, allies: [] };
   w.military.wars.push(war);
   const bootHostility = f.hostility;

@@ -889,7 +889,7 @@ export function weighAssent(world, doc) {
     const ours = (world.military?.units || 0) * 18 + 40;
     if (f.strength > ours * 1.5) { p *= 0.6; reasons.push(`${f.name} does not need the protection`); }
   }
-  if (f.ideology === 'fascist') { p *= 0.6; reasons.push('their government reads agreements as weakness'); }
+  if (f.revisionist) { p *= 0.6; reasons.push('their government reads agreements as weakness'); }
   if (f.allied) { p = Math.min(0.98, p * 1.4); reasons.push('they are already allied to you'); }
   if (f.pact && world.clock.tick < f.pact.ends) { p = Math.min(0.98, p * 1.3); reasons.push('a pact already holds between you'); }
 

@@ -175,10 +175,44 @@ export function seedPartisanFor(world, stateName) {
   return { partisan, undecided: UNDECIDED_AT_FOUNDING, lean: leanId };
 }
 
+/**
+ * The neighbours.
+ *
+ * **Canada was a fascist state until Aug 24, and it is not one.** It held that
+ * slot because the fork inherited it: Silver needed a hostile neighbour on the
+ * northern frontier and the rewrap changed the name on it without changing what
+ * it was. `ideology === 'fascist'` was then read in four places — hostility
+ * drifted five times faster, rearmament twice as fast, war was half again as
+ * likely and every treaty was 40% less likely to be signed — so the whole
+ * antagonist mechanism was welded to a factual claim about a real country that
+ * is a parliamentary democracy, a NATO ally and the United States' largest
+ * trading partner.
+ *
+ * The mechanism is worth keeping and the claim is not, so the two are separated.
+ * A power carries `revisionist` — does this government read restraint as
+ * invitation — as its own field, and the engine reads *that* plus hostility
+ * rather than inferring aggression from a form of government. That is also the
+ * more honest model: countries become dangerous to each other through
+ * relations, not through their constitutions, and any of them can.
+ *
+ * The consequence is deliberate and should be understood before it surprises
+ * anybody: with no revisionist power on the board, war is now rare. The game
+ * has no realistic adversary because the three neighbours it has are two allies
+ * and a trading bloc — which is a true description of North America and a gap in
+ * the game. Filling it is the foreign-policy revision in the owner's list, where
+ * the rest of the world becomes playable and the adversaries are wherever the
+ * relations actually are. See the handoff.
+ */
 export const FOREIGN = [
-  { id: 'canada', name: 'Canada', ideology: 'fascist', hostility: 34, strength: 120, blurb: 'A rearming neighbour that reads restraint as invitation.' },
-  { id: 'sab', name: 'The Caribbean League', ideology: 'mercantile league', hostility: 12, strength: 70, blurb: 'The islands south of Florida, self-governing as one trading bloc. No army to speak of, and a tariff schedule with opinions.' },
-  { id: 'mexico', name: 'Mexico', ideology: 'republic', hostility: 4, strength: 85, blurb: 'Sister republic. Signs things. Means about half of them.' },
+  { id: 'canada', name: 'Canada', ideology: 'parliamentary democracy', revisionist: false,
+    bloc: ['NATO', 'UN', 'USMCA', 'Five Eyes'], hostility: 6, strength: 120,
+    blurb: 'Treaty ally, largest trading partner, and the longest undefended border in the world. Disagrees loudly about lumber and dairy and about nothing else.' },
+  { id: 'sab', name: 'The Caribbean League', ideology: 'mercantile league', revisionist: false,
+    bloc: ['UN'], hostility: 12, strength: 70,
+    blurb: 'The islands south of Florida, self-governing as one trading bloc. No army to speak of, and a tariff schedule with opinions.' },
+  { id: 'mexico', name: 'Mexico', ideology: 'federal republic', revisionist: false,
+    bloc: ['UN', 'USMCA'], hostility: 8, strength: 85,
+    blurb: 'Sister republic and treaty partner across the busiest land border on earth. Signs things. Means about half of them.' },
 ];
 
 /**

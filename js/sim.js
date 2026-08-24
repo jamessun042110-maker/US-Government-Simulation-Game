@@ -2319,7 +2319,7 @@ export function warOdds(world, f) {
   // Temperament. A trading league does not invade over a tariff dispute — and
   // the SAB is an island with no land border, so a war with it cannot even move
   // ground (see depts.occupiedBand). It gets a fraction of anyone else's odds.
-  const nature = f.ideology === 'fascist' ? 1.5 : f.ideology === 'mercantile league' ? 0.3 : 1;
+  const nature = f.revisionist ? 1.5 : f.ideology === 'mercantile league' ? 0.3 : 1;
   const temper = nature * (f.allied ? 0.15 : 1) * pact;
   return clamp(base * temper, 0, 0.6);
 }
@@ -2401,7 +2401,7 @@ function tickWar(world) {
       // Plus whatever is massed on their border — see depts.borderMenace. An
       // army sitting on a frontier is a standing provocation, not a one-off,
       // so it belongs in the drift rather than only in the act of deploying.
-      f.hostility = clamp(f.hostility + (f.ideology === 'fascist' ? 0.05 : 0.01)
+      f.hostility = clamp(f.hostility + (f.revisionist ? 0.05 : 0.01)
         + DEP.borderMenace(world, f.id)
         - (f.allied ? 0.06 : 0) - (pactHolds(world, f) ? 0.03 : 0), 0, 100);
       // And a rearming neighbour rearms. Strength was set at the founding and
@@ -2423,7 +2423,7 @@ function tickWar(world) {
       // field and one that ignored it cannot. See WAR_MOBILISE for the wartime
       // ceiling, which moves with it.
       if (f.baseStrength == null) f.baseStrength = f.strength;
-      const arming = (f.hostility - 40) / 100 * (f.ideology === 'fascist' ? 0.06 : 0.03);
+      const arming = (f.hostility - 40) / 100 * (f.revisionist ? 0.06 : 0.03);
       f.strength = clamp(f.strength + arming - (f.allied ? 0.02 : 0),
         f.baseStrength * 0.5, f.baseStrength * ARMING_CEILING);
       // A power beaten in war carries its exhaustion into the peace and works it

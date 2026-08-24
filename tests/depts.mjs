@@ -56,6 +56,11 @@ const mk = () => {
   // Terms cost money and work harder. Money at this size needs authority: the
   // department spends through disburseGate like everything else, so the test
   // declares the emergency the constitution would otherwise require.
+  // Something for the money to buy. Canada boots at 6 as a treaty ally now, and
+  // a 15-point fall out of 6 is arithmetic rather than diplomacy — the claim is
+  // that terms move relations further than talk does, so there has to be a
+  // relationship to move. See world.FOREIGN.
+  f.hostility = Math.max(f.hostility, 45);
   const h1 = f.hostility, t0 = w.economy.treasury;
   w.emergency = { active: true, by: pid, started: w.clock.tick, ends: w.clock.tick + 5000 };
   DEP.talk(w, pid, f.id, 'terms');
