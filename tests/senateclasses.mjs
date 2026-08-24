@@ -21,8 +21,28 @@ const ok = (l, c, x = '') => console.log((c ? 'PASS ' : 'FAIL ') + l + (x ? ' | 
 function republic() {
   const w = W.newWorld({ nation: 'The United States', founder: 'A B' });
   ACT.apply(w, { type: 'JOIN', playerId: 'p1', name: 'A B' });
+  // And no age in the way. Every claim in this file is about the Senate's
+  // classes, but `SEAT_SELF` asks `eligibleByAge` before it seats anybody, and
+  // `makePersona` rolls from 34 against a presidency that asks 35. About one
+  // founder in thirty-four was therefore refused the chair — and a founder who
+  // holds no chair fails `readyGate`, so `READY` was a silent no-op, the world
+  // never left `convention`, and `beginSeason` never ran. The first terms are
+  // cut there, so all twenty senators kept the full six years they were minted
+  // with and the file read 6.0 / 6.0 / 6.0. Measured at 13 in 300.
+  //
+  // Same trap as candidacy.mjs, termlimit.mjs and emptyballot.mjs, and the same
+  // fix: put the age out of the way so the assertions can only be answering the
+  // question they ask. See the handoff, "Ages, water, cloakrooms".
+  const founder = w.personas[w.players.p1.personaId];
+  founder.age = Math.max(founder.age ?? 0, R.minAgeFor(w, 'president') + 5);
   ACT.apply(w, { type: 'SEAT_SELF', playerId: 'p1', seatId: w.seats.find((s) => s.office === 'president').id });
   ACT.apply(w, { type: 'READY', playerId: 'p1', ready: true });
+  // The setup either produced a live republic or it produced nothing worth
+  // measuring. Assert it here rather than letting a convention that never
+  // adjourned come back as a mystifying reading further down: every number in
+  // this file is stamped by `beginSeason`, so if it did not run, the failures
+  // are all downstream of one cause and none of them name it.
+  if (w.phase !== 'live') throw new Error(`setup: the republic did not ratify (phase=${w.phase})`);
   // The clock is held at the first tick until the oath is taken, and canon time
   // stops while any ballot waits on a player. Neither is what this file is about.
   w.inaugurated = 1;
