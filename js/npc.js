@@ -129,6 +129,48 @@ export function dispositionOf(p) {
 /** A chance roll scaled by how busy this person is, kept on sane rails. */
 const acts = (world, p, base) => chance(world, clamp(base * dispositionOf(p).energy, 0.01, 0.85));
 
+/**
+ * What the republic can commit to a thing — which is not the cash in the drawer.
+ *
+ * Every NPC spending decision used to gate on `world.economy.treasury * k`. That
+ * reads as prudence and is not: a negative treasury in this engine is not
+ * insolvency, it is an overdraft. `macro.financeDeficit` moves the year's
+ * shortfall onto the debt stock at the year's close and squares the balance back
+ * to zero, so spending past the balance is ordinary government borrowing and
+ * there is no hard limit on it anywhere else in the model.
+ *
+ * `ADMINISTRATION_PER_HEAD` then made deficit the designed normal — a republic
+ * opens at about break-even and goes into the red doing what governments do. So
+ * `cost > treasury * k` is true almost always, and the effect was that a republic
+ * stopped doing anything that cost money the moment it first went into deficit,
+ * permanently:
+ *
+ *   - It stopped building. Measured over five republics, the built parcel count
+ *     froze around year fifteen and did not move again for the remaining
+ *     twenty-five years.
+ *   - It stopped arming. The cash gate blocked rearmament on 84.6% of all ticks
+ *     spent at war, because the treasury was negative on 76.8% of them. An
+ *     unattended United States began with four divisions, never raised a fifth,
+ *     and lost every war it ever fought — 34 of 34, at an average front of -85.
+ *     No dictate window ever opened, so 304 wars across four thousand canon
+ *     years produced exactly one annexation.
+ *
+ * So the question is the one a finance ministry actually asks: can the country
+ * carry this? A share of a year's revenue, and nothing at all once the debt
+ * stock is no longer sustainable — which is `macro.debtReading`'s own verdict,
+ * reused rather than re-invented so the two cannot drift apart.
+ */
+function canCommit(world, cost, share) {
+  const e = world.economy || {};
+  if (!MACRO.debtReading(world).sustainable) return false;
+  return cost <= Math.max(0, e.treasury || 0) + (e.revenueYr || 0) * share;
+}
+
+// A capital project is one or two per cent of a year's revenue; an army in
+// wartime is a third of one. Both are what those things actually cost a country.
+const COMMIT_BUILD = 0.05;
+const COMMIT_WAR = 0.35;
+
 /** The synthetic holder of the top chair, or null when a player holds it. */
 export function npcHead(world) {
   const head = R.headOffice(world);
@@ -498,7 +540,7 @@ function build(world, p) {
       : 'market';
 
   const b = BUILDINGS[key];
-  if (b.cost > world.economy.treasury * 0.4) return;
+  if (!canCommit(world, b.cost, COMMIT_BUILD)) return;
 
   const free = world.city.parcels
     .map((x, i) => ({ x, i }))
@@ -864,7 +906,7 @@ function warBill(world, p) {
   // ever bought in a republic with a chamber — see CLAUSES.RAISE_AIRWINGS.
   const wings = enemy && (world.military.airforce || 0) < 2 && disp.nerve > 0 ? 1 : 0;
   const cost = want * DEP.DIVISION_COST + wings * DEP.AIRWING_COST;
-  if (cost > world.economy.treasury * 0.6) return;   // not with money the country does not have
+  if (!canCommit(world, cost, COMMIT_WAR)) return;   // not beyond what the country can carry
 
   const doc = A.createDoc(world, {
     type: 'bill',
