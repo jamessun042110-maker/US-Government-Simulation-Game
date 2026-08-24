@@ -10,7 +10,7 @@ import { log } from './chronicle.js';
 import { CANON } from './rules.js';
 import * as R from './rules.js';
 import * as A from './acts.js';
-import { recomputeEconomy, BUILDINGS } from './world.js';
+import { recomputeEconomy, distributePopulation, totalPop, BUILDINGS } from './world.js';
 
 const needs = (world, tag) => !tag || (CANON[world.canon]?.allow || []).includes(tag);
 
@@ -339,6 +339,21 @@ function damage(w, n) {
     const p = pick(w, built);
     p.building = null; p.landValue = Math.round(p.landValue * 0.7);
   }
+  // A building lost is the mirror of a building opened, and the engine already
+  // knows how to handle one opening: `sim.tickProjects` pairs these two calls
+  // the moment a site finishes. Only `recomputeEconomy` ran here, and it does
+  // not keep `d.homes` — that is `distributePopulation`'s, and nothing but a
+  // completed project ever called it. So housing *gained* moved homelessness
+  // and housing *lost* never did: burning every building in the country
+  // destroyed 15.2 million homes and left homelessness at 674,716, exactly
+  // where the seeder had put it, for the rest of the Season.
+  //
+  // Jobs were live the whole time because `recomputeEconomy` reads them off the
+  // parcels directly, which is why the asymmetry was invisible — the fire
+  // plainly did something, just never the housing half of it. Relief already
+  // survives this recompute (see world.distributePopulation), so the people a
+  // shelter programme housed are not put back on the street by a fire.
+  distributePopulation(w, totalPop(w));
   recomputeEconomy(w);
 }
 function randomOfficeholder(w) {
