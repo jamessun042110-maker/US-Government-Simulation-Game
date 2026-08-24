@@ -111,8 +111,28 @@ const grow = (w, co, years) => {
   ok('the founder kept three quarters of it', co.founderShares === co.shares * 0.75,
     `${co.founderShares} of ${co.shares}`);
   ok('a share has a price', CO.sharePrice(w, co) > 0, '$' + CO.sharePrice(w, co).toFixed(2));
-  ok('fourteen years in it is a tower or a campus', ['tower', 'hq'].includes(CO.stageOf(co.valuation).id),
-    `${CO.stageOf(co.valuation).id} at ${M$(CO.valuation(w, co))}`);
+  // A tower is reached, not reached *by year fourteen*. This asserted the stage
+  // on the same tick the listing was checked, and the stage is the same dice the
+  // comment above concedes: measured over twenty founders every one of them got
+  // to a tower or a campus, but the year they arrived ran from 7 to 19, so a
+  // reading taken at fourteen failed 3 times in 20 with the company still in the
+  // office at $45M–$76M against the $80M a tower asks. That is the tendency /
+  // guarantee line the handoff draws: *that it gets there* is the guarantee and
+  // it holds every time; *when* is a sample.
+  //
+  // So it is given the years it takes, with a stated budget and an early exit —
+  // which costs nothing in the common case, because most founders are already
+  // there when the listing is checked.
+  const TOWER_BUDGET = 24; // years from founding; the slowest of twenty took 19
+  let towerYear = ['tower', 'hq'].includes(CO.stageOf(co.valuation).id) ? 14 : null;
+  for (let y = 15; y <= TOWER_BUDGET && towerYear == null; y++) {
+    grow(w, co, 1);
+    if (['tower', 'hq'].includes(CO.stageOf(co.valuation).id)) towerYear = y;
+  }
+  ok('a company that keeps growing becomes a tower or a campus', towerYear != null,
+    towerYear != null
+      ? `${CO.stageOf(co.valuation).id} in year ${towerYear} at ${M$(CO.valuation(w, co))}`
+      : `still ${CO.stageOf(co.valuation).id} at ${M$(CO.valuation(w, co))} after ${TOWER_BUDGET} years`);
   // The cap is now enforced rather than chased — see tickCompany. The slack
   // left here is only for output moving between the company's tick and this
   // reading, not for a firm sitting over the line for years.
