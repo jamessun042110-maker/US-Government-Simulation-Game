@@ -45,10 +45,19 @@ export const BUILDINGS = {
  * budget, and a caller that weighs only the purchase arms the republic into a
  * permanent deficit it cannot then legislate its way out of.
  *
- * For scale: the founding army of four formations costs $840bn a year against
- * about $1.12T of revenue — three quarters of everything the republic raises.
+ * It was $2.1e11, and that was the largest single number in the budget: four
+ * formations came to $840bn a year — **68% of all federal spending and 76% of
+ * everything the republic raised** — which is what the founding deficit of
+ * -$136bn actually was, and why no republic could ever afford the army it needed
+ * to win a war. The real United States spends about 12.6% of federal outlays on
+ * defence.
+ *
+ * At $3.85e10 the founding establishment of four is 14% of revenue, a wartime
+ * army of ten is 35% (about what a major war has historically cost), and the
+ * republic opens within a few billion of break-even — which is where
+ * ADMINISTRATION_PER_HEAD was always meant to put it.
  */
-export const UPKEEP_PER_FORMATION = 2.1e11;
+export const UPKEEP_PER_FORMATION = 3.85e10;
 
 export const MAX_DISTRICTS = 20;
 
@@ -615,11 +624,27 @@ export const LABOUR_SHARE = 0.48;
  * What the ordinary business of government costs, per person, per year.
  *
  * Set so a founding republic under the default constitution opens at close to
- * break-even: about $1.25T of revenue against about $1.25T of spending. That is
+ * break-even: about $1.1T of revenue against about $1.1T of spending. That is
  * the position the game wants — solvent, and unable to do anything new without
  * deciding where the money comes from.
+ *
+ * It was $1,150, which put administration at 31% of spending against the army's
+ * 68% — a federal government that spent two thirds of its money on four
+ * divisions and a third on everything else it does. Both numbers moved together:
+ * the army came down to a realistic 14% share (see UPKEEP_PER_FORMATION) and
+ * this came up to absorb the room, so the *balance* is unchanged at roughly zero
+ * and only the shape of the budget is different. Without moving this too, cutting
+ * the army would have handed the republic a $650bn surplus and taken money back
+ * out of the game as a constraint, which is the exact thing this constant exists
+ * to prevent.
+ *
+ * For scale it is still low: real non-defence federal spending is about $17,800
+ * a head. The game's whole budget envelope is roughly a quarter of the real one
+ * (revenue is 4.9% of GDP where the real figure is 18.1%), and that is a
+ * deliberate simplification rather than an error — but it is why this reads
+ * small against the country it is charging.
  */
-export const ADMINISTRATION_PER_HEAD = 1150;
+export const ADMINISTRATION_PER_HEAD = 2800;
 
 /**
  * The country the republic inherits, before it has built anything.

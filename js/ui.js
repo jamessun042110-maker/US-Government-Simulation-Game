@@ -1679,7 +1679,11 @@ VIEWS.convention = (root) => {
                 el('b', { class: readyCount === active.length ? 'green' : '' }, `${readyCount} / ${active.length}`))
             : null,
           el('button', {
-            class: 'btn ' + (iAmReady ? 'ghost' : 'primary'), style: { width: '100%' },
+            // A little taller than an ordinary button: it is the one control on
+            // this page that starts the game, and it should not read as the
+            // same weight as "Amend it →".
+            class: 'btn ' + (iAmReady ? 'ghost' : 'primary'),
+            style: { width: '100%', padding: '12px 14px', fontSize: '15px' },
             disabled: blocked,
             onclick: () => go('READY', { ready: !iAmReady }),
           }, !iAmSeated ? 'Take a chair before you can ready up'
@@ -1711,7 +1715,12 @@ VIEWS.convention = (root) => {
           `Ordinary legislation passes at ${Math.round((c.legislature.passFraction || 0) * 100)}%`
           + `, a veto is overridden at ${Math.round((c.legislature.overrideFraction || 0) * 100)}%`
           + `, and this document is amended at ${Math.round((c.amendment?.fraction || 0) * 100)}%.`)),
-      beginCard);
+      beginCard,
+      // The way out sits under the way in, at the same width. It used to be the
+      // last card in the right-hand column, below the seat list, the party
+      // picker and the roster — a long way from the decision it undoes, and a
+      // different width from it.
+      conventionBack(world));
 
   const seatCol = el('div', { class: 'stack' },
       el('div', { class: 'card gold' + (Object.values(world.players).some((p) => !world.seats.some((s) => s.personaId === p.personaId)) ? ' cta-pulse' : '') },
@@ -1750,13 +1759,29 @@ VIEWS.convention = (root) => {
               : barred ? young.reason : '',
             onclick: () => { if (!otherFounder && !barred) go('SEAT_SELF', { seatId: s.id }); },
           }, el('div', { class: 'spread' },
-            el('span', {}, o?.name, s.district ? ' — ' + seatWhere(world, s) : ''),
+            el('span', {}, o?.name, s.district ? ' — ' + seatWhere(world, s) : '',
+              // Which class a Senate chair sits in, and what that actually costs
+              // the founder who takes it. The Senate is dealt into three classes
+              // at the founding and only the first terms are cut — class 1 sits
+              // two years, class 2 four, class 3 six — so this is the difference
+              // between facing the country in two years and in six, and it was
+              // decided by which button you happened to press. See
+              // actions.beginSeason and tests/senateclasses.mjs.
+              ((n) => n == null ? null : el('span', { class: 'tiny dimmer' }, ` · Class ${n + 1}`))(
+                R.cohortsOf(o) > 1 ? (s.cohort ?? null) : null)),
             mine ? el('span', { class: 'tag green' }, 'you')
               : otherFounder ? el('span', { class: 'tag red' }, holder.name)
                 : barred ? el('span', { class: 'tag red' }, `${young.need}+`)
                   : el('span', { class: 'tiny dimmer' }, holder ? holder.name + ' · take' : 'take')),
             barred ? el('div', { class: 'tiny', style: { color: 'var(--red)', marginTop: '2px' } },
-              `You are ${young.age}. The constitution sets ${young.need} for this office — eligible in ${young.years} year${young.years === 1 ? '' : 's'}.`) : null);
+              `You are ${young.age}. The constitution sets ${young.need} for this office — eligible in ${young.years} year${young.years === 1 ? '' : 's'}.`) : null,
+            (() => {
+              const n = R.cohortsOf(o) > 1 ? (s.cohort ?? null) : null;
+              if (n == null || barred) return null;
+              const first = Math.round((o.termYears || 0) * (n + 1) / R.cohortsOf(o));
+              return el('div', { class: 'tiny dimmer', style: { marginTop: '2px' } },
+                `First term ${first} year${first === 1 ? '' : 's'}, then ${o.termYears} — the classes poll two years apart.`);
+            })());
         }); })())),
       // The side of the aisle you woke up on. It used to be dealt: the founding
       // screen wrote every player in as a Democrat (see app.convene) and you
@@ -1792,7 +1817,6 @@ VIEWS.convention = (root) => {
           p.ready ? el('span', { class: 'tag green' }, 'ready ✓') : el('span', { class: 'tag' }, 'not ready'))),
         el('div', { class: 'tiny dimmer', style: { marginTop: '8px' } },
           'Open a second tab to seat another player.')),
-      conventionBack(world),
   );
 
   root.append(docOpen

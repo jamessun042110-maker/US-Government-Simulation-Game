@@ -193,8 +193,14 @@ const DEBT_STOP = 1.5;   // and at this it has stopped being able to
 // eats about three quarters of everything the republic raises, so anything
 // tighter forbids the country its own opening army — and the peacetime figure is
 // what `standDown` brings it back to once the shooting stops.
-const MILITARY_CEILING = 2.0;
-const PEACE_MILITARY_CEILING = 0.8;
+// Both are shares of a year's revenue, and both were calibrated when a formation
+// cost $210bn a year. At $38.5bn the same shares would let a republic field
+// fifty-seven divisions, so they move with the price: wartime is what a major
+// war has historically cost a country — about 35-40% of the budget, which buys
+// roughly eleven formations — and peacetime is the founding establishment of
+// four. `standDown` brings the army back to the second once the shooting stops.
+const MILITARY_CEILING = 0.40;
+const PEACE_MILITARY_CEILING = 0.15;
 const PEACETIME_FLOOR = 4;
 
 /** The synthetic holder of the top chair, or null when a player holds it. */

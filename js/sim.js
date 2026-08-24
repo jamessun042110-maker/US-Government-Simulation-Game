@@ -2207,6 +2207,32 @@ export const WAR_MOBILISE = 0.008;
  * loses it under fire.
  */
 export const ENEMY_ATTRITION = 0.018;
+/**
+ * NOTE (Aug 24): ours is the constant that decides whether a republic can ever
+ * win a war, and it cannot be moved on its own.
+ *
+ * A republic reinforces by Act of Congress — `npc.warBill` files a bill, which
+ * waits sixty ticks to be introduced and then carries two floors of ninety
+ * apiece, because a bill is bicameral now. Nothing arrives in under ~240 ticks.
+ * At 0.012, with the x1.6 the losing side pays, a division is lost every 52
+ * ticks and the founding army of four is gone in 208: **the army cannot outlive
+ * the bill that replaces it**, which is why an unattended United States lost 34
+ * wars out of 34 and why no amount of money changed it.
+ *
+ * Halving this alone breaks `warscale.mjs`, which holds the two sides to
+ * comparable bleed rates and exists to stop exactly the asymmetry that would
+ * reintroduce. Halving *both* does not work either: the enemy's rearmament is a
+ * third constant that does not scale with them, so at half attrition it offsets
+ * most of their losses and the ratio collapses to 0.30 — the original bug's own
+ * direction. Measured: 300 ticks of stalemate takes them from 300 strength to
+ * 291, where the unhalved pair took a comparable bite out of both sides.
+ *
+ * So the three constants are interlocked and the fix is a rebalance of the
+ * combat model rather than a tuned literal — attrition, rearmament, exhaustion's
+ * 40% drag on our line, and `enemyWeight`'s doubling with hostility all decide
+ * this together. That is the "radical revision" of the military system in the
+ * owner's list, and it is written up in the handoff rather than guessed at here.
+ */
 export const OUR_ATTRITION = 0.012;
 /**
  * How far above its founding strength a power can arm, at peace and at war.
