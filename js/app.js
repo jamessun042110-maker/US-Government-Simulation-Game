@@ -123,15 +123,37 @@ function dispatch(action) {
 // ask how many seconds have actually passed and run that many ticks, which
 // keeps the promise that the world moves while nobody is looking.
 let lastTickAt = Date.now();
-const CATCHUP_CAP = 900; // don't try to simulate more than 15 minutes at once
+const CATCHUP_CAP = 900; // don't try to simulate more than 15 minutes of ticks at once
+
+/**
+ * How long a tick takes in real time. Two seconds, and it used to be one.
+ *
+ * The game runs at half the speed it used to, and this is the only line that
+ * says so. The obvious alternative — doubling `ticksPerYear` to 480 — looks
+ * equivalent and is not: a tick is the unit nearly everything else in the engine
+ * is written in. Slumps decay 0.004 a tick, unemployment closes 6% of its gap a
+ * tick, the NPCs look up every 12, a bill sits on the floor for 90, the court
+ * hears argument for 52. Double the ticks in a year and every one of those
+ * happens twice as often per canon year: the same republic, run twice as hot.
+ * Measured, before this was written the other way: inflation came out 58% lower
+ * over six canon years, the policy rate 55% lower, the output gap three times
+ * wider.
+ *
+ * Slowing the wall clock changes none of it. A canon year is still 240 ticks and
+ * every rate written per tick still means what it meant; the year simply takes
+ * eight minutes to play instead of four. Which is the point — there is a great
+ * deal more to do in a year than there was when this was set: two chambers, a
+ * staggered Senate, advice and consent, and a presidential campaign to run.
+ */
+const MS_PER_TICK = 2000;
 
 function advanceClock() {
   net.renewHost();
   if (!net.isHost || !world) { lastTickAt = Date.now(); return; }
-  const due = Math.floor((Date.now() - lastTickAt) / 1000);
+  const due = Math.floor((Date.now() - lastTickAt) / MS_PER_TICK);
   if (due <= 0) return;
   const run = Math.min(due, CATCHUP_CAP);
-  lastTickAt += due * 1000; // discard anything beyond the cap rather than owing it forever
+  lastTickAt += due * MS_PER_TICK; // discard anything beyond the cap rather than owing it forever
   // The host is the authority on who is still here: drop tabs that have gone
   // silent so an abandoned seat can't hold a table vote hostage.
   prunePlayers(world);
@@ -685,7 +707,7 @@ function renderSetup() {
         // would have gone on saying it afterwards — a summary that is a copy of
         // the settings is a summary that will eventually disagree with them.
         : `Founding on: age ${founderAge}, ${founderCollegeName()}, `
-          + `${cfg.ticksPerYear} seconds a year, ${cfg.seedPop.toLocaleString()} citizens.`)),
+          + `${(cfg.ticksPerYear * MS_PER_TICK) / 1000} seconds a year, ${cfg.seedPop.toLocaleString()} citizens.`)),
     el('p', { class: 'small dim', style: { margin: '16px 0 10px' } },
       'Every founder takes a chair and a side. The government is the one the Constitution sets out — a table that wants to argue the document line by line still can. The Season begins when every seated founder readies up.'),
     el('button', { class: 'btn primary', style: { width: '100%' }, onclick: convene },

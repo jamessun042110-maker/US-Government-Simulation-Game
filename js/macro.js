@@ -36,7 +36,7 @@
 // anything this module reached for that reached back — chronicle, rules —
 // would close a cycle through it. The annual report is returned as a sentence
 // for the tick to write, rather than written from here.
-import { clamp } from './util.js';
+import { clamp, tickScale } from './util.js';
 
 // --- the constants ----------------------------------------------------------
 // Named, and gathered here, because every one of them is a slope on a graph a
@@ -323,17 +323,20 @@ export function taylorRate(world) {
 export function tickMacro(world) {
   const e = ensure(world);
   const per = 1 / world.clock.ticksPerYear;
+  // Every bare convergence rate below is written per tick for a 240-tick year.
+  // See util.tickScale: at the canonical rate this is 1.
+  const ts = tickScale(world);
 
   // 1. The bank defends its target. An independent bank sets that target by the
   //    Taylor rule; a captured one is left wherever the politician put it. Both
   //    move slowly — a target the bank hits the instant it announces it is a
   //    target with no policy lag, and the lag is half of what makes this hard.
   if (world.constitution?.centralBank?.independent !== false) {
-    e.policyRate += (taylorRate(world) - e.policyRate) * 0.02;
+    e.policyRate += (taylorRate(world) - e.policyRate) * 0.02 * ts;
   }
   e.policyRate = clamp(e.policyRate, 0, MAX_POLICY);
   const wanted = baseFor(world, e.policyRate);
-  e.monetaryBase += (wanted - e.monetaryBase) * 0.06;
+  e.monetaryBase += (wanted - e.monetaryBase) * 0.06 * ts;
 
   // 2. The money market clears, and that is the short nominal rate.
   const shortRate = clearingRate(world);
@@ -378,7 +381,7 @@ export function tickMacro(world) {
   //    equation is the whole reason a student learns to tell them apart. High
   //    real rates starve investment; that is the channel crowding out runs down.
   const iTarget = Math.max(0, (e.gdp || 1) * 0.16 * (1 - INVESTMENT_SENSITIVITY * (r - NEUTRAL_REAL)));
-  e.investment += (iTarget - e.investment) * 0.02;
+  e.investment += (iTarget - e.investment) * 0.02 * ts;
 
   // 6. Capacity. It tracks what the map can actually produce, nudged by whether
   //    investment is running above or below replacement — that is the long-run
@@ -387,7 +390,7 @@ export function tickMacro(world) {
   const replacement = (e.gdp || 1) * 0.16;
   const invGrowth = clamp((e.investment - replacement) / Math.max(1, replacement), -1, 1) * 0.02;
   const capacity = Math.max(1, (e.gdp || 1) * (1 + invGrowth));
-  e.potentialGdp = Math.max(1, (e.potentialGdp || capacity) + (capacity - (e.potentialGdp || capacity)) * 0.02);
+  e.potentialGdp = Math.max(1, (e.potentialGdp || capacity) + (capacity - (e.potentialGdp || capacity)) * 0.02 * ts);
 
   // 7. Prices. Short-run Phillips: an economy running hot bids up wages and
   //    prices, a slack one does not. Expectations are adaptive, which is what
@@ -396,7 +399,7 @@ export function tickMacro(world) {
   const gap = outputGap(world);
   const shock = (e.slump || 0) * -0.02;
   const infl = clamp((e.expectedInflation ?? INFLATION_TARGET) + PHILLIPS * gap + shock, MIN_INFLATION, MAX_INFLATION);
-  e.inflation = clamp(e.inflation + (infl - e.inflation) * 0.03, MIN_INFLATION, MAX_INFLATION);
+  e.inflation = clamp(e.inflation + (infl - e.inflation) * 0.03 * ts, MIN_INFLATION, MAX_INFLATION);
   e.expectedInflation = clamp(
     e.expectedInflation + (e.inflation - e.expectedInflation) * EXPECTATION_ADJUST * per * 4,
     MIN_INFLATION, MAX_INFLATION);

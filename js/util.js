@@ -336,3 +336,24 @@ export const PALETTE = [
   '#e0b64a', '#5fa8d3', '#c96a5b', '#7fb069', '#b07fc0',
   '#d98a4a', '#4fb3a4', '#c05f8a', '#8a9ac0', '#a8a04a',
 ];
+
+/**
+ * The tick rate every per-tick rate in this codebase was written against.
+ *
+ * One tick is one second, so `ticksPerYear` is also how many seconds a canon
+ * year takes. Most rates that decay or converge are written as a fraction per
+ * *tick* — 0.004 off a slump, 6% of the gap between unemployment and its
+ * target — and a plain literal like that silently means "per second". Double
+ * the tick rate to slow the game down and every one of them becomes twice as
+ * fast in canon terms: the same slump ends in half a year, the economy
+ * converges twice as quickly, and the republic is a different republic.
+ *
+ * So a rate written for the canonical 240-tick year is scaled by this. At 240 it
+ * is 1 and nothing moves; at 480 it is 0.5, which is half as much per tick and
+ * exactly the same per year. It is the same discipline as RELIEF_DECAY's
+ * `3 / ticksPerYear` — see HANDOFF.md on rates written for the wrong country —
+ * applied to the clock instead of the population.
+ */
+export const CANON_TICKS_PER_YEAR = 240;
+export const tickScale = (world) =>
+  CANON_TICKS_PER_YEAR / (world?.clock?.ticksPerYear || CANON_TICKS_PER_YEAR);

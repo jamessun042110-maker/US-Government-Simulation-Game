@@ -74,6 +74,23 @@ const mk = () => {
 // --- the economic record ------------------------------------------------------
 {
   const { w, pid, seat } = mk();
+  // Give unemployment somewhere to go.
+  //
+  // `economyLine` prints a movement only if it is worth printing — the floor is
+  // a tenth of a point — and this block asserts a *guarantee* that the section
+  // reports one. Left to itself the rescaled economy is stable: national
+  // unemployment sits near its structural rate and a four-year tenure can drift
+  // less than a tenth of a point, at which the engine is right to say nothing
+  // and the assertion is wrong to demand it. Starting three points above
+  // structural makes the fall real, so the sentence is guaranteed rather than
+  // hoped for. Same trap as hiring.mjs and shelter.mjs: measure the thing the
+  // claim is about instead of waiting for it to happen.
+  w.economy.unemployment = (w.economy.structural ?? 0.05) + 0.03;
+  // And prices. Same reason: `economyLine` prints inflation only if it moved a
+  // tenth of a point, and a settled economy sitting on its target does not.
+  // Started hot, it comes down over the tenure and the sentence is real.
+  w.economy.inflation = 0.08;
+  w.economy.expectedInflation = 0.08;
   for (let y = 0; y < 4; y++) {
     for (let i = 0; i < w.clock.ticksPerYear; i++) {
       S.tick(w);
@@ -97,7 +114,11 @@ const mk = () => {
   // reads three. Every other assertion in this block checks the sentence rather
   // than the number in it, for the same reason.
   ok('and what they spent without a vote',
-    /disbursed \$\d+(\.\d+)?M across [1-9]\d* orders? without a vote/.test(econ), econ);
+    // The unit is not pinned. It used to be `M`, because the formatter printed
+    // millions whatever the number was — $740bn came out as "$740315M". It says
+    // the unit that fits now, so this asserts the sentence and lets the
+    // arithmetic pick k, M, bn or tn.
+    /disbursed \$[\d.]+(k|M|bn|tn)? across [1-9]\d* orders? without a vote/.test(econ), econ);
   ok('the numbers are signed and unitful', /\d+\.\d points/.test(econ), econ);
 }
 

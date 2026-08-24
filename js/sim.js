@@ -5,7 +5,7 @@
 // is why a player checking in from a phone at lunch finds a changed world and a
 // queue of decisions.
 
-import { clamp, rng, chance, pick, sum, uid, money, moneyExact, withThe, MOOD_DAMP, APPROVAL_DAMP, nudgeMood, nudgeMoodAll, youthOf, YOUTH_CONNECTION } from './util.js';
+import { clamp, rng, chance, pick, sum, uid, money, moneyExact, withThe, MOOD_DAMP, APPROVAL_DAMP, nudgeMood, nudgeMoodAll, youthOf, YOUTH_CONNECTION, tickScale} from './util.js';
 import { log, canonDate, obituary, writeFinalBios, computeRanking } from './chronicle.js';
 import * as R from './rules.js';
 import * as EC from './electoral.js';
@@ -194,8 +194,11 @@ export function tick(world) {
 function tickEconomy(world) {
   const e = world.economy;
   const per = 1 / world.clock.ticksPerYear;
+  // Bare per-tick rates below are written for a 240-tick year — see
+  // util.tickScale. At the canonical rate this is 1 and nothing changes.
+  const ts = tickScale(world);
   const slump = e.slump || 0;
-  if (e.slump) e.slump = Math.max(0, e.slump - 0.004);
+  if (e.slump) e.slump = Math.max(0, e.slump - 0.004 * ts);
 
   // The money side runs first: the rate the market clears at this tick is the
   // rate this tick's borrowing is priced at. See macro.tickMacro for the chain.
@@ -213,9 +216,9 @@ function tickEconomy(world) {
   // What lenders make of it. Running a deficit (a balance below zero) marks the
   // rating down; carrying a stock approaching a year of output marks it down
   // slowly even in balance; a state that owes nothing and is in the black recovers.
-  if (e.treasury < 0) e.credit = clamp(e.credit - 0.05, 5, 100);
-  else if (MACRO.debtRatio(world) > 0.9) e.credit = clamp(e.credit - 0.02, 5, 100);
-  else e.credit = clamp(e.credit + 0.02, 5, 100);
+  if (e.treasury < 0) e.credit = clamp(e.credit - 0.05 * ts, 5, 100);
+  else if (MACRO.debtRatio(world) > 0.9) e.credit = clamp(e.credit - 0.02 * ts, 5, 100);
+  else e.credit = clamp(e.credit + 0.02 * ts, 5, 100);
   // Slumps put people out of work. Recovery is slower than the fall: the
   // headline rate climbs toward structural-plus-slump fast and falls back at a
   // third the speed, which is why an ignored recession outlives the government.
@@ -241,7 +244,7 @@ function tickEconomy(world) {
   // sets the floor.
   const cyc = e.cyclical || 0;
   const target = clamp(e.structural + slump * 0.11 - relief + cyc, 0.012, 0.65);
-  const rate = target > e.unemployment ? 0.06 : 0.02;
+  const rate = (target > e.unemployment ? 0.06 : 0.02) * ts;
   e.unemployment += (target - e.unemployment) * rate;
   for (const d of world.districts) {
     if (d.structural == null) d.structural = d.unemployment ?? 0.05;
@@ -251,7 +254,7 @@ function tickEconomy(world) {
     // the district's is the one that makes the policy visible.
     d.reliefBoost = Math.max(0, (d.reliefBoost || 0) * (1 - RELIEF_DECAY));
     const dt = clamp(d.structural + slump * 0.11 - relief - d.reliefBoost + cyc, 0.005, 0.75);
-    d.unemployment += (dt - d.unemployment) * (dt > d.unemployment ? 0.06 : 0.02);
+    d.unemployment += (dt - d.unemployment) * (dt > d.unemployment ? 0.06 : 0.02) * ts;
   }
   if (world.clock.tick % world.clock.ticksPerYear === 0) {
     // The year's deficit, if any, is financed into debt here — the balance was
@@ -1731,7 +1734,10 @@ export function shiftPartisan(d, partyId, delta) {
 
 function tickAffiliation(world) {
   if (world.phase !== 'live') return;
-  if (world.clock.tick % AFFIL_CADENCE !== 0) return;
+  // A cadence is a count of ticks, so it scales the *opposite* way to a rate:
+  // twice as many ticks in a year means twice as many ticks between steps, or
+  // the drift happens twice as often per canon year. See util.tickScale.
+  if (world.clock.tick % Math.max(1, Math.round(AFFIL_CADENCE / tickScale(world))) !== 0) return;
   const head = R.headOffice(world);
   const rooms = R.chambers(world);
   const presSeat = world.seats.find((s) => s.office === head?.id && s.personaId);
@@ -2651,10 +2657,40 @@ function tickEmergency(world) {
 
 // --- collapse ---------------------------------------------------------------
 // Seasons are designed to end. Collapse is not a failure state; it is the third act.
+/** How deep an overdraft, in months of the government's own spending, reads as broke. */
+export const BROKE_MONTHS = 3;
+
+// Broke, as a fraction of what the government spends rather than as a number.
+//
+// This was `treasury < -40e6`, and −$40M was a real overdraft when the whole
+// republic held twenty-four thousand people and a budget of a few million.
+// After the thousandfold census rescale the country spends about $1.24T a
+// year, so −$40M is three thousandths of one per cent of it: the treasury
+// crosses that on the first sustained deficit and never comes back. Measured
+// over five unattended republics and 14,832 ticks, the old rule called the
+// government broke on **34.7% of all ticks** — and collapse needs three of five
+// reasons, so one of the five was simply free, and the "third act begins"
+// warning fired on any single other one.
+//
+// Three months of spending is the line, and it is measured rather than
+// guessed. Across those same runs an ordinary deficit bottoms out between half
+// a month and two months of overdraft (5th percentile −1.7 months); deeper
+// than three months happens on 0.6% of ticks, and deeper than four never
+// happens by accident at all. A government that has spent a quarter of a year
+// it does not have is in trouble in a way one running a normal deficit is not.
+//
+// Fifth of its kind — see HANDOFF.md, "Rates written for twenty-four thousand
+// people". A government that spends nothing cannot be overdrawn against its
+// spending, so that case is not broke rather than infinitely broke.
+export function isBroke(world) {
+  const yearsSpend = world.economy?.spendYr || 0;
+  return yearsSpend > 0 && world.economy.treasury < -yearsSpend * BROKE_MONTHS / 12;
+}
+
 function checkCollapse(world) {
   if (world.phase !== 'live') return;
   const approval = nationalApproval(world);
-  const broke = world.economy.treasury < -40e6;
+  const broke = isBroke(world);
   const despair = approval < 24;
   const vacantAll = world.seats.every((s) => !s.personaId);
   const lostWar = world.military.wars.some((w) => w.lost);

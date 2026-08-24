@@ -1035,16 +1035,41 @@ function headlineFact(world, T, sur, personaId) {
         ? `Prices rose ${pts(di).toFixed(0)} points faster by the end.`
         : `Inflation was brought down ${pts(di).toFixed(0)} points.`]);
     }
+    // Scored in points of output, not in dollars.
+    //
+    // These candidates compete on one scale and the winner becomes the lede, so
+    // they have to be commensurable. Unemployment and inflation score in
+    // percentage points — nought to fifteen or so. The debt used to score
+    // `Math.abs(dd) / 1e7`, which was a sane number when the whole republic
+    // owed a few million and is a hundred thousand when it owes a trillion. It
+    // beat every other candidate by five orders of magnitude, so the headline
+    // fact of every single presidency was the debt, whatever else had happened.
+    // The $50M floor was the same constant seen from the other side: it is
+    // four thousandths of a per cent of this country's output, so it never
+    // excluded anything either.
+    //
+    // As a share of GDP it is both scale-free and the way the figure is actually
+    // discussed. Two points of output over a tenure is worth a lede; a tenth of
+    // a point is not.
     const dd = (b.debt ?? 0) - (a.debt ?? 0);
-    if (Math.abs(dd) >= 5e7) {
-      cands.push([Math.abs(dd) / 1e7, dd > 0
-        ? `The national debt grew by $${Math.round(dd / 1e6)}M.`
-        : `$${Math.round(-dd / 1e6)}M was taken off the national debt.`]);
+    const output = Math.max(1, b.gdp || a.gdp || 0);
+    const ddPts = (Math.abs(dd) / output) * 100;
+    if (ddPts >= 2) {
+      cands.push([ddPts, dd > 0
+        ? `The national debt grew by ${moneyish(dd)}, ${ddPts.toFixed(0)} points of output.`
+        : `${moneyish(-dd)} was taken off the national debt.`]);
     }
   }
   const mine = (world.discretionLog || []).filter((r) => r.by === personaId && T.within(r.tick));
   const spent = mine.reduce((s, r) => s + (r.amount || 0), 0);
-  if (spent >= 5e6) cands.push([spent / 1e7, `${sur} disbursed $${Math.round(spent / 1e6)}M without a vote.`]);
+  // The same correction: a share of what the republic takes in for a year, in
+  // points, so it competes with unemployment rather than swamping it.
+  const yearRev = Math.max(1, b?.revenueYr || world.economy?.revenueYr || 0);
+  const spentPts = (spent / yearRev) * 100;
+  if (spentPts >= 1) {
+    cands.push([spentPts, `${sur} disbursed ${moneyish(spent)} without a vote`
+      + `, ${spentPts.toFixed(0)}% of a year's revenue.`]);
+  }
 
   // The border, when it moved and was not the whole of a country. A total
   // annexation belongs to chiefLine, and both sentences in one lede is a
@@ -1318,7 +1343,12 @@ function economyLine(world, T, sur, personaId) {
     return `${d > 0 ? up : down} ${unit(Math.abs(d))}`
       + (level ? `, from ${level(from)} to ${level(to)}` : '');
   };
-  const money0 = (v) => `$${Math.round(v / 1e6)}M`;
+  // Millions were the right unit for a republic whose whole treasury was a few
+  // of them. This country's reserve is measured in hundreds of billions, and
+  // "The reserve fell by $740315M" is a number no reader can hold — the same
+  // stale scale as the collapse threshold and the headline fact, arriving as
+  // prose instead of as arithmetic. `moneyish` says $740.3bn.
+  const money0 = (v) => moneyish(v);
   const pt = (v) => `${(v * 100).toFixed(1)} points`;
   const raw = (v) => `${v.toFixed(1)} points`;
   const pctv = (v) => `${(v * 100).toFixed(1)}%`;
