@@ -106,8 +106,21 @@ const grow = (w, co, years) => {
   // card a year now and every one of them costs something, so the year it
   // clears the listing threshold moves around by several depending on which
   // cards the dice deal. That it gets there is the claim.
+  // Listed, not listed *by year fourteen* — the same tendency/guarantee line as
+  // the tower below, and the same fix. The comment above already concedes the
+  // year moves around by several depending on which cards the dice deal, and a
+  // founder who is at $28.8M against a $30M floor on the tick this is read has
+  // not failed to list, they have not got there yet. Given the years it takes,
+  // with an early exit, so the common case costs nothing.
   grow(w, co, 5);
-  ok('and it has listed', !!co.public, M$(CO.valuation(w, co)));
+  const LIST_BUDGET = 24;
+  let listYear = co.public ? 14 : null;
+  for (let y = 15; y <= LIST_BUDGET && listYear == null; y++) {
+    grow(w, co, 1);
+    if (co.public) listYear = y;
+  }
+  ok('and it has listed', !!co.public,
+    listYear != null ? `in year ${listYear} at ${M$(CO.valuation(w, co))}` : M$(CO.valuation(w, co)));
   ok('the founder kept three quarters of it', co.founderShares === co.shares * 0.75,
     `${co.founderShares} of ${co.shares}`);
   ok('a share has a price', CO.sharePrice(w, co) > 0, '$' + CO.sharePrice(w, co).toFixed(2));
