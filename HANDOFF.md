@@ -10,8 +10,8 @@ The live code is this repo — `/Users/james/Claude Code/congressional app
 challenge`, GitHub `jamessun042110-maker/US-Government-Simulation-Game`. **The
 folder name contains spaces: quote every path.**
 
-**State:** branch **`main`**, clean, **nine commits on top of `e505e7e`** and
-**not pushed** (`e505e7e` and everything before it *is* pushed). Suite:
+**State:** branch **`main`**, clean, **eighteen commits on top of `e505e7e`**
+and **not pushed** (`e505e7e` and everything before it *is* pushed). Suite:
 **2,338 passed / 0 failed, 130 files**, ~35k lines of JS — of which 512 are
 generated (`worldmap.js`).
 
@@ -419,8 +419,19 @@ GDP ≈ $22.4T, revenue ≈ $1.25T, spend ≈ $1.24T.
   executive gate. That relationship is the whole point of the volunteer division
   — see the comment in `depts.js`.
 
-**`ADMINISTRATION_PER_HEAD` is new, and it is what makes money a constraint
-again.** $1,150 a head a year — the schools, courts, roads, pensions and
+**The army was 68% of the budget until Aug 24, and that was the founding
+deficit.** Four divisions cost $840bn a year against $1,100bn of revenue — the
+real United States spends about 12.6% of outlays on defence — and it is why no
+republic could afford an army that could win a war. `UPKEEP_PER_FORMATION` came
+down to $3.85e10 (14% of revenue for the founding four) and
+`ADMINISTRATION_PER_HEAD` went **$1,150 → $2,800** to absorb the room, so the
+balance is unchanged at roughly zero and only the shape of the budget moved.
+A founding republic now reads **revenue $1,102.7bn, spending $1,094.9bn, balance
++$7.7bn**, and 0 of 20 collapse over forty years where the session started at 4.
+The numbers in the rest of this section predate that and describe the old split.
+
+**`ADMINISTRATION_PER_HEAD` is what makes money a constraint
+again.** $2,800 a head a year — the schools, courts, roads, pensions and
 administration the republic inherits along with the country. Nothing builds it
 and nothing can strike it. Without it the founding budget ran a $385B surplus and
 the treasury reached $2.9T inside six canon years, which takes money out of the
@@ -1030,6 +1041,103 @@ at three in the morning. It is one of:
 Pick one deliberately. Changing any of them moves the whole economy, which is
 why this session changed none of them and fixed only the gate that was
 plainly wrong.
+
+## The foreign policy and military revision (items 6 and 7)
+
+Aug 24. Asked for and **not built** — deliberately. Both are architectural, both
+need decisions that are the owner's, and half-building either would leave the
+game worse than it is. What follows is the design and what it collides with, so
+the next session can start from a plan instead of from this paragraph.
+
+What *was* done, because it needed no redesign: **Canada is no longer a fascist
+state**. See that commit. Aggression is now a `revisionist` field on the power
+rather than a property inferred from a form of government, and the three
+neighbours carry their real character and blocs. The cost is that **war is now
+rare — 0.2 a republic, down from 3** — because two allies and a trading bloc is
+a true description of North America and leaves nobody to fight. Supplying real
+adversaries is the whole of item 6.
+
+### What exists to build on
+
+- `js/worldmap.js` already holds **212 countries with ISO 3166-1 codes**. That
+  is the roster; it does not need inventing.
+- `world.foreign` is three hand-written objects carrying `hostility`,
+  `strength`, `atWar`, `revisionist`, `bloc`. The shape generalises; the count
+  does not — every consumer assumes a handful.
+- `depts.js` already has envoys, audiences, summits, treaties and assent, all
+  keyed by `foreignId`. That machinery is per-power already and mostly survives.
+
+### What it collides with, and this is the part to read first
+
+**`atlas.ringsAt` is the annexation mechanism, and it only works for a land
+frontier.** The three neighbours have hand-drawn polygons that reassemble at any
+frontier displacement; that is why territory can change hands at all. A war with
+a country across an ocean has no frontier to move, so **territorial conquest
+cannot generalise** and should not be made to. The honest split is two kinds of
+war: a *frontier* war with a contiguous neighbour, which is what exists, and an
+*expeditionary* war with everyone else, which is decided by projection, cost and
+exhaustion and ends in terms rather than in ground.
+
+**`electoral.js` and `sim.splitIn` are per-*state*, not per-country.** Nothing
+in the foreign layer touches the vote model, so this revision cannot break an
+election. Good news, and worth knowing before someone goes looking for coupling
+that is not there.
+
+### The design, in three stages
+
+1. **A roster with real relations.** A `js/powers.js` data layer keyed by ISO:
+   posture toward the United States (ally / partner / rival / adversary), bloc
+   membership (UN, NATO, USMCA, EU, ASEAN, AU, Five Eyes, NPT), a GDP proxy and
+   a military proxy. Hand-authored for the thirty or so that matter and derived
+   for the rest, held to the same standard as `atlas.js`: **a reader must be
+   able to check it against the real world.** `world.foreign` becomes lazily
+   instantiated from it — a country gets a live relationship record the first
+   time anything happens with it, so the world object does not carry 212 idle
+   objects.
+2. **Alliances as mechanics, not labels.** NATO Article 5 is the one that pays
+   for itself: attacking a member brings in the others, which makes the alliance
+   a thing a player reasons about rather than a tag. The UN gives a legitimacy
+   track — a Security Council vote that a war either has or conspicuously does
+   not, feeding approval and allied willingness. Both are small mechanics with
+   large consequences, which is the right ratio.
+3. **Soft power as instruments.** The current model is one scalar `front` per
+   war that divisions push up or down. Doctrine is wider than that and the game
+   already has most of the levers lying around unconnected: sanctions and
+   tariffs (the tax code and trade exist), aid (disbursement exists), summits
+   and treaties (exist), broadcasting and intelligence (the press and Intrigue
+   tabs exist). Each moves `hostility`, bloc alignment and a new deterrence
+   term. **Deterrence is the key idea**: a power with credible projection gets
+   what it wants without fighting, which is the actual doctrine and is currently
+   unrepresentable, because the only way to affect another country is to invade
+   it.
+
+### The combat model has to be rebalanced with it, and here is the measured trap
+
+Four constants decide every war and they are interlocked. Moving any one alone
+breaks something the others were holding up — measured, all of it:
+
+- **`OUR_ATTRITION` (0.012)** — a division lost every 52 ticks while losing, so
+  the founding army of four is gone in 208. A bicameral reinforcement bill needs
+  ~240 ticks to pass. **The army cannot outlive the bill that replaces it.**
+- Halving it alone breaks `warscale.mjs`, which holds both sides to comparable
+  bleed rates *on purpose* — it was written to fix a war where we bled sixteen
+  times faster than the enemy.
+- Halving **both** does not work either: the enemy's **rearmament** is a third
+  constant that does not scale with them, so at half attrition it offsets most
+  of their losses and the ratio collapses to 0.30 — the original bug's own
+  direction. Measured: 300 ticks of stalemate takes them from 300 strength to
+  291.
+- **Exhaustion** cuts our line by up to 40% and has no equivalent on their side,
+  and **`enemyWeight` doubles with hostility**, so a neighbour at hostility 100
+  fights like twice its headcount while ours only shrinks.
+
+So the republic loses every war, and **money is not why** — that was tested to
+destruction. Spending more buys collapse, not victories: at a 0.35 capital share
+11 of 20 republics collapsed and none won; at 1.0, 15 of 20 collapsed and three
+won. The finance side is now sound (0 of 20 collapse, defence 14% of spending);
+what is left is the combat model, and it wants one deliberate pass over all four
+constants together with `warscale.mjs` rewritten to match, not another tuned
+literal.
 
 ## Still to do
 
