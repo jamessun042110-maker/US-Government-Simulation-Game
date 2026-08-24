@@ -1260,7 +1260,25 @@ export function fillVacantSeats(world, initial = false) {
     const d = seat.district ? world.districts.find((x) => x.id === seat.district) : null;
     // A seated citizen is old enough for the chair they are seated in.
     const needAge = Math.max(0, Math.floor(+o?.minAge) || 0);
-    const p = makePersona(world, { synthetic: true, district: seat.district, party: d ? d.lean : null, minAge: needAge });
+    // An office that runs on another's ticket is filled from that ticket.
+    //
+    // `office.ticket` already says so — the Vice President carries
+    // `ticket: 'president'`, because that is how the office is won: the two names
+    // are voted for together and the country that chooses one chooses the other.
+    // Nothing read it here, so a founding Vice President was dealt a party by
+    // `makePersona`'s coin flip and came up opposite the President about half the
+    // time, which is a thing that has happened exactly once in the United States
+    // and stopped happening in 1804.
+    //
+    // Only where the running mate's own party is not already decided: a founder
+    // who took the chair themselves keeps the party they picked at the seating.
+    const ticketOf = o?.ticket
+      ? world.personas[world.seats.find((x) => x.office === o.ticket && x.personaId)?.personaId]
+      : null;
+    const p = makePersona(world, {
+      synthetic: true, district: seat.district,
+      party: ticketOf?.party || (d ? d.lean : null), minAge: needAge,
+    });
     p.bio = `Seated citizen. ${o ? o.name : 'Office'}${d ? ' for ' + d.name : ''}.`;
     seat.personaId = p.id;
     seat.since = world.clock.tick;

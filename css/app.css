@@ -719,6 +719,12 @@ table.t tr:hover td { background: var(--panel2); }
   background: var(--panel); border: 2px solid var(--line);
   box-shadow: 4px 4px 0 var(--shadow); padding: 12px 13px; z-index: 60;
   display: none; text-align: left; cursor: default;
+  /* Wrap, whatever it is standing in. The inline variant of this popover lives
+     inside .whycell, which is `white-space: nowrap` so the last column of the
+     States table cannot break — and the popover inherited it, so its prose ran
+     out of the 300px panel in one long line and drew as text on nothing with
+     the border sitting uselessly behind it. */
+  white-space: normal;
   /* Read-only popover: a pointer grazing the ? on its way to a control used
      to open 300px of click-eating panel under the cursor. Let clicks pass
      through; the popover closes as the pointer leaves the trigger anyway. */

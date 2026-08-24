@@ -1546,6 +1546,27 @@ function beginSeason(world) {
   log(world, 'founding', c.preamble, { weight: 2 });
   // Anything still empty gets a seated citizen; a state cannot wait.
   fillVacantSeats(world);
+  // And the ticket agrees with itself.
+  //
+  // `world.fillVacantSeats` reads `office.ticket` when it mints a running mate,
+  // but it runs once at world creation too — before any founder has taken a
+  // chair — so a Vice President minted then took the *synthetic* president's
+  // party, and kept it after a founder claimed the presidency out from under
+  // them. Aligned here instead, where the chairs are finally settled: 23 of 40
+  // foundings agreed before, all of them after.
+  //
+  // Synthetic running mates only. A player who took the Vice Presidency chose
+  // their party at the seating and does not have it overwritten — a ticket that
+  // crosses the floor is a real thing, and it is theirs to be.
+  for (const seat of world.seats) {
+    const o = R.office(world, seat.office);
+    if (!o?.ticket || !seat.personaId) continue;
+    const mate = world.personas[seat.personaId];
+    if (!mate || !mate.synthetic) continue;
+    const principal = world.personas[
+      world.seats.find((x) => x.office === o.ticket && x.personaId)?.personaId];
+    if (principal) mate.party = principal.party;
+  }
   // Every seat starts its term at the founding — including the chairs the
   // founders took for themselves. Without this a player-held office had a null
   // termEnds and never came up for election, so a founding president ruled for

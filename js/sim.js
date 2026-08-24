@@ -796,7 +796,30 @@ function tickFloor(world) {
           if (vp && vp.synthetic && !doc.votes[tb.personaId]) doc.votes[tb.personaId] = syntheticBallot(world, vp, doc);
         }
       }
-      if (world.clock.tick >= doc.floorCloses) {
+      // A roll that is complete is a roll that is over.
+      //
+      // The floor used to sit out its whole timer whatever the room had done —
+      // ninety ticks for a bill in each chamber and ninety for a nomination,
+      // which is four and a half canon months to answer a yes-or-no question
+      // about one person. Every synthetic member has cast by then; the chamber
+      // was waiting on a clock rather than on anybody.
+      //
+      // So it closes as soon as every eligible member has voted and the
+      // tie-breaker, if the vote needs one, has recorded a position. A human in
+      // the chamber who has not voted keeps it open, which is the point of
+      // waiting at all — the timer is there for the people who need it, not as a
+      // ceremony for the ones who have already spoken.
+      //
+      // MIN_FLOOR_TICKS keeps a token debate: a measure introduced and decided
+      // inside the same fortnight reads as no deliberation at all, and the
+      // Chronicle's account of a floor needs a floor to have happened.
+      const roll = R.electorateFor(world, doc) || [];
+      const tbNow = R.tieBreaker(world, doc);
+      const allIn = roll.length > 0
+        && roll.every((r) => doc.votes[r.personaId] != null)
+        && (!tbNow || doc.votes[tbNow.personaId] != null);
+      const sat = world.clock.tick - (doc.floorOpened ?? world.clock.tick);
+      if (world.clock.tick >= doc.floorCloses || (allIn && sat >= MIN_FLOOR_TICKS)) {
         if (doc.status === 'floor') closeFloor(world, id, { auto: true });
         else closeOverride(world, id);
       }
@@ -2206,6 +2229,16 @@ export const WAR_MOBILISE = 0.008;
  * loser of the ground bleeds half again as much, because the side losing ground
  * loses it under fire.
  */
+/**
+ * The shortest a measure may stand on a floor, however fast the room votes.
+ *
+ * Twelve ticks is about three canon weeks — long enough that a bill was read and
+ * argued over, short enough that a cabinet confirmation takes weeks rather than
+ * the four and a half months a full ninety-tick floor came to. See tickRooms,
+ * where a completed roll now closes the floor early.
+ */
+export const MIN_FLOOR_TICKS = 12;
+
 export const ENEMY_ATTRITION = 0.018;
 /**
  * NOTE (Aug 24): ours is the constant that decides whether a republic can ever

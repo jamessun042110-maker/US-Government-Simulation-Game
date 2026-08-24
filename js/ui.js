@@ -3067,9 +3067,23 @@ function cityMap(world) {
   // returns nobody; the three beside it are its electoral votes, which are the
   // only thing it does get. See electoral.js.
   if (world.dc) {
-    const c = FEDERAL_DISTRICT.at, k = 8;
+    // Five times, not eight, and it does not take clicks.
+    //
+    // At eight all five corners of the blown-up diamond landed inside the
+    // Mid-Atlantic polygon — 6.1 by 7.0 frame units of opaque fill sitting on
+    // top of a real congressional district. And the path carried no
+    // `pointer-events` (its two labels did), so it captured every click aimed at
+    // the parcel underneath and did nothing with them: the marker could not be
+    // clicked *and* stopped the state behind it being clicked, which is one
+    // fault wearing two faces.
+    //
+    // It is scenery — the federal district is not a state, holds no parcel and
+    // returns nobody — so it is drawn and then got out of the way. Five keeps
+    // the retroceded Virginia side legible at a 0.5 stroke while covering about
+    // 40% of the ground eight did.
+    const c = FEDERAL_DISTRICT.at, k = 5;
     const blow = FEDERAL_DISTRICT.poly.map(([x, y]) => [c[0] + (x - c[0]) * k, c[1] + (y - c[1]) * k]);
-    parts.push(`<path d="${GEO.pathOf(blow)}" fill="#d8cfae" stroke="#3a2f1c" stroke-opacity="0.7" stroke-width="0.5" stroke-linejoin="round"/>`);
+    parts.push(`<path d="${GEO.pathOf(blow)}" fill="#d8cfae" stroke="#3a2f1c" stroke-opacity="0.7" stroke-width="0.5" stroke-linejoin="round" pointer-events="none"/>`);
     parts.push(`<text x="${(c[0] + 4.5).toFixed(1)}" y="${(c[1] + 1).toFixed(1)}"`
       + ` font-size="3.1" font-weight="800" letter-spacing="0.3" fill="#3a2f1c"`
       + ` stroke="#e8dcc0" stroke-opacity="0.6" stroke-width="1.1" paint-order="stroke"`
