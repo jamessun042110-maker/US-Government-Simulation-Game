@@ -1,4 +1,4 @@
-# State of the Union — handoff, Aug 23 2026 (second pass)
+# State of the Union — handoff, Aug 24 2026 (third pass)
 
 Paste-into-a-new-session context for **State of the Union**, a simplified United
 States government simulator. It is a fork of the *Silver: The Living Republic*
@@ -10,10 +10,9 @@ The live code is this repo — `/Users/james/Claude Code/congressional app
 challenge`, GitHub `jamessun042110-maker/US-Government-Simulation-Game`. **The
 folder name contains spaces: quote every path.**
 
-**State:** branch **`main`**, clean, **eighteen commits on top of `e505e7e`**
-and **not pushed** (`e505e7e` and everything before it *is* pushed). Suite:
-**2,338 passed / 0 failed, 130 files**, ~35k lines of JS — of which 512 are
-generated (`worldmap.js`).
+**State:** branch **`main`**, clean, **seventeen commits on top of `e505e7e`**,
+**pushed**. Suite: **2,338 passed / 0 failed, 130 files**, ~36k lines of JS — of
+which 553 are generated (`worldmap.js`).
 
 **Do not write "the whole per-file sweep is green" without measuring it over
 repeated runs.** The previous handoff said exactly that, "with no exceptions",
@@ -604,7 +603,9 @@ executive does not detain anybody — law officers do. The Department of Justice
 is the fourth cabinet room; its tab id is **`ag`**, not `justice`, which is the
 Supreme Court's office id. It is listed *after* the Secretary of the Treasury in
 the template, because **the order of `constitution.offices` is the order the Oval
-Office's Appointments card reads the cabinet out in** — it filters that array and
+Office's Nominations card reads the cabinet out in** (it was called Appointments
+until Aug 24 — a name goes to the Senate, and the President's part ends there) —
+it filters that array and
 keeps its sequence, so the document is also the layout of that screen. Reordering
 it is not cosmetic: it changes seat order, which changes what the RNG is consumed
 on. See `termlimit.mjs` under "The flakes".
@@ -987,22 +988,27 @@ the best intermediate one:
 | | before | after |
 |---|---|---|
 | crashes / non-finite / invariant breaks | 0 | 0 |
-| republics collapsing | 24 | **16** |
-| laws passed | 435 | **1,037** |
-| buildings opened | 250 | **763** |
-| nominations filed | 559 | **343** (the duplicates are gone) |
-| treaties lapsing honestly | 0 | 246 |
-| **wars won** | **0** | **0** |
+| republics collapsing | 24 | **1** |
+| laws passed | 435 | **916** |
+| buildings opened | 250 | **858** |
+| nominations filed | 559 | **346** (the duplicates are gone) |
+| press statements from the chamber | 0 | **4,189** |
+| wars fought | 304 | **21** |
+| wars won | 0 | 2 |
 
-**Read that last row.** The war fixes are real — an intermediate configuration
-measured 46 wars won and 31 annexations where there had been 0 and 1 — but the
-constants that produced it also took collapse from 24 in 100 to 71, and a
-republic that always collapses is worse than one that always loses its wars. The
-committed constants buy stability back and hand the victories back with it. The
-gain this session banked is everything *except* the war: a government that keeps
-governing while in deficit, legislates two and a half times as much, builds
-three times as much, and no longer collapses as often. Winning a war still needs
-the balance decision below.
+Two rows need reading rather than skimming.
+
+**Collapse is 1 in 100, and that may be too few.** It was 24 before, and the
+whole third act is meant to be reachable. The founding deficit is gone
+(see "The census, and the money"), the government can borrow, and nothing is
+bankrupting anybody — which is a fixed economy and possibly a game with no
+tension left in it. **Nobody has played a Season at these numbers.** Check it
+before deciding the balance is right.
+
+**Wars fell from 304 to 21 because Canada is an ally now**, not because anything
+broke. Two allies and a trading bloc leaves nobody to fight, which is a true
+description of North America and the gap item 6 exists to fill. Of the 18 that
+were decided, 2 were won — where the whole previous run went 0 for 304.
 
 **Two cautions if you rerun this.** `world.elections` is a *rolling window*, not
 a history — it is pruned, so counting `w.elections.length` at year forty says
@@ -1012,19 +1018,24 @@ wrong one makes every vote look unrecorded.
 
 ### The open question this session did not answer
 
-**The United States cannot win a war, and money is not why.** Spending can buy
-victories — 46 of them in a hundred games — but only at a rate of borrowing that
-collapses seven republics in ten, so the committed constants do not buy them and
-the shipped game still wins none. The model is what is against it:
-`depts.enemyWeight` scales with hostility, Canada's hostility climbs to 100 and
-pins there, so Canada is worth 8-10 in the line by the time the shooting starts
-while the republic can afford about four formations. Beating that needs roughly
-six, at `UPKEEP_PER_FORMATION` — $210bn each, every year — which is 113% of
-everything the republic raises, permanently.
+**The money half of this is now fixed and the war half is not.** When it was
+first written the army cost $210bn a formation a year, beating a neighbour
+needed about six of them, and that came to 113% of everything the republic
+raised — permanently. That is gone: `UPKEEP_PER_FORMATION` is $38.5bn, the
+founding four are 14% of revenue and a wartime eleven are 40%, which a country
+can carry. See "The owner's list", item 13.
 
-Spending more does not fix it. Every capital share measured bought more collapse
-and no more victories: at a 0.35 share, 11 of 20 republics collapsed and none
-won; at 1.0, 15 of 20 collapsed and three won.
+**What is left is the combat model, and money was never its problem.** That was
+tested to destruction before the price came down: every capital share measured
+bought more collapse and no more victories — at a 0.35 share, 11 of 20 republics
+collapsed and none won; at 1.0, 15 of 20 collapsed and three won. The republic
+loses because `depts.enemyWeight` doubles a neighbour's line as hostility
+climbs while exhaustion cuts ours by up to 40% with no equivalent on their side,
+and because the army cannot outlive the bill that reinforces it (below).
+
+The measurement to beat: **21 wars across a hundred republics, 2 won.** It is a
+small sample now because Canada is an ally and there is nobody to fight, which
+is the other half of the same problem.
 
 So the question is a balance one and it belongs to the owner, not to a session
 at three in the morning. It is one of:
@@ -1041,6 +1052,43 @@ at three in the morning. It is one of:
 Pick one deliberately. Changing any of them moves the whole economy, which is
 why this session changed none of them and fixed only the gate that was
 plainly wrong.
+
+## The owner's list, Aug 24
+
+Fifteen items, given as a list. Thirteen are done and in; two are the
+architectural revisions below. Where a fix is interesting the commit says why —
+this is the index.
+
+| # | Asked for | Where it landed |
+|---|---|---|
+| 1 | Back button under "Begin the Season", same width | `ui.js` convention view — it was the last card in the *other* column |
+| 2 | Which Senate class a seat is | the chair also says whether the first term is 2, 4 or 6 years, which is what the class decides |
+| 3 | Taller ready-up button | it starts the game; it should not weigh the same as "Amend it →" |
+| 4 | Oval Office: "Nominations", `(nominated)`, off other dropdowns | the card knew nothing about the Senate half — see its commit |
+| 5 | Six world-map faults | `tools/buildworld.mjs` + the World tab; **three more countries were missing than were reported** |
+| 8 | Sea labels, and a real compass | the labels were never covered, they were illegible |
+| 9 | The founding VP shares the President's party | `office.ticket` already said so and nothing read it. 23/40 → 40/40 |
+| 10 | Approval popover text outside its border | `.help-body` inherited `white-space: nowrap` from `.whycell` |
+| 11 | Contextual press releases from members | `npc.pressRelease`, 4,189 across a hundred republics |
+| 12 | The D.C. parcel | it swallowed clicks *and* buried a Mid-Atlantic district |
+| 13 | "Why is the default −$123.7B?" | **the army was 68% of federal spending.** Now +$7.7bn |
+| 14 | Treasury borrowing that matches the real thing | `macro.issueDebt` / `redeemDebt`, a voted ceiling, and the market in the rate |
+| 15 | Confirmations should take weeks | a completed roll closes the floor: 4.5 canon months → **1.4** |
+
+Two of these are worth knowing about even if you never touch that code again.
+
+**Item 13 was not a display bug.** Four divisions cost $840bn a year against
+$1,100bn of revenue — 68% of everything the federal government spent, where the
+real United States spends about 12.6% of outlays on defence. That single number
+*was* the founding deficit, and it was also why no republic could ever afford an
+army that could win a war. Fixing it needed `ADMINISTRATION_PER_HEAD` to move in
+the opposite direction at the same time, or the republic would have opened with
+a $650bn surplus and money would have stopped being a constraint at all.
+
+**Item 5 was worse than reported.** Kazakhstan, Kosovo and Western Sahara were
+named; Cuba, Israel and Palestine were missing too and nobody had noticed,
+because a missing country does not leave a gap — the ocean shows through, and it
+looks like cartography.
 
 ## The foreign policy and military revision (items 6 and 7)
 
@@ -1164,13 +1212,19 @@ literal.
    every handoff this forked from has said so: one hand-played presidency found
    four faults nothing else had. It is more urgent than it was, not less — every
    bill now takes two floor cycles, the presidency is decided by a college, and
-   the canon year takes eight minutes. Nothing has been played at that pace.
-3. **Balance after 7 → 65 legislators, and after the thousandfold rescale.**
-   Quorum, pass fractions and floor votes run across a 45-seat House *and* a
-   20-seat Senate, and a bill needs both. The founding accounts read plausibly
-   ($22.4T output, $1.25T revenue, $1.24T spending) and unattended runs behave,
-   but the director's crisis costs, NPC bill sizes and the pace at which the
-   treasury drains are all untested by a player.
+   the canon year takes eight minutes. Nothing has been played at that pace, and
+   after Aug 24 that goes double: the budget, the war model and the foreign
+   relations all moved, and a hundred unattended republics cannot tell you
+   whether the result is any fun. See item 3.
+3. **Balance, and it has moved a long way this session.** The founding accounts
+   now read $1,102.7bn of revenue against $1,094.9bn of spending — break-even,
+   which is where they were always meant to be — with defence at 14% instead of
+   68%. Collapse over forty years fell from 24 republics in 100 to **1**, and
+   that is the number to be suspicious of: every individual fix was right and
+   together they may have removed the third act. Quorum, pass fractions and
+   floor votes across a 45-seat House and a 20-seat Senate are still untested by
+   a player, and now so is an economy nobody can bankrupt. **This wants a played
+   Season more than it wants another measurement.**
 4. **Hunt the rest of the stale rates.** Eight found, three of them in one
    earlier session and an eighth on Aug 24 (`seedStock`'s `gap > 900`, which
    meant no Retail District was ever seeded in any world). The Aug 24 sweep of
@@ -1239,6 +1293,13 @@ literal.
   solve it with `atlas.LAKES`; the strait is not in that list because `LAKES`
   also feeds `carveWater`, and adding a sea to it would let a Washington parcel
   come out as water. Same for Puget Sound, which is why the state has no Sound.
+- **Collapse is down to 1 republic in 100 over forty years, from 24, and that
+  may be too few.** The founding deficit is gone, the Treasury can borrow, and
+  the army no longer eats the budget — every one of which is a fix, and together
+  they may have taken the third act out of the game. A republic that cannot fail
+  is not obviously better than one that fails a quarter of the time. **Nobody has
+  played a Season at these numbers**; do that before deciding the balance is
+  right.
 - **The country is the real one**, seeded per state from `atlas.js` rather than
   from dice. Treat the whole census change as unplayed: it is verified by tests
   and unattended runs, not by a Season.
